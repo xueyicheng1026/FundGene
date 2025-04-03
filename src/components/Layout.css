@@ -92,12 +92,17 @@
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0;
-    margin-bottom: 60px; /* 为底部导航栏留出空间，与侧边栏高度一致 */
-    padding-bottom: var(--spacing-lg); /* 确保内容不会被底部导航栏遮挡 */
+    margin-bottom: 60px; /* 为底部导航栏留出空间 */
+    padding-bottom: calc(var(--spacing-lg) + 10px); /* 增加底部内边距 */
   }
   
   .content-area {
     padding: var(--spacing-md);
-    padding-bottom: calc(var(--spacing-md) + 30px); /* 底部添加额外的内边距，确保内容不被导航栏遮挡 */
+    padding-bottom: calc(var(--spacing-md) + 40px); /* 底部添加额外的内边距，确保内容不被导航栏遮挡 */
+  }
+  
+  /* 防止iOS中底部安全区域问题 */
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

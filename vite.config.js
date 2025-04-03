@@ -41,7 +41,8 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       port: 3000,
-      open: true
+      open: true,
+      host: true // 允许局域网内其他设备访问，便于移动设备测试
     },
     resolve: {
       alias: {
@@ -72,7 +73,9 @@ export default defineConfig(({ mode }) => {
             ui: ['antd', '@ant-design/icons']
           }
         }
-      }
+      },
+      // 优化移动设备加载性能
+      target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14']
     }
   }
 })

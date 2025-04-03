@@ -278,10 +278,13 @@
     position: fixed;
     bottom: 0;
     top: unset;
+    left: 0;
+    right: 0;
     border-right: none;
     border-top: 1px solid var(--neutral-200);
     background-color: white;
     z-index: 1000; /* 确保在其他元素上方 */
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
   }
   
   .sidebar-header,
@@ -294,6 +297,7 @@
   .sidebar-content {
     padding: 0;
     height: 100%;
+    overflow-y: visible;
   }
   
   .sidebar-nav {
@@ -331,10 +335,12 @@
     position: absolute;
     bottom: 60px; /* 与侧边栏高度匹配 */
     left: 0;
-    background-color: white;
     width: 100%;
+    background-color: white;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     border-top: 1px solid var(--neutral-200);
+    max-height: 300px; /* 限制子菜单最大高度 */
+    overflow-y: auto; /* 允许子菜单滚动 */
   }
   
   .nav-group.expanded .nav-group-items {
@@ -345,5 +351,10 @@
   .nav-subitem {
     padding: 12px 16px; /* 增加子菜单项的内边距，提高可点击性 */
     text-align: center;
+    border-bottom: 1px solid var(--neutral-100);
+  }
+  
+  .nav-subitem:last-child {
+    border-bottom: none;
   }
 }

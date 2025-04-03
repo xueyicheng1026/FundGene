@@ -62,6 +62,11 @@
   /* 页面统一顶部间距 */
   --page-top-spacing: var(--spacing-xl); /* 统一所有页面的顶部间距为较大间距 */
   
+  /* 移动设备安全区域 */
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --mobile-bottom-nav-height: 60px;
+  --mobile-content-bottom-padding: calc(var(--mobile-bottom-nav-height) + var(--safe-area-inset-bottom));
+  
   /* 边框 */
   --border-radius-sm: 0.25rem;
   --border-radius-md: 0.5rem;

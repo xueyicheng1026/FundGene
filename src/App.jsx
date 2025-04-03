@@ -82,20 +82,19 @@ const styles = `
   .main-content {
     flex: 1;
     padding: 0 var(--spacing-lg) var(--spacing-lg);
-    margin-left: 260px;
+    margin-left: 220px;
     transition: margin-left 0.3s ease;
     /* 顶部边距由各个页面组件内部控制，确保一致性 */
   }
 
   .main-content.sidebar-collapsed {
-    margin-left: 80px;
+    margin-left: 60px;
   }
 
   @media (max-width: 768px) {
     .main-content {
       margin-left: 0;
-      padding: 0 var(--spacing-md) var(--spacing-lg);
-      margin-bottom: 60px; /* 为底部导航栏预留空间 */
+      padding: 0 var(--spacing-md) calc(var(--spacing-md) + 60px); /* 增加底部内边距，确保内容不被底部导航栏遮挡 */
     }
     
     .main-content.sidebar-collapsed {
