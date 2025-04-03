@@ -30,11 +30,31 @@
 .sidebar-toggle {
   background: none;
   border: none;
-  color: white;
   font-size: 1.5rem;
+  color: var(--text-primary);
   cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-right: var(--spacing-md);
-  padding: var(--spacing-xs);
+  transition: color 0.2s;
+}
+
+.sidebar-toggle:hover {
+  color: var(--primary-color);
+}
+
+@media (max-width: 768px) {
+  .sidebar-toggle {
+    font-size: 1.75rem;
+    margin-right: var(--spacing-sm);
+    padding: 0.25rem;
+  }
+  
+  .logo {
+    font-size: 1.25rem;
+  }
 }
 
 .logo-link {

@@ -270,51 +270,54 @@
   color: var(--text-tertiary);
 }
 
-/* 移动设备适配 */
+/* 移动设备适配 - 修改为保持侧边栏在左侧 */
 @media (max-width: 768px) {
   .sidebar {
-    width: 100%;
-    height: 60px; /* 固定高度，使底部导航栏不会过高 */
+    width: 60px; /* 缩小宽度但保持在左侧 */
     position: fixed;
-    bottom: 0;
-    top: unset;
+    top: 64px; /* 保持在顶部下方 */
     left: 0;
-    right: 0;
-    border-right: none;
-    border-top: 1px solid var(--neutral-200);
+    height: calc(100vh - 64px);
+    z-index: 1000;
     background-color: white;
-    z-index: 1000; /* 确保在其他元素上方 */
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    border-right: 1px solid var(--neutral-200);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
   }
   
-  .sidebar-header,
-  .sidebar-footer,
+  .sidebar.collapsed {
+    width: 0; /* 完全折叠时隐藏 */
+    overflow: hidden;
+  }
+  
+  .sidebar-header {
+    display: none; /* 隐藏头部 */
+  }
+  
+  .sidebar-footer {
+    display: none; /* 隐藏底部 */
+  }
+  
   .nav-text,
   .arrow-icon {
-    display: none;
+    display: none; /* 隐藏文本和箭头 */
   }
   
   .sidebar-content {
     padding: 0;
-    height: 100%;
-    overflow-y: visible;
+    overflow-y: auto;
   }
   
   .sidebar-nav {
-    flex-direction: row;
-    justify-content: space-around;
-    height: 100%;
+    flex-direction: column; /* 保持垂直排列 */
   }
   
   .nav-item,
   .nav-group-header {
-    flex: 1;
-    padding: 10px 8px;
+    padding: 16px 0;
+    display: flex;
     flex-direction: column;
-    gap: 4px;
-    text-align: center;
+    align-items: center;
     justify-content: center;
-    height: 100%;
   }
   
   .nav-icon {
@@ -324,37 +327,42 @@
   
   .nav-item.active::before,
   .nav-group-header.active::before {
-    top: 0;
     left: 0;
-    width: 100%;
-    height: 3px;
+    top: 0;
+    width: 3px;
+    height: 100%;
   }
   
+  /* 子菜单在点击时弹出 */
   .nav-group-items {
-    display: none;
     position: absolute;
-    bottom: 60px; /* 与侧边栏高度匹配 */
-    left: 0;
-    width: 100%;
+    left: 60px; /* 与侧边栏宽度匹配 */
+    top: 0; /* 相对于父元素定位 */
+    width: 200px;
     background-color: white;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-    border-top: 1px solid var(--neutral-200);
-    max-height: 300px; /* 限制子菜单最大高度 */
-    overflow-y: auto; /* 允许子菜单滚动 */
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--neutral-200);
   }
   
   .nav-group.expanded .nav-group-items {
-    display: flex;
-    flex-direction: column;
+    display: block;
+    max-height: none;
   }
   
   .nav-subitem {
-    padding: 12px 16px; /* 增加子菜单项的内边距，提高可点击性 */
-    text-align: center;
-    border-bottom: 1px solid var(--neutral-100);
+    padding: 12px 16px;
+    text-align: left;
+  }
+}
+
+/* 超小屏幕设备进一步优化 */
+@media (max-width: 480px) {
+  .sidebar {
+    width: 50px;
   }
   
-  .nav-subitem:last-child {
-    border-bottom: none;
+  .nav-group-items {
+    left: 50px;
+    width: 180px;
   }
 }

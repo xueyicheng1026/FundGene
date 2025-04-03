@@ -91,9 +91,12 @@
 
 @media (max-width: 768px) {
   .main-content {
+    margin-left: 60px; /* 与侧边栏宽度匹配 */
+    padding: var(--spacing-md);
+  }
+  
+  .sidebar.collapsed ~ .main-content {
     margin-left: 0;
-    margin-bottom: 60px; /* 为底部导航栏留出空间 */
-    padding-bottom: calc(var(--spacing-lg) + 10px); /* 增加底部内边距 */
   }
   
   .content-area {
@@ -104,5 +107,16 @@
   /* 防止iOS中底部安全区域问题 */
   body {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    margin-left: 50px; /* 与超小屏幕设备侧边栏宽度匹配 */
+    padding: var(--spacing-sm);
+  }
+  
+  .content-area {
+    padding: var(--spacing-sm);
   }
 }

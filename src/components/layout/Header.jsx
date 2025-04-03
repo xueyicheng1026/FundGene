@@ -4,7 +4,7 @@ import { AuthContext } from '../../contexts/AuthContext';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import './Header.css';
 
-const Header = ({ toggleSidebar }) => {
+const Header = ({ toggleSidebar, sidebarCollapsed }) => {
   const { user, logout } = useContext(AuthContext);
   const { theme, toggleTheme } = useContext(ThemeContext);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -23,8 +23,12 @@ const Header = ({ toggleSidebar }) => {
     <header className="header">
       <div className="header-container">
         <div className="header-left">
-          <button className="sidebar-toggle" onClick={toggleSidebar}>
-            ☰
+          <button 
+            className="sidebar-toggle" 
+            onClick={toggleSidebar}
+            aria-label="切换侧边栏"
+          >
+            {sidebarCollapsed ? '☰' : '✕'}
           </button>
           <Link to="/" className="logo-link">
             <span className="logo">FundGene</span>

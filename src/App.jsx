@@ -93,12 +93,19 @@ const styles = `
 
   @media (max-width: 768px) {
     .main-content {
-      margin-left: 0;
-      padding: 0 var(--spacing-md) calc(var(--spacing-md) + 60px); /* 增加底部内边距，确保内容不被底部导航栏遮挡 */
+      margin-left: 60px; /* 与侧边栏宽度匹配 */
+      padding: 0 var(--spacing-md) var(--spacing-md);
     }
     
     .main-content.sidebar-collapsed {
-      margin-left: 0;
+      margin-left: 0; /* 侧边栏完全折叠时不预留空间 */
+    }
+  }
+
+  @media (max-width: 480px) {
+    .main-content {
+      margin-left: 50px; /* 与超小屏幕设备侧边栏宽度匹配 */
+      padding: 0 var(--spacing-sm) var(--spacing-sm);
     }
   }
 `;

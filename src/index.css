@@ -119,7 +119,7 @@ input, select, textarea, button {
 /* 响应式调整 */
 @media (max-width: 768px) {
   .main-content {
-    margin-left: 0;
+    margin-left: 60px; /* 与侧边栏宽度匹配 */
     margin-bottom: 60px; /* 为底部导航栏留出空间 */
   }
   
@@ -145,5 +145,30 @@ input, select, textarea, button {
     padding: var(--spacing-md) var(--spacing-md);
     padding-top: var(--page-top-spacing); /* 保持统一的顶部间距 */
     padding-bottom: calc(var(--spacing-md) + 70px); /* 增加底部间距，确保内容不被底部导航栏遮挡 */
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    margin-left: 50px; /* 与超小屏幕设备侧边栏宽度匹配 */
+  }
+  
+  .page-container,
+  .dashboard-page,
+  .portfolio-page,
+  .portfolio-rebalance-page,
+  .decision-comparison-page,
+  .news-analysis-page,
+  .policy-analysis-page,
+  .behavior-profile-page,
+  .behavior-alerts-page,
+  .chat-interface-page,
+  .scenario-simulation-page,
+  .learning-center-page,
+  .course-detail-page,
+  .trading-simulation-page,
+  .behavior-correction-page {
+    padding: var(--spacing-sm);
+    padding-top: var(--page-top-spacing);
   }
 }
