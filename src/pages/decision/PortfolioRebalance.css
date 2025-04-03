@@ -1,0 +1,6 @@
+.portfolio-rebalance-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-md) 0;
+  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
+}

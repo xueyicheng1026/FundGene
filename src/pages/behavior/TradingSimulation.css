@@ -1,0 +1,58 @@
+.trading-simulation-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-md) 0;
+  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
+}
+
+.page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  max-width: 800px;
+  line-height: 1.6;
+}
+
+.trading-simulation-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
+.portfolio-trade-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.market-overview-card,
+.portfolio-card,
+.trade-card,
+.trade-history-card,
+.behavior-feedback-card {
+  padding: var(--spacing-lg);
+}
+
+.section-title {
+  margin-top: 0;
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+}
+
+/* 响应式设计 */
+@media (max-width: 992px) {
+  .portfolio-trade-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="description" content="FundGene - 基于AI的基金投资助手，帮助您做出更理性的投资决策" />
+    <!-- 添加PWA支持的Apple meta标签 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FundGene">
+    <link rel="apple-touch-icon" href="./logo192.png">
+    <!-- 添加manifest文件引用 -->
+    <link rel="manifest" href="./manifest.json" />
+    <title>FundGene - 基于AI的基金投资助手</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <!-- 添加Service Worker注册 -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./serviceWorker.js')
+            .then(reg => console.log('Service worker registered'))
+            .catch(err => console.log('Service worker not registered', err));
+        });
+      }
+    </script>
+  </body>
+</html>

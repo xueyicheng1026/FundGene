@@ -1,0 +1,280 @@
+.policy-list-page,
+.policy-detail-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: calc(var(--page-top-spacing) + var(--spacing-lg)); /* 增加顶部间距 */
+}
+
+.page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  max-width: 800px;
+  line-height: 1.6;
+}
+
+/* 政策列表样式 */
+.policies-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.policy-card {
+  background-color: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.policy-card.preview {
+  cursor: pointer;
+  transition: var(--transition-default);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.policy-card.preview:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+.policy-header {
+  margin-bottom: var(--spacing-md);
+}
+
+.policy-title {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.policy-meta {
+  display: flex;
+  align-items: center;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.policy-issuer {
+  margin-right: var(--spacing-md);
+}
+
+.policy-summary {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.6;
+  /* 文本截断 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.policy-impact-preview {
+  margin-bottom: var(--spacing-md);
+}
+
+.impact-preview-title {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.impact-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.impact-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+  color: white;
+}
+
+.impact-tag.positive {
+  background-color: var(--success-color);
+}
+
+.impact-tag.negative {
+  background-color: var(--error-color);
+}
+
+.impact-tag.neutral {
+  background-color: var(--neutral-500);
+}
+
+.impact-tag.more {
+  background-color: var(--neutral-400);
+}
+
+.policy-card-footer {
+  margin-top: auto;
+  padding-top: var(--spacing-md);
+}
+
+.view-detail-button {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: none;
+  padding: var(--spacing-xs) 0;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  text-align: left;
+}
+
+.view-detail-button:hover {
+  text-decoration: underline;
+}
+
+/* 政策详情页样式 */
+.back-button {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: none;
+  padding: var(--spacing-xs) 0;
+  margin-bottom: var(--spacing-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}
+
+.back-button::before {
+  content: '←';
+  margin-right: var(--spacing-xs);
+}
+
+.section-title {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+.subsection-title {
+  font-size: var(--font-size-lg);
+  margin: var(--spacing-lg) 0 var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.policy-analysis {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-lg);
+}
+
+.policy-analysis-page {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: var(--spacing-md) 0;
+  padding-top: calc(var(--page-top-spacing) + var(--spacing-lg)); /* 增加顶部间距 */
+}
+
+.sector-impacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.impact-item {
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+}
+
+.impact-item.impact-positive {
+  background-color: rgba(16, 185, 129, 0.1);
+  border-left: 4px solid var(--success-color);
+}
+
+.impact-item.impact-negative {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-left: 4px solid var(--error-color);
+}
+
+.impact-item.impact-neutral {
+  background-color: rgba(107, 114, 128, 0.1);
+  border-left: 4px solid var(--neutral-500);
+}
+
+.impact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.sector-name {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  margin: 0;
+}
+
+.impact-effect {
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  color: white;
+}
+
+.impact-positive .impact-effect {
+  background-color: var(--success-color);
+}
+
+.impact-negative .impact-effect {
+  background-color: var(--error-color);
+}
+
+.impact-neutral .impact-effect {
+  background-color: var(--neutral-500);
+}
+
+.impact-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.related-funds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.fund-item {
+  background-color: var(--neutral-100);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .policies-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .sector-impacts {
+    grid-template-columns: 1fr;
+  }
+}

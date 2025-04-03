@@ -1,0 +1,353 @@
+/* 市场概览组件样式 */
+.market-overview {
+  margin-bottom: var(--spacing-md);
+}
+
+.subsection-title {
+  font-size: var(--font-size-md);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+/* 指数卡片 */
+.index-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.index-card {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  width: calc(25% - var(--spacing-md));
+  min-width: 150px;
+}
+
+.index-card.positive {
+  background-color: rgba(16, 185, 129, 0.1);
+  border-left: 3px solid var(--success-color);
+}
+
+.index-card.negative {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid var(--error-color);
+}
+
+.index-name {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.index-value {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.index-change {
+  font-size: var(--font-size-sm);
+}
+
+.index-card.positive .index-change {
+  color: var(--success-color);
+}
+
+.index-card.negative .index-change {
+  color: var(--error-color);
+}
+
+.change-value {
+  margin-left: var(--spacing-sm);
+  opacity: 0.8;
+}
+
+/* 基金表格 */
+.funds-table,
+.holdings-table,
+.trades-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.funds-table th,
+.funds-table td,
+.holdings-table th,
+.holdings-table td,
+.trades-table th,
+.trades-table td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.funds-table th,
+.holdings-table th,
+.trades-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: var(--neutral-50);
+}
+
+.positive {
+  color: var(--success-color);
+}
+
+.negative {
+  color: var(--error-color);
+}
+
+/* 投资组合概览样式 */
+.portfolio-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-value {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+}
+
+.stat-secondary {
+  font-size: var(--font-size-sm);
+  opacity: 0.8;
+  margin-left: var(--spacing-xs);
+}
+
+.fund-name {
+  font-weight: 500;
+}
+
+.fund-code {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.profit-value {
+  display: block;
+  font-size: var(--font-size-xs);
+  opacity: 0.9;
+}
+
+/* 交易表单样式 */
+.trade-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.trade-type-selector {
+  display: flex;
+  margin-bottom: var(--spacing-sm);
+}
+
+.trade-type-option {
+  flex: 1;
+  text-align: center;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-300);
+  background-color: var(--neutral-50);
+  cursor: pointer;
+}
+
+.trade-type-option:first-child {
+  border-radius: var(--border-radius-md) 0 0 var(--border-radius-md);
+}
+
+.trade-type-option:last-child {
+  border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
+}
+
+.trade-type-option.selected {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.trade-type-option input {
+  display: none;
+}
+
+.fund-select,
+.amount-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-300);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-md);
+}
+
+.fund-select:focus,
+.amount-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.amount-input.invalid {
+  border-color: var(--error-color);
+}
+
+.input-error {
+  color: var(--error-color);
+  font-size: var(--font-size-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.available-info {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  margin-top: var(--spacing-xs);
+}
+
+.trade-preview {
+  background-color: var(--neutral-50);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.preview-title {
+  font-size: var(--font-size-sm);
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.preview-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+}
+
+.preview-label {
+  color: var(--text-tertiary);
+}
+
+.trade-result {
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+.trade-result.success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success-color);
+}
+
+.trade-result.error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+}
+
+.submit-button {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-default);
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: var(--primary-dark);
+}
+
+.submit-button:disabled {
+  background-color: var(--neutral-400);
+  cursor: not-allowed;
+}
+
+/* 交易历史样式 */
+.trade-action {
+  font-weight: 500;
+}
+
+.trade-action.buy {
+  color: var(--success-color);
+}
+
+.trade-action.sell {
+  color: var(--error-color);
+}
+
+.trade-shares,
+.trade-amount {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.trade-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+}
+
+.trade-status.completed {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success-color);
+}
+
+.trade-status.pending {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--accent-color);
+}
+
+.trade-status.failed {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-tertiary);
+  background-color: var(--neutral-50);
+  border-radius: var(--border-radius-md);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .index-card {
+    width: calc(50% - var(--spacing-md));
+  }
+
+  .funds-table,
+  .holdings-table,
+  .trades-table {
+    display: block;
+    overflow-x: auto;
+  }
+}

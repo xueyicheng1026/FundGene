@@ -1,0 +1,101 @@
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--primary-color);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.app-header {
+  background: #fff;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  z-index: 1;
+}
+
+.trigger {
+  font-size: 18px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.username {
+  margin-left: 8px;
+}
+
+.app-content {
+  margin: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: #fff;
+  border-radius: var(--border-radius-md);
+  min-height: 280px;
+  overflow: auto;
+}
+
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-container {
+  display: flex;
+  flex: 1;
+  margin-top: 64px; /* 与Header高度匹配 */
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-left: 220px; /* 与侧边栏宽度一致 */
+  transition: margin-left 0.3s;
+  padding-top: 0; /* 重置为0，让子页面统一使用 --page-top-spacing */
+}
+
+.main-content.sidebar-closed {
+  margin-left: 64px; /* 与折叠后的Sidebar宽度匹配 */
+}
+
+/* 当侧边栏折叠时调整内容区域 */
+.sidebar.collapsed ~ .main-content {
+  margin-left: 60px; /* 与折叠后的侧边栏宽度一致 */
+}
+
+.content-area {
+  flex: 1;
+  padding: var(--page-padding-y) var(--page-padding-x);
+  padding-top: var(--page-top-spacing); /* 添加统一的顶部间距 */
+  background-color: var(--background-light);
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    margin-bottom: 60px; /* 为底部导航栏留出空间 */
+  }
+  
+  .content-area {
+    padding: var(--spacing-md);
+  }
+}

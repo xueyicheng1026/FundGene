@@ -1,0 +1,45 @@
+.card {
+  background-color: white;
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+}
+
+.cardBordered {
+  border: 1px solid var(--neutral-200);
+}
+
+.cardShadowNone {
+  box-shadow: none;
+}
+
+.cardShadowSm {
+  box-shadow: var(--shadow-sm);
+}
+
+.cardShadowMd {
+  box-shadow: var(--shadow-md);
+}
+
+.cardShadowLg {
+  box-shadow: var(--shadow-lg);
+}
+
+.cardPaddingNone {
+  padding: 0;
+}
+
+.cardPaddingSm {
+  padding: var(--spacing-sm);
+}
+
+.cardPaddingMd {
+  padding: var(--spacing-md);
+}
+
+.cardPaddingLg {
+  padding: var(--spacing-lg);
+}
+
+.cardPaddingXl {
+  padding: var(--spacing-xl);
+}

@@ -1,0 +1,86 @@
+/* 响应式布局变量 */
+:root {
+  /* 基础间距 - 在不同设备上调整大小 */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  
+  /* 内容宽度配置 */
+  --content-max-width: 1200px;
+  
+  /* 响应式网格布局断点 */
+  --breakpoint-sm: 576px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 992px;
+  --breakpoint-xl: 1200px;
+  
+  /* 字体大小 */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  
+  /* 触摸目标大小（移动端的按钮等至少要有这个高度以方便点击） */
+  --touch-target-size: 44px;
+}
+
+/* 平板设备 */
+@media (max-width: 992px) {
+  :root {
+    --spacing-xl: 1.75rem;
+    --spacing-2xl: 2.5rem;
+    
+    /* 减小字体大小以适应平板 */
+    --font-size-3xl: 1.75rem;
+    --font-size-4xl: 2rem;
+    
+    /* 调整页面内边距 */
+    --page-padding-x: var(--spacing-md);
+  }
+}
+
+/* 移动设备 */
+@media (max-width: 576px) {
+  :root {
+    /* 进一步减小间距 */
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --spacing-2xl: 2rem;
+    
+    /* 减小字体大小以适应手机屏幕 */
+    --font-size-xl: 1.125rem;
+    --font-size-2xl: 1.25rem;
+    --font-size-3xl: 1.5rem;
+    --font-size-4xl: 1.75rem;
+    
+    /* 调整页面内边距 */
+    --page-padding-x: var(--spacing-sm);
+    --page-padding-y: var(--spacing-sm);
+    
+    /* 调整顶部间距 */
+    --page-top-spacing: var(--spacing-lg);
+  }
+}
+
+/* 针对小屏幕手机的特别调整 */
+@media (max-width: 360px) {
+  :root {
+    --font-size-md: 0.9375rem;
+    --spacing-md: 0.75rem;
+  }
+}
+
+/* 安全区域变量（特别针对iPhone X及以上的刘海屏） */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+}

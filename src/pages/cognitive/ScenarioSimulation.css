@@ -1,0 +1,208 @@
+.scenario-simulation-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-md) 0;
+  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
+}
+
+.page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  max-width: 800px;
+  line-height: 1.6;
+}
+
+/* 场景卡片网格 */
+.scenarios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.scenario-card {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.scenario-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+}
+
+.scenario-card.completed {
+  border-top: 4px solid var(--success-color);
+}
+
+.completion-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: var(--success-color);
+  color: white;
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+}
+
+.scenario-title {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.scenario-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-md);
+}
+
+.scenario-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scenario-meta {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.scenario-difficulty,
+.scenario-duration {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.scenario-tags {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.scenario-tag {
+  background-color: var(--neutral-100);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+}
+
+.scenario-tag.more {
+  background-color: var(--neutral-300);
+  color: var(--text-light);
+}
+
+/* 场景详情 */
+.scenario-detail-card {
+  margin-bottom: var(--spacing-xl);
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  padding: 0;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+}
+
+.back-button::before {
+  content: '←';
+  margin-right: var(--spacing-xs);
+}
+
+.scenario-detail-header {
+  margin-bottom: var(--spacing-md);
+}
+
+.scenario-detail-header .scenario-title {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-xs);
+}
+
+.scenario-detail-header .scenario-meta {
+  margin-bottom: var(--spacing-md);
+}
+
+.scenario-detail-card .scenario-description {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.scenario-detail-card .scenario-tags {
+  margin-bottom: var(--spacing-xl);
+}
+
+.section-title {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.scenario-background {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-lg);
+}
+
+.learning-objectives,
+.scenario-steps {
+  padding-left: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.learning-objectives li,
+.scenario-steps li {
+  margin-bottom: var(--spacing-sm);
+}
+
+.scenario-actions {
+  margin-top: var(--spacing-xl);
+  display: flex;
+  justify-content: center;
+}
+
+.start-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.start-button:hover:not(:disabled) {
+  background-color: var(--primary-dark);
+}
+
+.start-button:disabled {
+  background-color: var(--neutral-400);
+  cursor: not-allowed;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .scenarios-grid {
+    grid-template-columns: 1fr;
+  }
+}

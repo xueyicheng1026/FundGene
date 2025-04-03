@@ -1,0 +1,139 @@
+/* 导入变量定义 */
+@import './styles/variables.css';
+
+/* 全局重置和基础样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  font-family: var(--font-family);
+  font-size: 16px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  background-color: var(--neutral-50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex: 1;
+  padding: var(--spacing-md);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-xl);
+  font-size: var(--font-size-lg);
+  color: var(--text-secondary);
+}
+
+.error {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+  margin: var(--spacing-md) 0;
+}
+
+/* 表单元素基础样式 */
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* 基础动画 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* 辅助类 */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+.mt-auto { margin-top: auto; }
+.mb-auto { margin-bottom: auto; }
+
+/* 统一的页面容器 */
+.page-container,
+.dashboard-page,
+.portfolio-page,
+.portfolio-rebalance-page,
+.decision-comparison-page,
+.news-analysis-page,
+.policy-analysis-page,
+.behavior-profile-page,
+.behavior-alerts-page,
+.chat-interface-page,
+.scenario-simulation-page,
+.learning-center-page,
+.course-detail-page,
+.trading-simulation-page,
+.behavior-correction-page {
+  max-width: var(--page-max-width, 1200px);
+  margin: 0 auto;
+  padding: var(--page-padding-y, 1.5rem) var(--page-padding-x, 1.5rem);
+  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
+  width: 100%;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .page-container,
+  .dashboard-page,
+  .portfolio-page,
+  .portfolio-rebalance-page,
+  .decision-comparison-page,
+  .news-analysis-page,
+  .policy-analysis-page,
+  .behavior-profile-page,
+  .behavior-alerts-page,
+  .chat-interface-page,
+  .scenario-simulation-page,
+  .learning-center-page,
+  .course-detail-page,
+  .trading-simulation-page,
+  .behavior-correction-page {
+    padding: var(--spacing-md) var(--spacing-md);
+    padding-top: var(--page-top-spacing); /* 保持统一的顶部间距 */
+  }
+}

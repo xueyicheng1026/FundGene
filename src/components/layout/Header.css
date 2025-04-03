@@ -1,0 +1,103 @@
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000; /* 确保头部在侧边栏之上 */
+  height: 64px;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  padding: 0 var(--spacing-lg);
+}
+
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  margin-right: var(--spacing-md);
+  padding: var(--spacing-xs);
+}
+
+.logo-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  font-size: var(--font-size-lg);
+  font-weight: bold;
+  /* 彩色渐变效果 */
+  background: linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  
+  /* 增加一些立体感和大小 */
+  font-size: 1.8rem;
+  letter-spacing: 1px;
+  padding: 0 5px;
+  
+  /* 增强显示效果 */
+  text-decoration: none;
+  display: inline-block;
+  text-shadow: none; /* 移除之前的文本阴影，因为使用了渐变色 */
+}
+
+/* 添加一个悬停效果，鼠标移上去时变化 */
+.logo:hover {
+  background: linear-gradient(45deg, #a18cd1 0%, #fbc2eb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transform: scale(1.05);
+  transition: all 0.3s ease;
+}
+
+.theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-lg);
+  margin-right: var(--spacing-md);
+  padding: var(--spacing-xs);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+}
+
+.user-name {
+  margin-right: var(--spacing-md);
+}
+
+.logout-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

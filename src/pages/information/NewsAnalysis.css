@@ -1,0 +1,139 @@
+.news-list-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: calc(var(--page-top-spacing) + var(--spacing-lg)); /* 增加顶部间距 */
+}
+
+.page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  max-width: 800px;
+  line-height: 1.6;
+}
+
+.news-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.news-card {
+  background-color: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-lg);
+  transition: var(--transition-default);
+}
+
+.news-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.news-header {
+  margin-bottom: var(--spacing-md);
+}
+
+.news-title {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.news-meta {
+  display: flex;
+  align-items: center;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.news-source {
+  margin-right: var(--spacing-md);
+  font-weight: 500;
+}
+
+.news-summary {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.6;
+}
+
+.news-impact {
+  background-color: rgba(16, 185, 129, 0.1);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.impact-title {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-sm);
+  color: var(--secondary-color);
+}
+
+.impact-content {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.relevant-funds {
+  margin-top: var(--spacing-md);
+}
+
+.funds-title {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.funds-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.fund-tag {
+  background-color: var(--neutral-100);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.pagination-placeholder {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background-color: var(--neutral-100);
+  border-radius: var(--border-radius-md);
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.news-analysis-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-md) 0;
+  padding-top: calc(var(--page-top-spacing) + var(--spacing-lg)); /* 增加顶部间距 */
+}
+
+@media (max-width: 768px) {
+  .news-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .news-source {
+    margin-bottom: var(--spacing-xs);
+  }
+}

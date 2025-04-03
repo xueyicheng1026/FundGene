@@ -1,0 +1,393 @@
+.behavior-profile-page {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: var(--page-padding-y) var(--page-padding-x);
+  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
+}
+
+.page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  max-width: 800px;
+  line-height: 1.6;
+}
+
+.behavior-profile-overview {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.card-title {
+  font-size: var(--font-size-lg);
+  margin-top: 0;
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-primary);
+}
+
+/* 风险得分卡片 */
+.risk-score-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.score-circle {
+  width: 120px;
+  height: 120px;
+  margin-bottom: var(--spacing-md);
+}
+
+.score-circle.large {
+  width: 150px;
+  height: 150px;
+}
+
+.score-circle svg {
+  width: 100%;
+  height: 100%;
+}
+
+.score-bg {
+  fill: none;
+  stroke: var(--neutral-200);
+  stroke-width: 3;
+}
+
+.score-fill {
+  fill: none;
+  stroke: var(--primary-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transform: rotate(90deg);
+  transform-origin: center;
+  transition: stroke-dasharray 0.5s;
+}
+
+.score-fill.knowledge {
+  stroke: var(--secondary-color);
+}
+
+.score-text {
+  font-size: 8px;
+  text-anchor: middle;
+  fill: var(--text-primary);
+  font-weight: bold;
+}
+
+.score-description {
+  margin-top: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.score-label {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+  background-color: var(--primary-color);
+  color: white;
+  margin-top: var(--spacing-sm);
+}
+
+/* 交易风格卡片 */
+.trade-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-value {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.style-analysis {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* 雷达图卡片 */
+.radar-chart-card {
+  margin-bottom: var(--spacing-xl);
+}
+
+.chart-container {
+  height: 400px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.chart-description {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* 偏差部分 */
+.section-title {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-primary);
+}
+
+.bias-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.bias-card {
+  position: relative;
+  overflow: visible;
+}
+
+.bias-card.high::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: var(--error-color);
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+.bias-card.medium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: var(--warning-color);
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+.bias-card.low::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: var(--success-color);
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+.bias-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.bias-name {
+  font-size: var(--font-size-lg);
+  margin: 0;
+}
+
+.bias-severity {
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  color: white;
+}
+
+.bias-severity.high {
+  background-color: var(--error-color);
+}
+
+.bias-severity.medium {
+  background-color: var(--warning-color);
+}
+
+.bias-severity.low {
+  background-color: var(--success-color);
+}
+
+.bias-score {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.score-bar {
+  flex: 1;
+  height: 8px;
+  background-color: var(--neutral-200);
+  border-radius: var(--border-radius-full);
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: var(--border-radius-full);
+}
+
+.bias-description {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-md);
+}
+
+.suggestions-title {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.suggestions-list {
+  padding-left: var(--spacing-lg);
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+.suggestions-list li {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* 知识评估卡片 */
+.knowledge-evaluation-card {
+  margin-bottom: var(--spacing-xl);
+}
+
+.knowledge-score {
+  display: flex;
+  gap: var(--spacing-xl);
+  align-items: center;
+}
+
+.knowledge-description {
+  flex: 1;
+}
+
+.knowledge-areas {
+  margin-top: var(--spacing-md);
+}
+
+.knowledge-areas h4 {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.knowledge-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.knowledge-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+}
+
+.knowledge-tag.strength {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success-color);
+}
+
+.knowledge-tag.weakness {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+}
+
+/* 行为改进计划 */
+.action-plan-card {
+  margin-bottom: var(--spacing-xl);
+}
+
+.action-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.action-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.action-title {
+  font-size: var(--font-size-lg);
+  margin: 0;
+}
+
+.action-priority {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.action-description {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-md);
+}
+
+.steps-title {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.steps-list {
+  padding-left: var(--spacing-xl);
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+.steps-list li {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 响应式调整 */
+@media (max-width: 992px) {
+  .behavior-profile-overview {
+    grid-template-columns: 1fr;
+  }
+  
+  .knowledge-score {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .bias-cards {
+    grid-template-columns: 1fr;
+  }
+}

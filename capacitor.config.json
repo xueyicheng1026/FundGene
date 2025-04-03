@@ -1,0 +1,9 @@
+{
+  "appId": "com.fundgene.app",
+  "appName": "FundGene",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

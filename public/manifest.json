@@ -1,0 +1,28 @@
+{
+  "short_name": "FundGene",
+  "name": "FundGene - AI基金助手",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "description": "基于AI的基金投资助手，帮助您做出更理性的投资决策",
+  "categories": ["finance", "productivity", "education"]
+}
