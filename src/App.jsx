@@ -94,7 +94,8 @@ const styles = `
   @media (max-width: 768px) {
     .main-content {
       margin-left: 0;
-      padding: 0 var(--spacing-md) var(--spacing-md);
+      padding: 0 var(--spacing-md) var(--spacing-lg);
+      margin-bottom: 60px; /* 为底部导航栏预留空间 */
     }
     
     .main-content.sidebar-collapsed {

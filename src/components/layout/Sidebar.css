@@ -274,12 +274,14 @@
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
-    height: auto;
+    height: 60px; /* 固定高度，使底部导航栏不会过高 */
     position: fixed;
     bottom: 0;
     top: unset;
     border-right: none;
     border-top: 1px solid var(--neutral-200);
+    background-color: white;
+    z-index: 1000; /* 确保在其他元素上方 */
   }
   
   .sidebar-header,
@@ -291,11 +293,13 @@
   
   .sidebar-content {
     padding: 0;
+    height: 100%;
   }
   
   .sidebar-nav {
     flex-direction: row;
     justify-content: space-around;
+    height: 100%;
   }
   
   .nav-item,
@@ -305,10 +309,13 @@
     flex-direction: column;
     gap: 4px;
     text-align: center;
+    justify-content: center;
+    height: 100%;
   }
   
   .nav-icon {
     margin-right: 0;
+    font-size: 20px; /* 稍微增大图标尺寸，使其在移动设备上更易点击 */
   }
   
   .nav-item.active::before,
@@ -322,14 +329,21 @@
   .nav-group-items {
     display: none;
     position: absolute;
-    bottom: 60px;
+    bottom: 60px; /* 与侧边栏高度匹配 */
+    left: 0;
     background-color: white;
     width: 100%;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--neutral-200);
   }
   
   .nav-group.expanded .nav-group-items {
     display: flex;
     flex-direction: column;
+  }
+  
+  .nav-subitem {
+    padding: 12px 16px; /* 增加子菜单项的内边距，提高可点击性 */
+    text-align: center;
   }
 }

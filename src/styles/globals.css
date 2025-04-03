@@ -235,6 +235,25 @@ p {
   .page-container {
     padding: var(--spacing-md) var(--spacing-md);
   }
+  
+  /* 添加移动端底部间距 */
+  .page-container,
+  .dashboard-page,
+  .portfolio-page,
+  .portfolio-rebalance-page,
+  .decision-comparison-page,
+  .news-analysis-page,
+  .policy-analysis-page,
+  .behavior-profile-page,
+  .behavior-alerts-page,
+  .chat-interface-page,
+  .scenario-simulation-page,
+  .learning-center-page,
+  .course-detail-page,
+  .trading-simulation-page,
+  .behavior-correction-page {
+    padding-bottom: calc(var(--spacing-md) + 60px); /* 确保内容区域不被底部导航栏遮挡 */
+  }
 }
 
 @media (max-width: 640px) {

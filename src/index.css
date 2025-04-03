@@ -118,6 +118,15 @@ input, select, textarea, button {
 
 /* 响应式调整 */
 @media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    margin-bottom: 60px; /* 为底部导航栏留出空间 */
+  }
+  
+  .content-area {
+    padding: var(--spacing-md);
+  }
+  
   .page-container,
   .dashboard-page,
   .portfolio-page,
@@ -135,5 +144,6 @@ input, select, textarea, button {
   .behavior-correction-page {
     padding: var(--spacing-md) var(--spacing-md);
     padding-top: var(--page-top-spacing); /* 保持统一的顶部间距 */
+    padding-bottom: calc(var(--spacing-md) + 60px); /* 确保内容不被底部导航栏遮挡 */
   }
 }
