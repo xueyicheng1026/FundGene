@@ -32,6 +32,10 @@ const DecisionComparison = PlaceholderComponent('决策对比');
 import NewsAnalysis from './pages/information/NewsAnalysis';
 import PolicyAnalysis from './pages/information/PolicyAnalysis';
 
+// 用户相关页面
+import UserProfile from './pages/user/UserProfile';
+import UserSettings from './pages/user/UserSettings';
+
 // 创建路由配置
 const router = createBrowserRouter([
   {
@@ -83,6 +87,16 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="/information/news" replace /> },
           { path: 'news', element: <NewsAnalysis /> },
           { path: 'policy', element: <PolicyAnalysis /> }
+        ]
+      },
+      
+      // 用户相关页面
+      {
+        path: 'user',
+        children: [
+          { index: true, element: <Navigate to="/user/profile" replace /> },
+          { path: 'profile', element: <UserProfile /> },
+          { path: 'settings', element: <UserSettings /> }
         ]
       }
     ]

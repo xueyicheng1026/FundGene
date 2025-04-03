@@ -1,5 +1,5 @@
-import React, { useContext } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import React, { useContext, useState } from 'react';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from './contexts/AuthContext';
 
 // 布局组件
@@ -8,25 +8,35 @@ import Sidebar from './components/layout/Sidebar';
 import Footer from './components/layout/Footer';
 
 const App = () => {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, initializing } = useContext(AuthContext);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const location = useLocation();
 
-  // 如果正在加载，显示加载状态
-  if (loading) {
-    return <div className="loading-screen">加载中...</div>;
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  // 如果正在初始化，显示应用加载状态
+  if (initializing) {
+    return <div className="loading-screen">应用加载中...</div>;
   }
 
-  // 如果用户未登录，重定向到登录页
+  // 如果用户未登录，重定向到登录页，并记住当前路径
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return (
     <div className="app">
-      <Header />
+      <Header toggleSidebar={toggleSidebar} />
       <div className="main-layout">
-        <Sidebar />
-        <main className="main-content">
-          <Outlet />
+        <Sidebar collapsed={sidebarCollapsed} toggleSidebar={toggleSidebar} />
+        <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          {loading ? (
+            <div className="content-loading">页面加载中...</div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
       <Footer />
@@ -51,6 +61,16 @@ const styles = `
     height: 100vh;
     font-size: var(--font-size-xl);
     color: var(--primary-color);
+    background-color: var(--bg-color);
+  }
+
+  .content-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    font-size: var(--font-size-lg);
+    color: var(--text-secondary);
   }
 
   .main-layout {
@@ -63,13 +83,22 @@ const styles = `
     flex: 1;
     padding: 0 var(--spacing-lg) var(--spacing-lg);
     margin-left: 260px;
+    transition: margin-left 0.3s ease;
     /* 顶部边距由各个页面组件内部控制，确保一致性 */
+  }
+
+  .main-content.sidebar-collapsed {
+    margin-left: 80px;
   }
 
   @media (max-width: 768px) {
     .main-content {
       margin-left: 0;
       padding: 0 var(--spacing-md) var(--spacing-md);
+    }
+    
+    .main-content.sidebar-collapsed {
+      margin-left: 0;
     }
   }
 `;

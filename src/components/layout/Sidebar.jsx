@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   HomeOutlined,
@@ -13,6 +13,7 @@ import {
   BellOutlined,
   FileTextOutlined
 } from '@ant-design/icons';
+import { AuthContext } from '../../contexts/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = () => {
@@ -25,6 +26,7 @@ const Sidebar = () => {
   const sidebarActionRef = useRef(false);
   const prevPathRef = useRef(location.pathname);
   const sidebarRef = useRef(null);
+  const { logout } = useContext(AuthContext);
 
   // 检查路径是否激活
   const isActive = (path) => {
@@ -92,6 +94,12 @@ const Sidebar = () => {
         setHoverGroup(null);
       }, 300);
     }
+  };
+
+  // 处理退出登录
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   // 渲染导航组 - 确保鼠标事件正确绑定到每个组
@@ -178,7 +186,7 @@ const Sidebar = () => {
           {renderNavGroup('behavior', <UserOutlined className="nav-icon" />, '行为矫正', [
             { path: '/behavior/profile', icon: <UserOutlined className="nav-subicon" />, label: '行为画像' },
             { path: '/behavior/trading', icon: <AreaChartOutlined className="nav-subicon" />, label: '模拟交易' },
-            { path: '/behavior/feedback', icon: <BellOutlined className="nav-subicon" />, label: '行为反馈', badge: 3 }
+            { path: '/behavior/alerts', icon: <BellOutlined className="nav-subicon" />, label: '行为提醒', badge: 3 }
           ], '/behavior/profile')}
           
           {/* 决策支持模块 */}
@@ -208,7 +216,7 @@ const Sidebar = () => {
             <span className="divider">|</span>
             <div 
               className="quick-action-link"
-              onClick={() => handleNavigation('/logout')}
+              onClick={handleLogout}
             >
               退出登录
             </div>

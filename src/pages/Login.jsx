@@ -1,5 +1,5 @@
-import React, { useState, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import './Auth.css';
 
@@ -10,9 +10,34 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   
-  const { login } = useContext(AuthContext);
+  const { login, authError, clearAuthError, user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // 从location中获取重定向地址
+  const from = location.state?.from?.pathname || '/';
+  
+  // 如果用户已登录，直接重定向到目标页面
+  useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, from]);
+  
+  // 监听认证错误
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+      setLoading(false);
+    }
+    
+    return () => {
+      // 组件卸载时清除错误
+      clearAuthError();
+    };
+  }, [authError, clearAuthError]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -20,31 +45,49 @@ const Login = () => {
       ...formData,
       [name]: value,
     });
+    
+    // 输入时清除错误提示
+    if (error) setError('');
   };
   
-  const handleSubmit = (e) => {
+  const handleRememberChange = (e) => {
+    setRememberMe(e.target.checked);
+  };
+  
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     
-    // 简单的验证
-    if (!formData.username.trim() || !formData.password.trim()) {
-      setError('用户名和密码不能为空');
+    // 表单验证
+    if (!formData.username.trim()) {
+      setError('请输入用户名');
       setLoading(false);
       return;
     }
     
-    // 在真实应用中，这里应该调用API验证用户
-    // 现在仅作模拟
-    setTimeout(() => {
-      const success = login(formData);
-      if (success) {
-        navigate('/');
-      } else {
-        setError('用户名或密码错误');
-      }
+    if (!formData.password.trim()) {
+      setError('请输入密码');
       setLoading(false);
-    }, 1000);
+      return;
+    }
+    
+    try {
+      const result = await login(formData, rememberMe);
+      
+      if (result.success) {
+        // 登录成功，导航到原来的目标页面或首页
+        navigate(from, { replace: true });
+      } else {
+        // 登录失败，显示错误信息
+        setError(result.message || '登录失败，请稍后再试');
+      }
+    } catch (err) {
+      setError('登录过程中发生错误，请稍后再试');
+      console.error('登录错误:', err);
+    } finally {
+      setLoading(false);
+    }
   };
   
   return (
@@ -71,6 +114,7 @@ const Login = () => {
                 onChange={handleChange}
                 disabled={loading}
                 autoComplete="username"
+                autoFocus
               />
             </div>
             
@@ -85,6 +129,22 @@ const Login = () => {
                 disabled={loading}
                 autoComplete="current-password"
               />
+            </div>
+            
+            <div className="form-options">
+              <div className="remember-me">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={handleRememberChange}
+                  disabled={loading}
+                />
+                <label htmlFor="rememberMe">记住登录</label>
+              </div>
+              <Link to="/forgot-password" className="forgot-password-link">
+                忘记密码?
+              </Link>
             </div>
             
             <button 
