@@ -1,0 +1,335 @@
+/* 投资组合再平衡样式 */
+.portfolio-rebalance {
+  margin-bottom: var(--spacing-xl);
+}
+
+.subsection-title {
+  font-size: var(--font-size-md);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+.rebalance-rationale {
+  margin-bottom: var(--spacing-xl);
+}
+
+.rationale-text {
+  line-height: var(--line-height-relaxed);
+  color: var(--text-secondary);
+  background-color: var(--neutral-50);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  border-left: 4px solid var(--primary-color);
+}
+
+/* 资产配置对比部分 */
+.allocation-comparison-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.chart-container {
+  margin-bottom: var(--spacing-lg);
+  background-color: white;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.allocation-table-container {
+  overflow-x: auto;
+}
+
+.allocation-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.allocation-table th,
+.allocation-table td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.allocation-table th {
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+  background-color: var(--neutral-50);
+}
+
+.significant-diff {
+  font-weight: var(--font-weight-bold);
+  color: var(--error-color);
+}
+
+.action-direction {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+  color: white;
+}
+
+.action-direction.increase {
+  background-color: var(--success-color);
+}
+
+.action-direction.reduce {
+  background-color: var(--error-color);
+}
+
+.action-direction.maintain {
+  background-color: var(--neutral-500);
+}
+
+/* 具体调整建议部分 */
+.specific-recommendations-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.recommendations-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.recommendation-card {
+  background-color: white;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  border-top: 4px solid var(--neutral-300);
+}
+
+.recommendation-card.increase {
+  border-top-color: var(--success-color);
+}
+
+.recommendation-card.reduce {
+  border-top-color: var(--error-color);
+}
+
+.recommendation-card.maintain {
+  border-top-color: var(--neutral-500);
+}
+
+.recommendation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.fund-name {
+  font-weight: var(--font-weight-bold);
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+
+.fund-code {
+  /* 改用TextStyles类 */
+  /* 推荐在使用时添加 text-xs text-tertiary 类 */
+}
+
+.action-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+  color: white;
+}
+
+.action-badge.increase {
+  background-color: var(--success-color);
+}
+
+.action-badge.reduce {
+  background-color: var(--error-color);
+}
+
+.action-badge.maintain {
+  background-color: var(--neutral-500);
+}
+
+.recommendation-values {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  background-color: var(--neutral-50);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+}
+
+.value-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.value-label {
+  /* 改用TextStyles类 */
+  /* 推荐在使用时添加 text-xs text-tertiary 类 */
+  margin-bottom: var(--spacing-xs);
+}
+
+.value-number {
+  font-weight: var(--font-weight-bold);
+}
+
+.value-arrow {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-lg);
+}
+
+.recommendation-amount {
+  background-color: var(--neutral-100);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.amount-label {
+  /* 改用TextStyles类 */
+  /* 推荐在使用时添加 text-sm text-secondary 类 */
+}
+
+.amount-value {
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.recommendation-reason {
+  /* 改用TextStyles类 */
+  /* 推荐在使用时添加 text-sm text-secondary 类 */
+  line-height: var(--line-height-normal);
+}
+
+.reason-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+/* 预期影响部分 */
+.expected-impact-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.impact-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.impact-card {
+  display: flex;
+  background-color: white;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.impact-icon {
+  font-size: var(--font-size-2xl);
+  margin-right: var(--spacing-md);
+}
+
+.impact-title {
+  font-size: var(--font-size-md);
+  margin-top: 0;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.impact-text {
+  margin: 0;
+  color: var(--text-secondary);
+  /* 改用TextStyles类 */
+  /* 推荐在使用时添加 text-sm 类 */
+  line-height: var(--line-height-normal);
+}
+
+/* 操作按钮部分 */
+.rebalance-actions {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.action-button {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-default);
+}
+
+.action-button.primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.action-button.primary:hover {
+  background-color: var(--primary-dark);
+}
+
+.action-button.secondary {
+  background-color: var(--neutral-100);
+  color: var(--text-primary);
+}
+
+.action-button.secondary:hover {
+  background-color: var(--neutral-200);
+}
+
+/* 自定义工具提示样式 */
+.custom-tooltip {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.tooltip-label {
+  margin: 0 0 var(--spacing-xs) 0;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.tooltip-current,
+.tooltip-target,
+.tooltip-diff {
+  margin: var(--spacing-xs) 0;
+  /* 改用TextStyles类 */
+  /* 推荐在使用时添加 text-sm 类 */
+}
+
+/* 空状态 */
+.empty-state,
+.empty-chart {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-tertiary);
+  background-color: var(--neutral-50);
+  border-radius: var(--border-radius-md);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .recommendations-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .impact-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .rebalance-actions {
+    flex-direction: column;
+  }
+}

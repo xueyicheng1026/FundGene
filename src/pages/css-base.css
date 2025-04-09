@@ -1,0 +1,130 @@
+/* 页面基础样式 - 供所有页面扩展和使用 */
+
+/* 添加基础命名空间 */
+.css-base {
+  /* 空类，用作命名空间前缀 */
+}
+
+/* 基础页面容器 */
+.base-page {
+  max-width: var(--page-container-width);
+  margin: 0 auto;
+  padding: var(--page-container-padding-y) var(--page-container-padding-x);
+  padding-top: var(--page-top-spacing);
+  width: 100%;
+}
+
+/* 基础页面头部 */
+.base-page-header {
+  margin-bottom: var(--header-block-margin-bottom);
+}
+
+.base-page-title {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--header-title-margin-bottom);
+  color: var(--text-primary);
+}
+
+.base-page-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  max-width: var(--content-narrow-width);
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--header-description-margin-bottom);
+}
+
+/* 基础区块 */
+.base-section {
+  margin-bottom: var(--section-margin-bottom);
+}
+
+.base-section-title {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--section-title-margin-bottom);
+  color: var(--text-primary);
+}
+
+.base-subsection {
+  margin-bottom: var(--subsection-margin-bottom);
+}
+
+.base-subsection-title {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--subsection-title-margin-bottom);
+  color: var(--text-primary);
+}
+
+/* 卡片组件 */
+.base-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+  margin-bottom: var(--card-margin-bottom);
+}
+
+.base-card-title {
+  font-size: var(--font-size-lg);
+  margin-top: 0;
+  margin-bottom: var(--card-title-margin-bottom);
+  color: var(--text-primary);
+}
+
+/* 添加CSS模块组合工具类 */
+.compose-base-page {
+  max-width: var(--page-container-width);
+  margin: 0 auto;
+  padding: var(--page-container-padding-y) var(--page-container-padding-x);
+  padding-top: var(--page-top-spacing);
+  width: 100%;
+}
+
+.compose-base-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+  margin-bottom: var(--card-margin-bottom);
+}
+
+/* 基础网格布局 */
+.base-grid {
+  display: grid;
+  gap: var(--spacing-lg);
+}
+
+.base-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.base-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* 响应式调整 */
+@media (max-width: var(--breakpoint-md)) {
+  .base-page {
+    padding: var(--page-container-padding-y-mobile) var(--page-container-padding-x-mobile);
+    padding-top: var(--page-top-spacing);
+  }
+  
+  .base-grid-2, .base-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  .base-card {
+    padding: var(--card-padding-mobile);
+  }
+  
+  .base-section {
+    margin-bottom: var(--section-margin-bottom-mobile);
+  }
+}
+
+/* 深色模式调整 */
+.dark-theme .base-page-title,
+.dark-theme .base-section-title,
+.dark-theme .base-subsection-title,
+.dark-theme .base-card-title {
+  color: var(--text-heading);
+}

@@ -65,7 +65,7 @@
 .scenario-description {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
   margin-bottom: var(--spacing-md);
 }
 
@@ -117,7 +117,7 @@
   cursor: pointer;
   font-size: var(--font-size-sm);
   margin-bottom: var(--spacing-md);
-  display: flex;
+  display: flex;  
   align-items: center;
 }
 
@@ -156,7 +156,7 @@
 
 .scenario-background {
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
   margin-bottom: var(--spacing-lg);
 }
 
@@ -186,7 +186,7 @@
   padding: var(--spacing-sm) var(--spacing-xl);
   border-radius: var(--border-radius-md);
   font-size: var(--font-size-md);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -198,6 +198,45 @@
 .start-button:disabled {
   background-color: var(--neutral-400);
   cursor: not-allowed;
+}
+
+/* 深色模式调整 */
+.dark-theme .scenario-title {
+  color: var(--text-heading);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark-theme .scenario-description {
+  color: var(--text-description);
+}
+
+.dark-theme .scenario-difficulty,
+.dark-theme .scenario-duration {
+  color: var(--text-meta);
+}
+
+.dark-theme .scenario-tag {
+  background-color: var(--neutral-300);
+  color: var(--text-hint);
+}
+
+.dark-theme .scenario-tag.more {
+  background-color: var(--neutral-400);
+  color: var(--text-primary);
+}
+
+.dark-theme .completion-badge {
+  color: var(--text-light);
+}
+
+.dark-theme .scenario-card {
+  background-color: var(--card-background);
+  border: 1px solid var(--neutral-400);
+}
+
+.dark-theme .scenario-actions .start-button:disabled {
+  background-color: var(--neutral-500);
+  color: var(--text-secondary);
 }
 
 /* 响应式调整 */

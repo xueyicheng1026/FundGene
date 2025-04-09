@@ -36,19 +36,13 @@
 }
 
 .index-name {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
   margin-bottom: var(--spacing-xs);
 }
 
 .index-value {
   font-size: var(--font-size-xl);
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
   margin-bottom: var(--spacing-xs);
-}
-
-.index-change {
-  font-size: var(--font-size-sm);
 }
 
 .index-card.positive .index-change {
@@ -86,7 +80,7 @@
 .funds-table th,
 .holdings-table th,
 .trades-table th {
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
   color: var(--text-secondary);
   background-color: var(--neutral-50);
 }
@@ -113,34 +107,25 @@
 }
 
 .stat-label {
-  font-size: var(--font-size-sm);
-  color: var(--text-tertiary);
   margin-bottom: var(--spacing-xs);
 }
 
 .stat-value {
   font-size: var(--font-size-xl);
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
 }
 
 .stat-secondary {
-  font-size: var(--font-size-sm);
   opacity: 0.8;
   margin-left: var(--spacing-xs);
 }
 
 .fund-name {
-  font-weight: 500;
-}
-
-.fund-code {
-  font-size: var(--font-size-xs);
-  color: var(--text-tertiary);
+  font-weight: var(--font-weight-medium);
 }
 
 .profit-value {
   display: block;
-  font-size: var(--font-size-xs);
   opacity: 0.9;
 }
 
@@ -158,7 +143,7 @@
   display: block;
   margin-bottom: var(--spacing-xs);
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .trade-type-selector {
@@ -274,7 +259,7 @@
   border: none;
   border-radius: var(--border-radius-md);
   font-size: var(--font-size-md);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: var(--transition-default);
 }
@@ -290,7 +275,7 @@
 
 /* 交易历史样式 */
 .trade-action {
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .trade-action.buy {

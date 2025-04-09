@@ -1,0 +1,134 @@
+/* 排版组合样式 - 提供预定义的文字风格组合 */
+
+/* 大型标题 - 通常用于页面主标题 */
+.title-hero {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-extrabold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-heading);
+  color: var(--text-heading);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* 页面标题 */
+.title-page {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  color: var(--text-heading);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 区域标题 */
+.title-section {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  color: var(--text-heading);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 卡片标题 */
+.title-card {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  color: var(--text-heading);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 分组标题 */
+.title-group {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* 正文段落 */
+.paragraph {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-relaxed);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 次级段落 */
+.paragraph-secondary {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-relaxed);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 小型段落 */
+.paragraph-small {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 注释文本 */
+.text-caption {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+  color: var(--text-tertiary);
+}
+
+/* 强调文本 */
+.text-emphasis {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+/* 引用块 */
+.blockquote {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-normal);
+  font-style: italic;
+  line-height: var(--line-height-relaxed);
+  color: var(--text-primary);
+  border-left: 4px solid var(--primary-light);
+  padding-left: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
+}
+
+/* 深色模式调整 */
+.dark-theme .title-hero,
+.dark-theme .title-page,
+.dark-theme .title-section,
+.dark-theme .title-card,
+.dark-theme .title-group {
+  color: var(--text-heading);
+}
+
+.dark-theme .paragraph {
+  color: var(--text-primary);
+}
+
+.dark-theme .paragraph-secondary {
+  color: var(--text-secondary);
+}
+
+.dark-theme .paragraph-small {
+  color: var(--text-secondary);
+}
+
+.dark-theme .text-caption {
+  color: var(--text-tertiary);
+}
+
+.dark-theme .text-emphasis {
+  color: var(--text-bold);
+}
+
+.dark-theme .blockquote {
+  color: var(--text-primary);
+  border-left-color: var(--primary-light);
+}

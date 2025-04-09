@@ -21,7 +21,7 @@
   color: var(--text-secondary);
   font-size: var(--font-size-md);
   max-width: 800px;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 /* 用户资料卡片样式 */
@@ -271,6 +271,65 @@ input:checked + .toggle-slider:before {
 
 .save-button:hover {
   background-color: var(--primary-dark);
+}
+
+/* 深色模式调整 */
+.dark-theme .setting-item {
+  border-bottom-color: var(--neutral-300);
+}
+
+.dark-theme .page-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .page-description {
+  color: var(--text-description);
+}
+
+.dark-theme .setting-name {
+  color: var(--text-heading);
+}
+
+.dark-theme .setting-description {
+  color: var(--text-secondary);
+}
+
+.dark-theme .theme-button {
+  background-color: var(--neutral-300);
+  border-color: var(--neutral-400);
+  color: var(--text-primary);
+}
+
+.dark-theme .toggle-slider {
+  background-color: var(--neutral-400);
+}
+
+/* 用户资料深色模式增强 */
+.dark-theme .username,
+.dark-theme .section-title,
+.dark-theme .card-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .user-subtitle {
+  color: var(--text-description);
+}
+
+.dark-theme .user-join-date {
+  color: var(--text-meta);
+}
+
+.dark-theme .detail-label {
+  color: var(--text-meta);
+}
+
+.dark-theme .detail-value {
+  color: var(--text-primary);
+}
+
+.dark-theme .avatar-placeholder {
+  background-color: var(--primary-dark);
+  color: var(--text-light);
 }
 
 /* 响应式调整 */

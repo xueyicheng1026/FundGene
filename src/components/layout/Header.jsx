@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
 import { ThemeContext } from '../../contexts/ThemeContext';
+import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import './Header.css';
 
 const Header = ({ toggleSidebar, sidebarCollapsed }) => {
@@ -28,9 +29,10 @@ const Header = ({ toggleSidebar, sidebarCollapsed }) => {
             onClick={toggleSidebar}
             aria-label="切换侧边栏"
           >
-            {sidebarCollapsed ? '☰' : '✕'}
+            {sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           </button>
           <Link to="/" className="logo-link">
+            <img src="/logo-icon.svg" alt="FundGene Logo" className="logo-icon" />
             <span className="logo">FundGene</span>
           </Link>
         </div>
@@ -40,8 +42,12 @@ const Header = ({ toggleSidebar, sidebarCollapsed }) => {
             className="theme-toggle"
             onClick={toggleTheme}
             aria-label={`切换到${theme === 'light' ? '深色' : '浅色'}模式`}
+            title={`切换到${theme === 'light' ? '深色' : '浅色'}模式`}
           >
             {theme === 'light' ? '🌙' : '☀️'}
+            <span className="theme-toggle-text">
+              {theme === 'light' ? '深色模式' : '浅色模式'}
+            </span>
           </button>
           
           {user && (

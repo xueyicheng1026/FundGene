@@ -84,12 +84,13 @@ export async function fetchRebalanceRecommendations() {
   return {
     success: true,
     data: {
-      rationale: '当前股票市场估值较高，建议适当降低股票型基金占比，增加债券型基金配置以降低组合波动性。',
+      rationale: '当前股票市场估值较高，建议适当降低股票型基金占比，增加债券型基金配置以降低组合波动性。同时，您的投资组合缺乏海外资产暴露，建议新增部分全球市场配置以提高分散化程度。',
       currentAllocation: [
         { category: '股票型基金', current: 47.5, target: 40, action: 'reduce', amount: 3950 },
         { category: '债券型基金', current: 28.5, target: 35, action: 'increase', amount: 3500 },
         { category: '混合型基金', current: 15.2, target: 15, action: 'maintain', amount: 0 },
-        { category: '货币市场基金', current: 8.8, target: 10, action: 'increase', amount: 450 }
+        { category: '货币市场基金', current: 8.8, target: 5, action: 'reduce', amount: 2000 },
+        { category: '海外基金', current: 0, target: 5, action: 'increase', amount: 2450 }
       ],
       specificRecommendations: [
         {
@@ -99,22 +100,49 @@ export async function fetchRebalanceRecommendations() {
           targetValue: 8000,
           action: 'reduce',
           amount: 2000,
-          reason: '当前估值较高，风险收益比降低'
+          reason: '当前估值较高，风险收益比降低，建议适度减持锁定部分收益'
+        },
+        {
+          fund: '华夏上证50ETF',
+          code: '510050',
+          currentValue: 15000,
+          targetValue: 13050,
+          action: 'reduce',
+          amount: 1950,
+          reason: '大盘蓝筹估值处于历史较高水平，适当降低配置控制风险'
         },
         {
           fund: '南方宝元债券',
           code: '202101',
-          currentValue: 5000,
-          targetValue: 7000,
+          currentValue: 15000,
+          targetValue: 18500,
           action: 'increase',
+          amount: 3500,
+          reason: '提高防御性资产配置，降低组合波动性，债券收益率处于相对合理水平'
+        },
+        {
+          fund: '易方达中证海外互联网ETF',
+          code: '513050',
+          currentValue: 0,
+          targetValue: 2450,
+          action: 'increase',
+          amount: 2450,
+          reason: '增加海外市场配置，提高组合多元化水平，降低地域集中风险'
+        },
+        {
+          fund: '天弘余额宝货币',
+          code: '000198',
+          currentValue: 4680.75,
+          targetValue: 2680.75,
+          action: 'reduce',
           amount: 2000,
-          reason: '提高防御性资产配置'
+          reason: '当前货币市场基金收益率较低，维持适度流动性即可，资金可配置到收益潜力更高的资产类别'
         }
       ],
       expectedImpact: {
-        risk: '降低约15%',
-        return: '短期可能略有下降',
-        sharpeRatio: '预计提高10%'
+        risk: '预计组合波动性降低约15%',
+        return: '长期收益潜力略有提升（约0.3%），短期可能略有波动',
+        sharpeRatio: '风险调整后收益率(夏普比率)预计从0.85提升至1.05左右'
       }
     }
   };

@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { AuthContext } from './contexts/AuthContext';
 
 // 布局组件
@@ -21,14 +21,14 @@ const App = () => {
     return <div className="loading-screen">应用加载中...</div>;
   }
 
-  // 如果用户未登录，重定向到登录页，并记住当前路径
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
   return (
     <div className="app">
       <Header toggleSidebar={toggleSidebar} />
+      {user?.isAdmin && (
+        <div className="admin-debug-banner">
+          调试模式 - 管理员直接访问
+        </div>
+      )}
       <div className="main-layout">
         <Sidebar collapsed={sidebarCollapsed} toggleSidebar={toggleSidebar} />
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -61,7 +61,7 @@ const styles = `
     height: 100vh;
     font-size: var(--font-size-xl);
     color: var(--primary-color);
-    background-color: var(--bg-color);
+    background-color: var(--background-light);
   }
 
   .content-loading {
@@ -77,18 +77,26 @@ const styles = `
     margin-top: 64px;
     flex: 1;
     display: flex;
+    background-color: var(--background-light);
+    min-height: calc(100vh - 64px);
   }
 
   .main-content {
     flex: 1;
-    padding: 0 var(--spacing-lg) var(--spacing-lg);
-    margin-left: 220px;
+    padding: 0;
+    margin-left: 220px; /* 确保与侧边栏宽度精确匹配 */
     transition: margin-left 0.3s ease;
-    /* 顶部边距由各个页面组件内部控制，确保一致性 */
+    background-color: var(--background-light);
+    border-left: none; /* 确保没有左边框 */
+    /* 移除任何可能的额外内边距 */
+    padding-left: 0;
+    /* 确保与侧边栏无缝衔接 */
+    box-sizing: border-box;
+    position: relative;
   }
 
   .main-content.sidebar-collapsed {
-    margin-left: 60px;
+    margin-left: 60px; /* 确保与折叠状态的侧边栏宽度精确匹配 */
   }
 
   @media (max-width: 768px) {
@@ -107,6 +115,19 @@ const styles = `
       margin-left: 50px; /* 与超小屏幕设备侧边栏宽度匹配 */
       padding: 0 var(--spacing-sm) var(--spacing-sm);
     }
+  }
+
+  .admin-debug-banner {
+    background-color: #fef3c7;
+    color: #92400e;
+    text-align: center;
+    padding: 4px 0;
+    font-size: 12px;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    z-index: 999;
   }
 `;
 

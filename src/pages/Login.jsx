@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import './Auth.css';
 
@@ -12,19 +12,15 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   
-  const { login, authError, clearAuthError, user } = useContext(AuthContext);
+  const { login, authError, clearAuthError, user, adminDirectLogin } = useContext(AuthContext);
   const navigate = useNavigate();
-  const location = useLocation();
   
-  // 从location中获取重定向地址
-  const from = location.state?.from?.pathname || '/';
-  
-  // 如果用户已登录，直接重定向到目标页面
+  // 如果用户已登录，直接重定向到仪表盘页面
   useEffect(() => {
     if (user) {
-      navigate(from, { replace: true });
+      navigate('/dashboard');
     }
-  }, [user, navigate, from]);
+  }, [user, navigate]);
   
   // 监听认证错误
   useEffect(() => {
@@ -76,8 +72,8 @@ const Login = () => {
       const result = await login(formData, rememberMe);
       
       if (result.success) {
-        // 登录成功，导航到原来的目标页面或首页
-        navigate(from, { replace: true });
+        // 登录成功，导航到仪表盘页面
+        navigate('/dashboard');
       } else {
         // 登录失败，显示错误信息
         setError(result.message || '登录失败，请稍后再试');
@@ -88,6 +84,12 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAdminDirectAccess = (e) => {
+    e.preventDefault();
+    adminDirectLogin();
+    navigate('/dashboard');
   };
   
   return (
@@ -158,6 +160,11 @@ const Login = () => {
             <div className="auth-links">
               <p>
                 还没有账号? <Link to="/register">立即注册</Link>
+              </p>
+              <p className="admin-access">
+                <a href="#" onClick={handleAdminDirectAccess} className="admin-link">
+                  管理员直接访问 (调试模式)
+                </a>
               </p>
             </div>
           </form>

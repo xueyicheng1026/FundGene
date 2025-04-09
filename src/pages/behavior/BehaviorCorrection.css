@@ -40,7 +40,7 @@
 
 .tab-button.active {
   color: var(--primary-color);
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
 }
 
 .tab-button.active::after {
@@ -67,7 +67,7 @@
   border-radius: var(--border-radius-full);
   font-size: var(--font-size-xs);
   padding: 1px 6px;
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
   transform: translate(50%, -50%);
 }
 
@@ -102,7 +102,7 @@
 }
 
 .module-icon {
-  font-size: 2.5rem;
+  font-size: var(--font-size-3xl);
   margin-bottom: var(--spacing-md);
   width: 64px;
   height: 64px;
@@ -143,7 +143,7 @@
   color: white;
   border-radius: var(--border-radius-md);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   transition: background-color 0.2s;
 }
 
@@ -176,7 +176,7 @@
 }
 
 .resource-icon {
-  font-size: 1.5rem;
+  font-size: var(--font-size-xl);
   min-width: 40px;
   height: 40px;
   display: flex;
@@ -218,7 +218,7 @@
 .resource-link {
   color: var(--primary-color);
   font-size: var(--font-size-sm);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 /* 响应式调整 */

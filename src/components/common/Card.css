@@ -43,3 +43,69 @@
 .card-padding-xl {
   padding: var(--spacing-xl);
 }
+
+/* 深色模式调整 */
+.dark-theme .card {
+  background-color: var(--card-background);
+  border-color: var(--neutral-300);
+}
+
+.dark-theme .card-bordered {
+  border-color: var(--neutral-300);
+}
+
+/* 确保卡片内的标题和重要文本在深色背景下可见 */
+.dark-theme .card h1,
+.dark-theme .card h2,
+.dark-theme .card h3,
+.dark-theme .card h4,
+.dark-theme .card h5,
+.dark-theme .card h6,
+.dark-theme .card-title,
+.dark-theme .card .section-title,
+.dark-theme .card .subsection-title {
+  color: #ffffff; /* 纯白色标题 */
+  /* 轻微的文本阴影增强可读性 */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark-theme .card p {
+  color: #f3f4f6; /* 亮一些的段落文本 */
+}
+
+.dark-theme .card .card-description,
+.dark-theme .card .text-description {
+  color: #d1d5db; /* 更明显的描述文本 */
+}
+
+.dark-theme .card strong,
+.dark-theme .card b {
+  color: #ffffff; /* 纯白色突出显示重要文本 */
+}
+
+/* 卡片中的次要文本 */
+.dark-theme .card .text-secondary,
+.dark-theme .card .text-meta {
+  color: #cbd5e1; /* 确保次要文本仍然清晰可见 */
+}
+
+/* 确保用户设置卡片在深色模式下正确渲染 */
+.dark-theme .card.settings-card,
+.dark-theme .card.profile-card {
+  background-color: var(--card-background);
+  border-color: var(--neutral-300);
+  color: var(--text-primary);
+}
+
+.dark-theme .card.settings-card .card-title,
+.dark-theme .card.profile-card .section-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .card.settings-card .setting-name {
+  color: var(--text-primary);
+}
+
+.dark-theme .card.settings-card .setting-description {
+  color: var(--text-meta);
+}

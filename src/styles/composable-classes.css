@@ -1,0 +1,132 @@
+/**
+ * 可组合的CSS类
+ * 这些类可用于替代composes属性，避免composes冲突
+ */
+
+/* 布局类 */
+.layout-container {
+  max-width: var(--page-container-width);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.layout-padding {
+  padding: var(--page-container-padding-y) var(--page-container-padding-x);
+}
+
+.layout-padding-top {
+  padding-top: var(--page-top-spacing);
+}
+
+/* 显示模式类 */
+.d-flex {
+  display: flex;
+}
+
+.d-grid {
+  display: grid;
+}
+
+.d-block {
+  display: block;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* 间距类 */
+.gap-sm {
+  gap: var(--spacing-sm);
+}
+
+.gap-md {
+  gap: var(--spacing-md);
+}
+
+.gap-lg {
+  gap: var(--spacing-lg);
+}
+
+.m-0 {
+  margin: 0;
+}
+
+.mb-xs {
+  margin-bottom: var(--spacing-xs);
+}
+
+.mb-sm {
+  margin-bottom: var(--spacing-sm);
+}
+
+.mb-md {
+  margin-bottom: var(--spacing-md);
+}
+
+.mb-lg {
+  margin-bottom: var(--spacing-lg);
+}
+
+.mb-xl {
+  margin-bottom: var(--spacing-xl);
+}
+
+/* 卡片类 */
+.card-base {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-padding {
+  padding: var(--card-padding);
+}
+
+/* 文本类 */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-size-md {
+  font-size: var(--font-size-md);
+}
+
+.text-size-lg {
+  font-size: var(--font-size-lg);
+}
+
+.text-size-xl {
+  font-size: var(--font-size-xl);
+}
+
+.font-bold {
+  font-weight: var(--font-weight-bold);
+}
+
+/* 响应式类 */
+@media (max-width: var(--breakpoint-md)) {
+  .layout-padding-mobile {
+    padding: var(--page-container-padding-y-mobile) var(--page-container-padding-x-mobile);
+  }
+  
+  .card-padding-mobile {
+    padding: var(--card-padding-mobile);
+  }
+  
+  .grid-cols-1-mobile {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,226 @@
+/* 警报组件样式 */
+.alert {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  position: relative;
+  display: flex;
+}
+
+.alert-icon {
+  margin-right: var(--spacing-md);
+  font-size: var(--font-size-xl);
+  flex-shrink: 0;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-title {
+  font-weight: var(--font-weight-bold);
+  margin-top: 0;
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-md);
+}
+
+.alert-message {
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+.alert-actions {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.alert-action {
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.alert-close {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+  font-size: var(--font-size-md);
+}
+
+.alert-close:hover {
+  opacity: 1;
+}
+
+/* 警报类型 */
+.alert-info {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--info-color);
+  border-left: 4px solid var(--info-color);
+}
+
+.alert-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success-color);
+  border-left: 4px solid var(--success-color);
+}
+
+.alert-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--warning-color);
+  border-left: 4px solid var(--warning-color);
+}
+
+.alert-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+  border-left: 4px solid var(--error-color);
+}
+
+/* 警报变种 */
+.alert-filled .alert-info {
+  background-color: var(--info-color);
+  color: white;
+  border: none;
+}
+
+.alert-filled .alert-success {
+  background-color: var(--success-color);
+  color: white;
+  border: none;
+}
+
+.alert-filled .alert-warning {
+  background-color: var(--warning-color);
+  color: white;
+  border: none;
+}
+
+.alert-filled .alert-error {
+  background-color: var(--error-color);
+  color: white;
+  border: none;
+}
+
+.alert-outlined {
+  background-color: transparent;
+}
+
+.alert-outlined .alert-info {
+  border: 1px solid var(--info-color);
+  border-left-width: 4px;
+}
+
+.alert-outlined .alert-success {
+  border: 1px solid var(--success-color);
+  border-left-width: 4px;
+}
+
+.alert-outlined .alert-warning {
+  border: 1px solid var(--warning-color);
+  border-left-width: 4px;
+}
+
+.alert-outlined .alert-error {
+  border: 1px solid var(--error-color);
+  border-left-width: 4px;
+}
+
+/* 警报大小 */
+.alert-sm {
+  padding: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.alert-sm .alert-title {
+  font-size: var(--font-size-sm);
+}
+
+.alert-sm .alert-icon {
+  font-size: var(--font-size-lg);
+}
+
+.alert-lg {
+  padding: var(--spacing-lg);
+}
+
+.alert-lg .alert-title {
+  font-size: var(--font-size-lg);
+}
+
+.alert-lg .alert-icon {
+  font-size: var(--font-size-2xl);
+}
+
+/* 警报动画 */
+@keyframes alertSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert-animated {
+  animation: alertSlideIn 0.3s ease forwards;
+}
+
+/* 警报组 */
+.alerts-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* Toast样式警报 */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-width: 400px;
+}
+
+.toast {
+  box-shadow: var(--shadow-md);
+  animation: alertSlideIn 0.3s ease forwards;
+}
+
+/* 深色模式调整 */
+.dark-theme .alert-info {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.dark-theme .alert-success {
+  background-color: rgba(16, 185, 129, 0.2);
+}
+
+.dark-theme .alert-warning {
+  background-color: rgba(245, 158, 11, 0.2);
+}
+
+.dark-theme .alert-error {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+.dark-theme .alert-message {
+  color: var(--text-primary);
+}
+
+.dark-theme .alert-outlined {
+  background-color: transparent;
+}

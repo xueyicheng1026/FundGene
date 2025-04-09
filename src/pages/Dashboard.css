@@ -95,7 +95,7 @@
 
 .stat-value {
   font-size: var(--font-size-xl);
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
   margin: 0;
 }
 
@@ -862,4 +862,110 @@
   .feature-section {
     grid-template-columns: 1fr;
   }
+}
+
+/* 深色模式调整 */
+.dark-theme .dashboard-card {
+  background-color: var(--card-background);
+}
+
+/* 确保卡片内标题和值在深色模式下可见 */
+.dark-theme .dashboard-header h1,
+.dark-theme .welcome-section h1,
+.dark-theme .card-title,
+.dark-theme .card-header h2,
+.dark-theme .section-title,
+.dark-theme .sub-section-title,
+.dark-theme .feature-card h2,
+.dark-theme .quick-access-card h3,
+.dark-theme .module-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .card-header .view-all-link {
+  color: var(--primary-light);
+}
+
+.dark-theme .stat-value,
+.dark-theme .stat-label {
+  color: var(--text-bold);
+}
+
+.dark-theme .stat-value.positive {
+  color: var(--success-color);
+}
+
+.dark-theme .stat-value.negative {
+  color: var(--error-color);
+}
+
+.dark-theme .index-card,
+.dark-theme .alert-item,
+.dark-theme .portfolio-placeholder,
+.dark-theme .quick-action-button,
+.dark-theme .trade-preview,
+.dark-theme .portfolio-overview,
+.dark-theme .empty-news,
+.dark-theme .empty-policies {
+  background-color: var(--neutral-300);
+}
+
+.dark-theme .news-item,
+.dark-theme .policy-item {
+  border-bottom-color: var(--neutral-300);
+}
+
+.dark-theme .question-bubble {
+  background-color: var(--neutral-300);
+}
+
+.dark-theme .question-bubble:hover {
+  background-color: var(--neutral-400);
+}
+
+/* 深色模式调整 - AI助手和快速访问部分 */
+.dark-theme .ai-description {
+  color: var(--text-description);
+}
+
+.dark-theme .ai-assistant-card {
+  background-color: var(--card-background);
+}
+
+.dark-theme .quick-access-card p {
+  color: var(--text-description);
+}
+
+.dark-theme .quick-action-button {
+  background-color: var(--neutral-300);
+  color: var(--text-primary);
+}
+
+.dark-theme .question-bubble {
+  background-color: var(--neutral-300);
+  color: var(--text-hint);
+}
+
+.dark-theme .question-bubble:hover {
+  background-color: var(--neutral-400);
+  color: var(--text-primary);
+}
+
+/* 确保仪表盘卡片内的各类文本都有足够对比度 */
+.dark-theme .stat-label {
+  color: var(--text-meta);
+}
+
+.dark-theme .welcome-description {
+  color: var(--text-description);
+}
+
+.dark-theme .news-date,
+.dark-theme .policy-issuer {
+  color: var(--text-meta);
+}
+
+.dark-theme .news-title,
+.dark-theme .policy-title {
+  color: var(--text-primary);
 }

@@ -10,3 +10,9 @@
   margin: 0 auto;
   padding: 0 var(--spacing-lg);
 }
+
+/* 深色模式调整 */
+.dark-theme .footer {
+  background-color: var(--neutral-900);
+  color: var(--neutral-200); /* 更亮的颜色，提高在深色背景下的可读性 */
+}

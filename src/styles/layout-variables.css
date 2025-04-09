@@ -1,0 +1,39 @@
+/* 布局变量 - 专门用于统一不同页面和组件的布局变量 */
+:root {
+  /* 页面容器设置 */
+  --page-container-width: var(--page-max-width);
+  --page-container-padding-x: var(--page-padding-x);
+  --page-container-padding-y: var(--page-padding-y);
+  --page-container-margin: 0 auto;
+  
+  /* 内容容器设置 */
+  --content-container-padding: var(--spacing-lg);
+  --content-narrow-padding: var(--spacing-lg);
+  
+  /* 标题块间距 */
+  --header-block-margin-bottom: var(--spacing-xl);
+  --header-title-margin-bottom: var(--spacing-sm);
+  --header-description-margin-bottom: var(--spacing-md);
+  
+  /* 区域和区块间距 */
+  --section-margin-bottom: var(--spacing-xl);
+  --section-title-margin-bottom: var(--spacing-md);
+  --subsection-margin-bottom: var(--spacing-lg);
+  --subsection-title-margin-bottom: var(--spacing-sm);
+  
+  /* 卡片设置 */
+  --card-margin-bottom: var(--spacing-lg);
+  --card-padding: var(--spacing-lg);
+  --card-title-margin-bottom: var(--spacing-md);
+  
+  /* 表单设置 */
+  --form-group-margin-bottom: var(--spacing-md);
+  --form-label-margin-bottom: var(--spacing-xs);
+  --form-input-padding: var(--spacing-sm) var(--spacing-md);
+  
+  /* 移动设备调整 */
+  --page-container-padding-x-mobile: var(--spacing-mobile-md);
+  --page-container-padding-y-mobile: var(--spacing-mobile-md);
+  --card-padding-mobile: var(--spacing-mobile-md);
+  --section-margin-bottom-mobile: var(--spacing-mobile-lg);
+}

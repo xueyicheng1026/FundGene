@@ -232,7 +232,7 @@ const Dashboard = () => {
         {/* AI助手 */}
         <Card className="ai-assistant-card">
           <h2>AI投资助手</h2>
-          <p className="ai-description">智能AI助手可以回答您的投资问题，提供知识解读，分析市场行情</p>
+          <p className="ai-description text-description">智能AI助手可以回答您的投资问题，提供知识解读，分析市场行情</p>
           <div className="suggested-questions">
             <h3 className="sub-section-title">您可能想问</h3>
             <div className="question-bubbles">
@@ -254,7 +254,7 @@ const Dashboard = () => {
             <p>体验历史市场环境，练习决策能力</p>
           </Link>
           
-          <Link to="/behavior/profile" className="quick-access-card">
+          <Link to="/dashboard/user/profile" className="quick-access-card">
             <div className="quick-access-icon profile-icon">👤</div>
             <h3>行为画像</h3>
             <p>了解您的投资行为特征和认知偏差</p>

@@ -1,27 +1,25 @@
+/* 导入基础页面样式 */
+@import '../css-base.css';
+
+/* 继承基础页面样式 */
 .trading-simulation-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--spacing-md) 0;
-  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
+  composes: base-page;
 }
 
-.page-header {
-  margin-bottom: var(--spacing-xl);
+/* 页面头部继承基础样式，不需要重新定义 */
+.trading-simulation-page .page-header {
+  composes: base-page-header;
 }
 
-.page-title {
-  font-size: var(--font-size-3xl);
-  margin-bottom: var(--spacing-sm);
-  color: var(--text-primary);
+.trading-simulation-page .page-title {
+  composes: base-page-title;
 }
 
-.page-description {
-  color: var(--text-secondary);
-  font-size: var(--font-size-md);
-  max-width: 800px;
-  line-height: 1.6;
+.trading-simulation-page .page-description {
+  composes: base-page-description;
 }
 
+/* 交易模拟页面特定布局 */
 .trading-simulation-layout {
   display: grid;
   grid-template-columns: 1fr;
@@ -32,26 +30,25 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--component-margin-bottom);
 }
 
+/* 卡片容器使用基础卡片样式，额外添加必要的样式 */
 .market-overview-card,
 .portfolio-card,
 .trade-card,
 .trade-history-card,
 .behavior-feedback-card {
-  padding: var(--spacing-lg);
+  composes: base-card;
 }
 
+/* 标题使用基础标题样式 */
 .section-title {
-  margin-top: 0;
-  margin-bottom: var(--spacing-lg);
-  font-size: var(--font-size-lg);
-  color: var(--text-primary);
+  composes: base-section-title;
 }
 
 /* 响应式设计 */
-@media (max-width: 992px) {
+@media (max-width: var(--breakpoint-lg)) {
   .portfolio-trade-grid {
     grid-template-columns: 1fr;
   }

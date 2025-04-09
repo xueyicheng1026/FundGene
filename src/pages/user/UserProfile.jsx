@@ -44,8 +44,8 @@ const UserProfile = () => {
   return (
     <div className="user-profile-page">
       <div className="page-header">
-        <h1 className="page-title">个人资料</h1>
-        <p className="page-description">
+        <h1 className="page-title text-heading">个人资料</h1>
+        <p className="page-description text-description">
           查看和管理您的个人资料信息
         </p>
       </div>
@@ -63,50 +63,50 @@ const UserProfile = () => {
               )}
             </div>
             <div className="user-info">
-              <h2 className="username">{profile?.username}</h2>
-              <p className="user-subtitle">{profile?.nickname}</p>
-              <p className="user-join-date">注册时间: {new Date(profile?.joinDate).toLocaleDateString('zh-CN')}</p>
+              <h2 className="username text-heading">{profile?.username}</h2>
+              <p className="user-subtitle text-description">{profile?.nickname}</p>
+              <p className="user-join-date text-meta">注册时间: {new Date(profile?.joinDate).toLocaleDateString('zh-CN')}</p>
             </div>
           </div>
           
           <div className="profile-details">
             <div className="profile-section">
-              <h3 className="section-title">基本信息</h3>
+              <h3 className="section-title text-heading">基本信息</h3>
               <div className="detail-item">
-                <span className="detail-label">用户名</span>
-                <span className="detail-value">{profile?.username}</span>
+                <span className="detail-label text-meta">用户名</span>
+                <span className="detail-value text-primary">{profile?.username}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">昵称</span>
-                <span className="detail-value">{profile?.nickname}</span>
+                <span className="detail-label text-meta">昵称</span>
+                <span className="detail-value text-primary">{profile?.nickname}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">电子邮箱</span>
-                <span className="detail-value">{profile?.email}</span>
+                <span className="detail-label text-meta">电子邮箱</span>
+                <span className="detail-value text-primary">{profile?.email}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">手机号码</span>
-                <span className="detail-value">{profile?.phone}</span>
+                <span className="detail-label text-meta">手机号码</span>
+                <span className="detail-value text-primary">{profile?.phone}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">上次登录</span>
-                <span className="detail-value">{new Date(profile?.lastLogin).toLocaleString('zh-CN')}</span>
+                <span className="detail-label text-meta">上次登录</span>
+                <span className="detail-value text-primary">{new Date(profile?.lastLogin).toLocaleString('zh-CN')}</span>
               </div>
             </div>
             
             <div className="profile-section">
-              <h3 className="section-title">投资偏好</h3>
+              <h3 className="section-title text-heading">投资偏好</h3>
               <div className="detail-item">
-                <span className="detail-label">风险承受能力</span>
-                <span className="detail-value">{profile?.riskPreference}</span>
+                <span className="detail-label text-meta">风险承受能力</span>
+                <span className="detail-value text-primary">{profile?.riskPreference}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">投资目标</span>
-                <span className="detail-value">{profile?.investmentGoal}</span>
+                <span className="detail-label text-meta">投资目标</span>
+                <span className="detail-value text-primary">{profile?.investmentGoal}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">投资经验</span>
-                <span className="detail-value">{profile?.experienceLevel}</span>
+                <span className="detail-label text-meta">投资经验</span>
+                <span className="detail-value text-primary">{profile?.experienceLevel}</span>
               </div>
             </div>
           </div>

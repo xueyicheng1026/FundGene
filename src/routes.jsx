@@ -23,9 +23,10 @@ import BehaviorAlerts from './pages/behavior/BehaviorAlerts';
 
 // 决策支持相关页面
 import Portfolio from './pages/decision/Portfolio';
+// 引入真实的投资组合再平衡组件替换占位组件
+import PortfolioRebalancePage from './pages/decision/PortfolioRebalance';
 // 临时工具函数来创建占位组件
 const PlaceholderComponent = (name) => () => <div>正在开发中: {name} 组件</div>;
-const PortfolioRebalance = PlaceholderComponent('投资组合再平衡');
 const DecisionComparison = PlaceholderComponent('决策对比');
 
 // 信息解读相关页面
@@ -38,8 +39,18 @@ import UserSettings from './pages/user/UserSettings';
 
 // 创建路由配置
 const router = createBrowserRouter([
+  // 将根路径重定向到登录页面
   {
     path: '/',
+    element: <Navigate to="/login" replace />
+  },
+  // 登录、注册等公共页面
+  { path: '/login', element: <Login /> },
+  { path: '/register', element: <Register /> },
+  
+  // 应用内部路由，需要登录后访问
+  {
+    path: '/dashboard',
     element: <Layout />,
     children: [
       // 主页
@@ -49,7 +60,7 @@ const router = createBrowserRouter([
       {
         path: 'cognitive',
         children: [
-          { index: true, element: <Navigate to="/cognitive/chat" replace /> },
+          { index: true, element: <Navigate to="/dashboard/cognitive/chat" replace /> },
           { path: 'chat', element: <ChatInterface /> },
           { path: 'learning', element: <LearningCenter /> }, // 学习中心路由
           { path: 'learning/course/:courseId', element: <CourseDetail /> }, // 课程详情路由
@@ -62,7 +73,7 @@ const router = createBrowserRouter([
         path: 'behavior',
         element: <BehaviorCorrection />,
         children: [
-          { index: true, element: <Navigate to="/behavior/profile" replace /> },
+          { index: true, element: <Navigate to="/dashboard/behavior/profile" replace /> },
           { path: 'profile', element: <BehaviorProfile /> },
           { path: 'trading', element: <TradingSimulation /> },
           { path: 'alerts', element: <BehaviorAlerts /> }
@@ -73,9 +84,9 @@ const router = createBrowserRouter([
       {
         path: 'decision',
         children: [
-          { index: true, element: <Navigate to="/decision/portfolio" replace /> },
+          { index: true, element: <Navigate to="/dashboard/decision/portfolio" replace /> },
           { path: 'portfolio', element: <Portfolio /> },
-          { path: 'rebalance', element: <PortfolioRebalance /> },
+          { path: 'rebalance', element: <PortfolioRebalancePage /> },
           { path: 'comparison', element: <DecisionComparison /> }
         ]
       },
@@ -84,7 +95,7 @@ const router = createBrowserRouter([
       {
         path: 'information',
         children: [
-          { index: true, element: <Navigate to="/information/news" replace /> },
+          { index: true, element: <Navigate to="/dashboard/information/news" replace /> },
           { path: 'news', element: <NewsAnalysis /> },
           { path: 'policy', element: <PolicyAnalysis /> }
         ]
@@ -94,7 +105,7 @@ const router = createBrowserRouter([
       {
         path: 'user',
         children: [
-          { index: true, element: <Navigate to="/user/profile" replace /> },
+          { index: true, element: <Navigate to="/dashboard/user/profile" replace /> },
           { path: 'profile', element: <UserProfile /> },
           { path: 'settings', element: <UserSettings /> }
         ]
@@ -102,8 +113,6 @@ const router = createBrowserRouter([
     ]
   },
   // 其他独立路由
-  { path: '/login', element: <Login /> },
-  { path: '/register', element: <Register /> },
   { path: '*', element: <NotFound /> }
 ]);
 

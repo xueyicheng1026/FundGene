@@ -28,9 +28,9 @@ const MarketOverview = ({ data }) => {
               key={index.code} 
               className={`index-card ${index.changePercent >= 0 ? 'positive' : 'negative'}`}
             >
-              <div className="index-name">{index.name}</div>
+              <div className="index-name text-sm text-secondary">{index.name}</div>
               <div className="index-value">{index.value.toFixed(2)}</div>
-              <div className="index-change">
+              <div className="index-change text-sm">
                 <span className="change-percent">
                   {index.changePercent >= 0 ? '+' : ''}{index.changePercent.toFixed(2)}%
                 </span>

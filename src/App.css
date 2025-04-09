@@ -2,6 +2,8 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  overflow-x: hidden; /* 防止水平滚动 */
 }
 
 .page-container {
@@ -12,6 +14,11 @@
   width: 100%;
 }
 
+/* 深色模式下确保背景颜色正确 */
+.dark-theme .app-container {
+  background-color: var(--background-default);
+}
+
 .card {
   background: var(--card-background, white);
   border-radius: var(--border-radius-lg);
@@ -20,13 +27,16 @@
   margin-bottom: var(--spacing-lg);
 }
 
-/* 使用全局变量确保一致性 */
+/* 使用全局变量确保一致性，并遵循TextStyles.css的样式 */
 .section-title {
   font-size: var(--font-size-xl);
   font-weight: 600;
   margin-bottom: var(--spacing-md);
   color: var(--text-primary);
 }
+
+/* 这些元素可以直接利用TextStyles.css中定义的类 */
+/* 例如: <div class="section-title text-heading"> */
 
 /* 辅助类 */
 .text-center {

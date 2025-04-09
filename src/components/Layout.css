@@ -8,24 +8,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  font-weight: bold;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
   color: var(--primary-color);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .app-header {
   background: #fff;
-  padding: 0 16px;
+  padding: 0 var(--spacing-md);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   z-index: 1;
 }
 
 .trigger {
-  font-size: 18px;
+  font-size: var(--font-size-lg);
 }
 
 .header-right {
@@ -64,22 +64,33 @@
   margin-top: 64px; /* 与Header高度匹配 */
 }
 
+/* 组件特定样式会覆盖全局样式 */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-left: 220px; /* 与侧边栏宽度一致 */
+  margin-left: var(--sidebar-width); /* 使用变量，而非硬编码值 */
   transition: margin-left 0.3s;
-  padding-top: 0; /* 重置为0，让子页面统一使用 --page-top-spacing */
+  padding: var(--main-content-padding);
+  background-color: var(--background-light);
+  min-height: calc(100vh - var(--header-height));
 }
 
-.main-content.sidebar-closed {
-  margin-left: 64px; /* 与折叠后的Sidebar宽度匹配 */
-}
-
-/* 当侧边栏折叠时调整内容区域 */
+/* 当侧边栏折叠时的样式 */
 .sidebar.collapsed ~ .main-content {
-  margin-left: 60px; /* 与折叠后的侧边栏宽度一致 */
+  margin-left: var(--sidebar-width-collapsed);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: var(--sidebar-width-collapsed);
+    padding: var(--spacing-md);
+  }
+  
+  .sidebar.collapsed ~ .main-content {
+    margin-left: 0;
+  }
 }
 
 .content-area {
@@ -87,18 +98,10 @@
   padding: var(--page-padding-y) var(--page-padding-x);
   padding-top: var(--page-top-spacing); /* 添加统一的顶部间距 */
   background-color: var(--background-light);
+  min-height: calc(100vh - 64px); /* 确保内容区域至少占满整个视口高度减去头部 */
 }
 
 @media (max-width: 768px) {
-  .main-content {
-    margin-left: 60px; /* 与侧边栏宽度匹配 */
-    padding: var(--spacing-md);
-  }
-  
-  .sidebar.collapsed ~ .main-content {
-    margin-left: 0;
-  }
-  
   .content-area {
     padding: var(--spacing-md);
     padding-bottom: calc(var(--spacing-md) + 40px); /* 底部添加额外的内边距，确保内容不被导航栏遮挡 */

@@ -1,27 +1,36 @@
+/* 导入基础页面样式 */
+@import '../css-base.css';
+
+/* 使用命名空间避免composes冲突 */
 .chat-page {
-  max-width: 1200px;
+  /* 不使用composes，改为直接使用类 */
+  max-width: var(--page-container-width);
   margin: 0 auto;
-  padding: var(--spacing-md) 0;
-  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
+  padding: var(--page-container-padding-y) var(--page-container-padding-x);
+  padding-top: var(--page-top-spacing);
+  width: 100%;
 }
 
-.page-header {
-  margin-bottom: var(--spacing-xl);
+/* 页面头部继承基础样式 */
+.chat-page .page-header {
+  margin-bottom: var(--header-block-margin-bottom);
 }
 
-.page-title {
+.chat-page .page-title {
   font-size: var(--font-size-3xl);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--header-title-margin-bottom);
   color: var(--text-primary);
 }
 
-.page-description {
+.chat-page .page-description {
   color: var(--text-secondary);
   font-size: var(--font-size-md);
-  max-width: 800px;
-  line-height: 1.6;
+  max-width: var(--content-narrow-width);
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--header-description-margin-bottom);
 }
 
+/* 聊天页面特定布局 */
 .chat-container {
   display: grid;
   grid-template-columns: 1fr 300px;
@@ -33,10 +42,13 @@
   flex-direction: column;
 }
 
+/* 直接使用类，避免用composes */
 .chat-card {
-  background-color: white;
+  background-color: var(--card-background);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+  margin-bottom: var(--card-margin-bottom);
   display: flex;
   flex-direction: column;
   height: 600px;
@@ -63,6 +75,7 @@
   gap: var(--spacing-md);
 }
 
+/* 消息样式 */
 .message {
   display: flex;
   max-width: 85%;
@@ -94,15 +107,18 @@
   color: var(--text-primary);
 }
 
+/* 用户消息样式 */
 .message-user .message-content {
   background-color: var(--primary-color);
   color: white;
 }
 
+/* 消息内容段落 */
 .message-content p {
   margin: var(--spacing-xs) 0;
 }
 
+/* 打字指示器 */
 .typing-indicator {
   display: flex;
   align-items: center;
@@ -134,6 +150,7 @@
   100% { transform: translateY(0px); }
 }
 
+/* 错误消息 */
 .chat-error {
   margin: 0 var(--spacing-md);
   padding: var(--spacing-sm);
@@ -143,6 +160,7 @@
   font-size: var(--font-size-sm);
 }
 
+/* 聊天输入区域 */
 .chat-input-container {
   border-top: 1px solid var(--neutral-200);
   padding: var(--spacing-md);
@@ -166,6 +184,7 @@
   border-color: var(--primary-color);
 }
 
+/* 发送按钮 */
 .send-button {
   align-self: flex-end;
   padding: var(--spacing-sm) var(--spacing-lg);
@@ -174,7 +193,7 @@
   border: none;
   border-radius: var(--border-radius-md);
   cursor: pointer;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   transition: var(--transition-default);
 }
 
@@ -194,14 +213,17 @@
   gap: var(--spacing-lg);
 }
 
+/* 侧边栏卡片 */
 .quick-questions-card,
 .behavior-card {
-  background-color: white;
+  background-color: var(--card-background);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: var(--spacing-lg);
+  padding: var(--card-padding);
+  margin-bottom: var(--card-margin-bottom);
 }
 
+/* 标题样式 */
 .quick-questions-card h3,
 .behavior-card h3 {
   margin-top: 0;
@@ -210,77 +232,8 @@
   color: var(--text-primary);
 }
 
-.quick-questions-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.quick-question-button {
-  text-align: left;
-  padding: var(--spacing-sm);
-  background-color: var(--neutral-50);
-  border: 1px solid var(--neutral-200);
-  border-radius: var(--border-radius-md);
-  cursor: pointer;
-  transition: var(--transition-default);
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-}
-
-.quick-question-button:hover {
-  background-color: var(--neutral-100);
-  border-color: var(--neutral-300);
-}
-
-.behavior-summary {
-  margin-bottom: var(--spacing-md);
-}
-
-.behavior-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: var(--spacing-sm);
-}
-
-.behavior-label {
-  width: 80px;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.behavior-bar {
-  flex: 1;
-  height: 8px;
-  background-color: var(--neutral-200);
-  border-radius: var(--border-radius-full);
-  margin: 0 var(--spacing-sm);
-  overflow: hidden;
-}
-
-.behavior-fill {
-  height: 100%;
-  background-color: var(--primary-color);
-  border-radius: var(--border-radius-full);
-}
-
-.behavior-score {
-  width: 40px;
-  text-align: right;
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-}
-
-.behavior-note {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-  margin-bottom: 0;
-}
-
 /* 响应式设计 */
-@media (max-width: 992px) {
+@media (max-width: var(--breakpoint-lg)) {
   .chat-container {
     grid-template-columns: 1fr;
   }
@@ -296,7 +249,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: var(--breakpoint-sm)) {
   .chat-sidebar {
     grid-template-columns: 1fr;
   }

@@ -205,8 +205,7 @@
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   margin-bottom: var(--spacing-sm);
-  line-height: 1.5;
-  flex-grow: 1;
+  line-height: var(--line-height-normal);
   
   /* 多行文本截断 */
   display: -webkit-box;
@@ -298,7 +297,7 @@
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   margin-bottom: var(--spacing-md);
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
 }
 
 .path-stats {
@@ -350,4 +349,71 @@
   .learning-paths {
     grid-template-columns: 1fr;
   }
+}
+
+/* 深色模式调整 */
+.dark-theme .learning-center-page .page-title,
+.dark-theme .section-title,
+.dark-theme .course-title,
+.dark-theme .path-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .course-card {
+  background-color: var(--card-background);
+  border-color: var(--neutral-300);
+}
+
+.dark-theme .course-image-container {
+  border-color: var(--neutral-400);
+}
+
+.dark-theme .category-button {
+  background-color: var(--neutral-300);
+  color: var(--text-secondary);
+}
+
+.dark-theme .category-button.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.dark-theme .course-progress-bar {
+  background-color: var(--neutral-400);
+}
+
+.dark-theme .progress-fill {
+  background-color: var(--primary-color);
+}
+
+.dark-theme .course-description {
+  color: var(--text-description);
+}
+
+.dark-theme .course-meta,
+.dark-theme .course-category,
+.dark-theme .course-duration {
+  color: var(--text-meta);
+}
+
+.dark-theme .course-level,
+.dark-theme .course-students {
+  color: var(--text-hint);
+}
+
+.dark-theme .course-last-accessed {
+  color: var(--text-meta);
+}
+
+.dark-theme .path-description {
+  color: var(--text-description);
+}
+
+.dark-theme .path-stats {
+  color: var(--text-meta);
+}
+
+.dark-theme .empty-state {
+  background-color: var(--neutral-300);
+  color: var(--text-secondary);
 }

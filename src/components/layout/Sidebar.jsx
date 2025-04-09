@@ -209,7 +209,7 @@ const Sidebar = () => {
           <div className="quick-actions">
             <div 
               className="quick-action-link"
-              onClick={() => handleNavigation('/user/profile')}
+              onClick={() => handleNavigation('/dashboard/user/profile')}
             >
               个人设置
             </div>

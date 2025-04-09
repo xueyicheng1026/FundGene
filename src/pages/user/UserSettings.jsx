@@ -41,20 +41,20 @@ const UserSettings = () => {
   return (
     <div className="user-settings-page">
       <div className="page-header">
-        <h1 className="page-title">账户设置</h1>
-        <p className="page-description">
+        <h1 className="page-title text-heading">账户设置</h1>
+        <p className="page-description text-description">
           管理您的应用偏好、通知设置和隐私选项
         </p>
       </div>
       
       <div className="settings-content">
         <Card className="settings-card">
-          <h2 className="card-title">外观设置</h2>
+          <h2 className="card-title text-heading">外观设置</h2>
           <div className="settings-section">
             <div className="setting-item">
               <div className="setting-info">
-                <span className="setting-name">主题</span>
-                <span className="setting-description">选择应用的显示主题</span>
+                <span className="setting-name text-primary">主题</span>
+                <span className="setting-description text-meta">选择应用的显示主题</span>
               </div>
               <div className="setting-control">
                 <button 

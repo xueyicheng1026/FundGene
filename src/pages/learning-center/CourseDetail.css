@@ -1,0 +1,109 @@
+/* 导入基础页面样式和可组合类 */
+@import '../css-base.css';
+@import '../../styles/composable-classes.css';
+
+/* 基础页面布局 */
+.course-detail-page {
+  /* 使用布局类 */
+  max-width: var(--page-container-width);
+  margin: 0 auto;
+  padding: var(--page-container-padding-y) var(--page-container-padding-x);
+  padding-top: var(--page-top-spacing);
+  width: 100%;
+}
+
+/* 页面头部区域 */
+.course-header {
+  margin-bottom: var(--header-block-margin-bottom);
+}
+
+.course-title {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.course-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--spacing-md);
+  max-width: var(--content-narrow-width);
+}
+
+/* 返回按钮 */
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}
+
+.back-button svg {
+  margin-right: var(--spacing-xs);
+}
+
+/* 课程信息和图片区域 */
+.course-content-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: var(--spacing-lg);
+}
+
+.course-main-content {
+  /* 主要内容区域 */
+}
+
+.course-image-container {
+  max-width: 300px;
+  margin-bottom: var(--spacing-md);
+}
+
+.course-image {
+  width: 100%;
+  height: auto;
+  border-radius: var(--border-radius-md);
+}
+
+/* 课程元数据 */
+.course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.course-category,
+.course-level,
+.course-duration {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+  background-color: var(--neutral-100);
+  color: var(--text-secondary);
+}
+
+/* 响应式调整 */
+@media (max-width: var(--breakpoint-lg)) {
+  .course-content-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .course-sidebar {
+    order: -1; /* 在移动视图中将侧边栏移到顶部 */
+  }
+  
+  .course-image-container {
+    max-width: 100%;
+  }
+}

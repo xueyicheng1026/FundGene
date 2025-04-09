@@ -4,3 +4,91 @@
   padding: var(--spacing-md) 0;
   padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
 }
+
+.page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  max-width: 800px;
+  line-height: 1.6;
+  margin-bottom: var(--spacing-md);
+}
+
+.page-actions {
+  margin-top: var(--spacing-md);
+}
+
+.back-link {
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.back-link::before {
+  content: '←';
+  margin-right: var(--spacing-xs);
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.rebalance-card {
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+}
+
+.rebalance-help-card {
+  padding: var(--spacing-lg);
+}
+
+.card-title {
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+}
+
+.help-text {
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.help-subtitle {
+  font-size: var(--font-size-md);
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.help-list {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding-left: var(--spacing-lg);
+}
+
+.help-list li {
+  margin-bottom: var(--spacing-sm);
+}
+
+.learn-more-link {
+  margin-top: var(--spacing-lg);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: var(--font-size-2xl);
+  }
+}

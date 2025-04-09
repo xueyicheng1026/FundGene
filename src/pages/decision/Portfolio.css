@@ -1,72 +1,73 @@
+/* 导入基础页面样式 */
+@import '../css-base.css';
+
+/* 继承基础页面样式 */
 .portfolio-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--spacing-md) 0;
-  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
+  composes: base-page;
 }
 
-.page-header {
-  margin-bottom: var(--spacing-xl);
+/* 页面头部继承基础样式 */
+.portfolio-page .page-header {
+  composes: base-page-header;
 }
 
-.page-title {
-  font-size: var(--font-size-3xl); 
-  margin-bottom: var(--spacing-sm);
-  color: var(--text-primary);
+.portfolio-page .page-title {
+  composes: base-page-title;
 }
 
-.page-description {
-  color: var(--text-secondary);
-  font-size: var(--font-size-md);
-  max-width: 800px;
-  line-height: 1.6;
+.portfolio-page .page-description {
+  composes: base-page-description;
 }
 
-.portfolio-overview {
+/* 资产配置概览 */
+.asset-allocation-overview {
+  margin-bottom: var(--section-margin-bottom);
+}
+
+/* 继承基础部分标题 */
+.section-title {
+  composes: base-section-title;
+}
+
+/* 概览网格 */
+.overview-grid {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 2fr 1fr;
   gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
 }
 
-.portfolio-summary-card {
-  padding: var(--spacing-lg);
+/* 图表和摘要 */
+.allocation-chart {
+  composes: base-card;
 }
 
-.portfolio-chart-card {
-  padding: var(--spacing-lg);
+.chart-title {
+  composes: base-card-title;
 }
 
-.card-title {
-  font-size: var(--font-size-lg);
-  margin-top: 0;
-  margin-bottom: var(--spacing-lg);
-  color: var(--text-primary);
+.chart-container {
+  height: 300px;
+  margin-bottom: var(--spacing-md);
 }
 
-.portfolio-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.allocation-summary {
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-md);
 }
 
-.stat-item {
-  display: flex;
-  flex-direction: column;
+.summary-card {
+  composes: base-card;
 }
 
-.stat-label {
-  font-size: var(--font-size-sm);
-  color: var(--text-tertiary);
-  margin-bottom: var(--spacing-xs);
-}
-
-.stat-value {
-  font-size: var(--font-size-xl);
-  font-weight: 600;
+.summary-card-title {
+  font-size: var(--font-size-md);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
   color: var(--text-primary);
 }
 
+/* 通用状态样式 */
 .positive {
   color: var(--success-color);
 }
@@ -75,126 +76,24 @@
   color: var(--error-color);
 }
 
-.chart-container {
-  height: 250px;
-  position: relative;
+/* 响应式调整 */
+@media (max-width: var(--breakpoint-lg)) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .insight-card {
+    padding: var(--card-padding-mobile);
+  }
 }
 
-.portfolio-details-card {
-  margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-lg);
-  overflow-x: auto;
-}
-
-.portfolio-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.portfolio-table th,
-.portfolio-table td {
-  padding: var(--spacing-md);
-  text-align: left;
-  border-bottom: 1px solid var(--neutral-200);
-}
-
-.portfolio-table th {
-  font-weight: 600;
-  color: var(--text-secondary);
-  background-color: var(--neutral-50);
-}
-
-.portfolio-table tbody tr:hover {
-  background-color: var(--neutral-50);
-}
-
-.risk-level {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: var(--border-radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  text-align: center;
-  color: white;
-}
-
-.risk-verylow {
-  background-color: #10b981;
-}
-
-.risk-low {
-  background-color: #22c55e;
-}
-
-.risk-medium {
-  background-color: #f59e0b;
-}
-
-.risk-high {
-  background-color: #ef4444;
-}
-
-.portfolio-analysis-card {
-  padding: var(--spacing-lg);
-}
-
-.analysis-content {
-  margin-bottom: var(--spacing-lg);
-}
-
-.analysis-points {
-  padding-left: var(--spacing-lg);
-}
-
-.analysis-points li {
-  margin-bottom: var(--spacing-md);
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.analysis-highlight {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.action-buttons {
-  display: flex;
-  gap: var(--spacing-md);
-}
-
-.btn {
-  display: inline-block;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border: none;
-  border-radius: var(--border-radius-md);
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  transition: var(--transition-default);
-}
-
-.btn.primary {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-.btn.primary:hover {
-  background-color: var(--primary-dark);
-  text-decoration: none;
-}
-
-.btn.secondary {
-  background-color: var(--neutral-100);
-  color: var(--text-primary);
-}
-
-.btn.secondary:hover {
-  background-color: var(--neutral-200);
-  text-decoration: none;
-}
-
-@media (max-width: 992px) {
-  .portfolio-overview {
+@media (max-width: var(--breakpoint-md)) {
+  .portfolio-page {
+    padding: var(--page-container-padding-y-mobile) var(--page-container-padding-x-mobile);
+    padding-top: var(--page-top-spacing);
+  }
+  
+  .insights-list {
     grid-template-columns: 1fr;
   }
 }

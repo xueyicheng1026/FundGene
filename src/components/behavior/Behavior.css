@@ -46,22 +46,22 @@
 }
 
 .score-text {
-  font-size: 8px;
+  font-size: var(--font-size-xs);
   text-anchor: middle;
   fill: var(--text-primary);
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
 }
 
+/* 使用TextStyles类 */
 .score-label {
   margin-top: var(--spacing-sm);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  /* 使用text-sm text-secondary类 */
 }
 
 .score-description {
   flex: 1;
-  line-height: 1.6;
-  color: var(--text-secondary);
+  line-height: var(--line-height-relaxed);
+  /* 使用text-secondary类 */
 }
 
 /* 检测到的行为 */
@@ -102,7 +102,7 @@
 }
 
 .behavior-name {
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
 }
 
 .behavior-severity {
@@ -126,9 +126,7 @@
 
 .behavior-description {
   margin: 0;
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-  color: var(--text-secondary);
+  line-height: var(--line-height-normal);
 }
 
 /* 改进建议 */
@@ -149,19 +147,17 @@
 }
 
 .suggestion-title {
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
   margin-bottom: var(--spacing-sm);
 }
 
 .suggestion-content {
   margin: 0;
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-  color: var(--text-secondary);
+  line-height: var(--line-height-normal);
 }
 
 /* 响应式调整 */
-@media (max-width: 768px) {
+@media (max-width: var(--breakpoint-md)) {
   .behavior-score-section {
     flex-direction: column;
     text-align: center;

@@ -181,6 +181,28 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token_expiry');
   }, []);
 
+  // 管理员直接登录功能
+  const adminDirectLogin = useCallback(() => {
+    // 创建管理员用户数据
+    const adminUser = {
+      id: 'admin-debug',
+      username: 'admin',
+      email: 'admin@example.com',
+      isAdmin: true
+    };
+    
+    // 设置用户状态
+    setUser(adminUser);
+    
+    // 保存到本地存储，带有短期过期时间
+    const expiry = new Date().getTime() + (8 * 60 * 60 * 1000); // 8小时
+    localStorage.setItem('user', JSON.stringify(adminUser));
+    localStorage.setItem('token', 'admin-debug-token');
+    localStorage.setItem('token_expiry', expiry.toString());
+    
+    return { success: true };
+  }, []);
+
   const authContextValue = {
     user,
     loading,
@@ -190,6 +212,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     register,
     clearAuthError,
+    adminDirectLogin, // 导出新方法
   };
 
   return (

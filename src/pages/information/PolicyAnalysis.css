@@ -278,3 +278,51 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 深色模式调整 */
+.dark-theme .policy-card {
+  background-color: var(--card-background);
+  border-color: var(--neutral-300);
+}
+
+.dark-theme .page-title,
+.dark-theme .section-title,
+.dark-theme .policy-title,
+.dark-theme .impact-header h4,
+.dark-theme .sector-name {
+  color: var(--text-heading);
+}
+
+.dark-theme .page-description,
+.dark-theme .policy-summary,
+.dark-theme .policy-meta {
+  color: var(--text-secondary);
+}
+
+.dark-theme .policy-content {
+  color: var(--text-primary);
+}
+
+.dark-theme .impact-item {
+  background-color: var(--neutral-300);
+}
+
+/* 深色模式增强 */
+.dark-theme .policy-summary {
+  color: var(--text-description);
+}
+
+.dark-theme .policy-meta,
+.dark-theme .policy-issuer,
+.dark-theme .policy-date {
+  color: var(--text-meta);
+}
+
+.dark-theme .impact-description {
+  color: var(--text-description);
+}
+
+.dark-theme .fund-item {
+  background-color: var(--neutral-300);
+  color: var(--text-hint);
+}

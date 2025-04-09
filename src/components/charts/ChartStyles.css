@@ -1,0 +1,288 @@
+/* 图表通用样式 */
+.chart-container {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+}
+
+.chart-title {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.chart-subtitle {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-right: var(--spacing-md);
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: var(--spacing-xs);
+}
+
+.legend-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* Recharts 组件重写样式 */
+.recharts-default-tooltip {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid var(--neutral-200) !important;
+  border-radius: var(--border-radius-md) !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.recharts-tooltip-label {
+  font-size: var(--font-size-sm) !important;
+  font-weight: var(--font-weight-medium) !important;
+  color: var(--text-primary) !important;
+  margin-bottom: var(--spacing-xs) !important;
+}
+
+.recharts-tooltip-item {
+  font-size: var(--font-size-xs) !important;
+  color: var(--text-secondary) !important;
+}
+
+.recharts-tooltip-item-name {
+  font-weight: var(--font-weight-normal) !important;
+}
+
+.recharts-tooltip-item-value {
+  font-weight: var(--font-weight-bold) !important;
+}
+
+.recharts-cartesian-axis-tick-value {
+  font-size: var(--font-size-xs) !important;
+  fill: var(--text-tertiary) !important;
+}
+
+.recharts-label {
+  font-size: var(--font-size-sm) !important;
+  fill: var(--text-secondary) !important;
+}
+
+.recharts-text {
+  font-size: var(--font-size-xs) !important;
+  fill: var(--text-tertiary) !important;
+}
+
+.recharts-legend-item-text {
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* 饼图样式 */
+.pie-chart-container {
+  position: relative;
+}
+
+.pie-label {
+  font-size: var(--font-size-xs);
+  fill: var(--text-primary);
+}
+
+.pie-value {
+  font-size: var(--font-size-xs);
+  fill: var(--text-secondary);
+}
+
+.pie-center-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.center-value {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.center-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+}
+
+/* 线图样式 */
+.line-chart-container {
+  margin-bottom: var(--spacing-md);
+}
+
+/* 柱状图样式 */
+.bar-chart-container {
+  margin-bottom: var(--spacing-md);
+}
+
+/* 雷达图样式 */
+.radar-chart-container {
+  margin-bottom: var(--spacing-md);
+}
+
+.radar-tick-text {
+  font-size: var(--font-size-xs);
+  fill: var(--text-tertiary);
+}
+
+/* 加载和错误状态 */
+.chart-loading,
+.chart-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-md);
+}
+
+.chart-error {
+  color: var(--error-color);
+}
+
+/* 没有数据状态 */
+.no-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--text-tertiary);
+}
+
+.no-data-icon {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--spacing-sm);
+}
+
+.no-data-text {
+  font-size: var(--font-size-md);
+  text-align: center;
+  max-width: 80%;
+}
+
+/* 自定义工具提示 */
+.custom-tooltip {
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.tooltip-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--neutral-200);
+  padding-bottom: var(--spacing-xs);
+}
+
+.tooltip-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+}
+
+.tooltip-label {
+  margin-right: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.tooltip-value {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.tooltip-value.positive {
+  color: var(--success-color);
+}
+
+.tooltip-value.negative {
+  color: var(--error-color);
+}
+
+/* 深色模式调整 */
+.dark-theme .recharts-default-tooltip {
+  background-color: rgba(31, 41, 55, 0.9) !important;
+  border-color: var(--neutral-400) !important;
+}
+
+.dark-theme .recharts-tooltip-label {
+  color: var(--text-heading) !important;
+}
+
+.dark-theme .recharts-tooltip-item {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .recharts-cartesian-axis-tick-value {
+  fill: var(--text-meta) !important;
+}
+
+.dark-theme .recharts-label {
+  fill: var(--text-secondary) !important;
+}
+
+.dark-theme .recharts-text {
+  fill: var(--text-meta) !important;
+}
+
+.dark-theme .recharts-legend-item-text {
+  color: var(--text-secondary) !important;
+}
+
+.dark-theme .pie-label {
+  fill: var(--text-primary);
+}
+
+.dark-theme .pie-value {
+  fill: var(--text-meta);
+}
+
+.dark-theme .custom-tooltip {
+  background-color: rgba(31, 41, 55, 0.95);
+  border-color: var(--neutral-400);
+}
+
+.dark-theme .tooltip-title {
+  color: var(--text-heading);
+  border-bottom-color: var(--neutral-400);
+}
+
+.dark-theme .tooltip-label {
+  color: var(--text-meta);
+}
+
+.dark-theme .tooltip-value {
+  color: var(--text-primary);
+}
+
+.dark-theme .chart-loading,
+.dark-theme .no-data {
+  color: var(--text-meta);
+}

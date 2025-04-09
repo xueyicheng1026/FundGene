@@ -1,3 +1,6 @@
+/* 导入基础页面样式 */
+@import '../css-base.css';
+
 .news-list-page {
   max-width: 1200px;
   margin: 0 auto;
@@ -58,13 +61,13 @@
 
 .news-source {
   margin-right: var(--spacing-md);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .news-summary {
   color: var(--text-secondary);
   margin-bottom: var(--spacing-md);
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .news-impact {
@@ -83,7 +86,7 @@
 .impact-content {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
   margin: 0;
 }
 
@@ -120,11 +123,53 @@
   color: var(--text-tertiary);
 }
 
+/* 继承基础页面样式 */
 .news-analysis-page {
+  composes: base-page;
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--spacing-md) 0;
   padding-top: calc(var(--page-top-spacing) + var(--spacing-lg)); /* 增加顶部间距 */
+}
+
+/* 深色模式调整 - 统一使用变量 */
+.dark-theme .news-card {
+  background-color: var(--card-background);
+  border-color: var(--neutral-300);
+}
+
+/* 文本颜色统一调整 */
+.dark-theme .news-title,
+.dark-theme .impact-title,
+.dark-theme .funds-title,
+.dark-theme .page-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .news-summary,
+.dark-theme .page-description,
+.dark-theme .news-meta {
+  color: var(--text-secondary);
+}
+
+.dark-theme .news-impact {
+  background-color: var(--neutral-300);
+}
+
+/* 解决重复声明的深色模式样式 */
+.dark-theme .news-meta,
+.dark-theme .news-source,
+.dark-theme .news-date {
+  color: var(--text-meta);
+}
+
+.dark-theme .impact-content {
+  color: var(--text-description);
+}
+
+.dark-theme .fund-tag {
+  background-color: var(--neutral-300);
+  color: var(--text-hint);
 }
 
 @media (max-width: 768px) {

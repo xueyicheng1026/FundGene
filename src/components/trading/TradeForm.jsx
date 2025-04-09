@@ -126,7 +126,7 @@ const TradeForm = ({ marketData, portfolio, onSubmit }) => {
       <form onSubmit={handleSubmit}>
         {/* 买入/卖出选择 */}
         <div className="form-group">
-          <label className="form-label">交易类型</label>
+          <label className="form-label text-secondary">交易类型</label>
           <div className="trade-type-selector">
             <label className={`trade-type-option ${formData.action === 'buy' ? 'selected' : ''}`}>
               <input
@@ -153,7 +153,7 @@ const TradeForm = ({ marketData, portfolio, onSubmit }) => {
         
         {/* 基金选择 */}
         <div className="form-group">
-          <label htmlFor="fundCode" className="form-label">选择基金</label>
+          <label htmlFor="fundCode" className="form-label text-secondary">选择基金</label>
           <select
             id="fundCode"
             name="fundCode"
@@ -173,7 +173,7 @@ const TradeForm = ({ marketData, portfolio, onSubmit }) => {
         
         {/* 金额/份额输入 */}
         <div className="form-group">
-          <label htmlFor="amount" className="form-label">
+          <label htmlFor="amount" className="form-label text-secondary">
             {formData.action === 'buy' ? '买入金额 (元)' : '卖出份额'}
           </label>
           <input
@@ -187,12 +187,12 @@ const TradeForm = ({ marketData, portfolio, onSubmit }) => {
             required
           />
           {!formData.isAmountValid && (
-            <div className="input-error">请输入有效的{formData.action === 'buy' ? '金额' : '份额'}</div>
+            <div className="input-error text-error text-xs">请输入有效的{formData.action === 'buy' ? '金额' : '份额'}</div>
           )}
           
           {/* 显示可用资金或可卖出份额 */}
           {formData.fundCode && (
-            <div className="available-info">
+            <div className="available-info text-sm text-tertiary">
               {formData.action === 'buy' && portfolio ? (
                 <span>可用资金: ¥{portfolio.availableCash.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span>
               ) : (
@@ -207,25 +207,25 @@ const TradeForm = ({ marketData, portfolio, onSubmit }) => {
         {/* 交易信息预览 */}
         {selectedFund && formData.isAmountValid && formData.amount && (
           <div className="trade-preview">
-            <h4 className="preview-title">交易预览</h4>
+            <h4 className="preview-title text-sm text-secondary">交易预览</h4>
             <div className="preview-item">
-              <span className="preview-label">基金:</span>
+              <span className="preview-label text-tertiary">基金:</span>
               <span className="preview-value">{selectedFund.name}</span>
             </div>
             <div className="preview-item">
-              <span className="preview-label">最新净值:</span>
+              <span className="preview-label text-tertiary">最新净值:</span>
               <span className="preview-value">{selectedFund.value.toFixed(4)}</span>
             </div>
             {formData.action === 'buy' ? (
               <div className="preview-item">
-                <span className="preview-label">预估份额:</span>
+                <span className="preview-label text-tertiary">预估份额:</span>
                 <span className="preview-value">
                   {(parseFloat(formData.amount) / selectedFund.value).toFixed(2)}
                 </span>
               </div>
             ) : (
               <div className="preview-item">
-                <span className="preview-label">预估金额:</span>
+                <span className="preview-label text-tertiary">预估金额:</span>
                 <span className="preview-value">
                   ¥{(parseFloat(formData.amount) * selectedFund.value).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
                 </span>

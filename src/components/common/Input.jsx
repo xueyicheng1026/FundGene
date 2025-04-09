@@ -38,7 +38,7 @@ const Input = ({
   return (
     <div className={formGroupClasses}>
       {label && (
-        <label htmlFor={inputId} className="input-label">
+        <label htmlFor={inputId} className="input-label text-secondary text-sm">
           {label} {required && <span className="input-required">*</span>}
         </label>
       )}
@@ -55,7 +55,7 @@ const Input = ({
         {...props}
       />
       {(error || helperText) && (
-        <p className={`input-helper-text ${error ? 'input-error-text' : ''}`}>
+        <p className={`input-helper-text ${error ? 'input-error-text text-error' : 'text-tertiary'} text-xs`}>
           {error || helperText}
         </p>
       )}
@@ -78,22 +78,18 @@ const styles = `
   .input-label {
     display: block;
     margin-bottom: var(--spacing-xs);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    color: var(--text-secondary);
   }
 
   .input-required {
     color: var(--error-color);
-    margin-left: 2px;
+    margin-left: var(--spacing-xs);
   }
 
   .input-field {
     display: block;
     width: 100%;
-    padding: 0.625rem 0.75rem;
-    font-size: var(--font-size-md);
-    line-height: 1.5;
+    padding: var(--spacing-sm) var(--spacing-md);
+    line-height: var(--line-height-normal);
     color: var(--text-primary);
     background-color: white;
     background-clip: padding-box;
@@ -132,12 +128,6 @@ const styles = `
 
   .input-helper-text {
     margin-top: var(--spacing-xs);
-    font-size: var(--font-size-xs);
-    color: var(--text-tertiary);
-  }
-
-  .input-error-text {
-    color: var(--error-color);
   }
 `;
 

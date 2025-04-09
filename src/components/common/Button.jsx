@@ -12,10 +12,17 @@ const Button = ({
   className,
   ...props
 }) => {
+  const sizeClasses = {
+    'small': 'text-sm',
+    'medium': 'text-md',
+    'large': 'text-lg'
+  };
+  
   const buttonClasses = classNames(
     'button',
     `button-${variant}`,
     `button-${size}`,
+    sizeClasses[size],
     {
       'button-full-width': fullWidth,
       'button-disabled': disabled,
@@ -44,12 +51,11 @@ const styles = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
     transition: var(--transition-default);
-    padding: 0.5rem 1rem;
   }
 
   .button-primary {
@@ -84,7 +90,7 @@ const styles = `
   .button-text {
     background-color: transparent;
     color: var(--primary-color);
-    padding: 0.25rem 0.5rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
   }
 
   .button-text:hover:not(.button-disabled) {
@@ -92,18 +98,15 @@ const styles = `
   }
 
   .button-small {
-    font-size: var(--font-size-sm);
-    padding: 0.25rem 0.75rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
   }
 
   .button-medium {
-    font-size: var(--font-size-md);
-    padding: 0.5rem 1rem;
+    padding: var(--spacing-sm) var(--spacing-md);
   }
 
   .button-large {
-    font-size: var(--font-size-lg);
-    padding: 0.75rem 1.5rem;
+    padding: var(--spacing-md) var(--spacing-lg);
   }
 
   .button-full-width {
@@ -113,6 +116,38 @@ const styles = `
   .button-disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  /* 深色模式按钮样式 */
+  .dark-theme .button-secondary {
+    background-color: var(--neutral-300);
+    color: var(--text-primary);
+  }
+
+  .dark-theme .button-secondary:hover:not(.button-disabled) {
+    background-color: var(--neutral-400);
+  }
+
+  .dark-theme .button-outline {
+    border-color: var(--neutral-400);
+    color: var(--text-primary);
+  }
+
+  .dark-theme .button-outline:hover:not(.button-disabled) {
+    background-color: var(--neutral-300);
+    border-color: var(--neutral-500);
+  }
+
+  .dark-theme .button-text {
+    color: var(--primary-light);
+  }
+
+  .dark-theme .button-text:hover:not(.button-disabled) {
+    background-color: rgba(59, 130, 246, 0.15);
+  }
+
+  .dark-theme .button-disabled {
+    opacity: 0.5;
   }
 `;
 

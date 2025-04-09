@@ -1,0 +1,91 @@
+/* 深色模式变量 */
+.dark-theme {
+  /* 主色调 - 略微调亮以在深色背景上更加突出 */
+  --primary-color: #3b82f6;
+  --primary-light: #60a5fa;
+  --primary-dark: #2563eb;
+  
+  /* 辅助色 */
+  --secondary-color: #34d399;
+  --secondary-light: #6ee7b7;
+  --secondary-dark: #10b981;
+  
+  /* 强调色 */
+  --accent-color: #fbbf24;
+  --accent-light: #fcd34d;
+  --accent-dark: #f59e0b;
+  
+  /* 中性色 - 反转亮度 */
+  --neutral-50: #1f2937;
+  --neutral-100: #111827;
+  --neutral-200: #1f2937;
+  --neutral-300: #374151;
+  --neutral-400: #4b5563;
+  --neutral-500: #6b7280;
+  --neutral-600: #9ca3af;
+  --neutral-700: #d1d5db;
+  --neutral-800: #e5e7eb;
+  --neutral-900: #f9fafb;
+  
+  /* 功能色 */
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --info-color: #3b82f6;
+  
+  /* 文字色 - 统一管理所有文字颜色变量 */
+  --text-primary: #f9fafb;      /* 主文本颜色 - 调亮 */
+  --text-secondary: #e5e7eb;    /* 次要文本颜色 - 调亮 */
+  --text-tertiary: #9ca3af;     /* 第三级文本颜色 - 保持 */
+  --text-light: #1f2937;        /* 浅色背景上的文本 */
+  
+  /* 特殊文本颜色 */
+  --text-heading: #ffffff;      /* 标题文本 - 纯白色更清晰 */
+  --text-bold: #ffffff;         /* 加粗文本颜色 - 纯白色 */
+  --text-title: #ffffff;        /* 页面和卡片标题 - 纯白色 */
+  --text-description: #d1d5db;  /* 描述性文本 - 调亮 */
+  --text-meta: #cbd5e1;         /* 元数据文本 - 调亮 */
+  --text-hint: #94a3b8;         /* 提示性文本和标签 - 调亮 */
+  --text-link: #60a5fa;         /* 链接文本颜色 - 更鲜明的蓝色 */
+  --text-link-hover: #93c5fd;   /* 链接悬停颜色 - 更亮 */
+  
+  /* 背景色 */
+  --background-light: #111827;
+  --background-default: #1f2937;
+  --background-dark: #374151;
+  
+  /* 表格和边框颜色 */
+  --border-color: #374151;
+  --table-header-bg: #1f2937;
+  --table-row-hover: #374151;
+  
+  /* 卡片和组件背景 */
+  --card-background: #1f2937;
+  --header-background: #111827;
+  --sidebar-background: #1f2937;
+  --dropdown-background: #111827;
+  --tooltip-background: #111827;
+  --modal-background: #1f2937;
+  
+  /* 阴影 - 在深色模式下更加柔和 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4), 0 4px 6px rgba(0, 0, 0, 0.3);
+  
+  /* 用户界面特定变量 */
+  --user-card-bg: var(--card-background);
+  --user-title-color: var(--text-heading);
+  --user-text-color: var(--text-primary);
+  --user-meta-color: var(--text-meta);
+  
+  /* 设置界面特定变量 */
+  --settings-border-color: var(--neutral-400);
+  --settings-control-bg: var(--neutral-300);
+  --settings-toggle-bg: var(--neutral-500);
+  
+  /* 确保表单元素对比度足够 */
+  --input-bg-dark: var(--neutral-300);
+  --input-text-dark: var(--text-light);
+  --input-border-dark: var(--neutral-400);
+  --input-focus-border-dark: var(--primary-light);
+}

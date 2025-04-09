@@ -1,5 +1,10 @@
 /* 导入变量定义 */
 @import './styles/variables.css';
+@import './styles/responsive-variables.css';
+@import './styles/layout-variables.css';
+@import './styles/dark-theme.css';
+@import './styles/TextStyles.css';
+@import './styles/composable-classes.css';
 
 /* 全局重置和基础样式 */
 * {
@@ -11,12 +16,13 @@
 html,
 body {
   font-family: var(--font-family);
-  font-size: 16px;
+  font-size: var(--font-size-base);
   color: var(--text-primary);
-  line-height: 1.5;
-  background-color: var(--neutral-50);
+  line-height: var(--line-height-normal);
+  background-color: var(--background-light);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body {
@@ -35,38 +41,32 @@ main {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  margin-bottom: 1rem;
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-md);
+  color: var(--text-heading);
 }
 
 a {
-  color: var(--primary-color);
   text-decoration: none;
+  color: var(--text-link);
 }
 
 a:hover {
   text-decoration: underline;
+  color: var(--text-link-hover);
 }
 
 button {
   cursor: pointer;
 }
 
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: var(--spacing-xl);
-  font-size: var(--font-size-lg);
-  color: var(--text-secondary);
-}
-
-.error {
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius-md);
-  background-color: rgba(239, 68, 68, 0.1);
-  color: var(--error-color);
-  margin: var(--spacing-md) 0;
+/* 统一的页面容器类 */
+.page-container {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: var(--page-padding-y) var(--page-padding-x);
+  padding-top: var(--page-top-spacing);
+  width: 100%;
 }
 
 /* 表单元素基础样式 */
@@ -75,100 +75,10 @@ input, select, textarea, button {
   font-size: inherit;
 }
 
-/* 基础动画 */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-/* 辅助类 */
-.text-center { text-align: center; }
-.text-right { text-align: right; }
-.text-left { text-align: left; }
-.mt-auto { margin-top: auto; }
-.mb-auto { margin-bottom: auto; }
-
-/* 统一的页面容器 */
-.page-container,
-.dashboard-page,
-.portfolio-page,
-.portfolio-rebalance-page,
-.decision-comparison-page,
-.news-analysis-page,
-.policy-analysis-page,
-.behavior-profile-page,
-.behavior-alerts-page,
-.chat-interface-page,
-.scenario-simulation-page,
-.learning-center-page,
-.course-detail-page,
-.trading-simulation-page,
-.behavior-correction-page {
-  max-width: var(--page-max-width, 1200px);
-  margin: 0 auto;
-  padding: var(--page-padding-y, 1.5rem) var(--page-padding-x, 1.5rem);
-  padding-top: var(--page-top-spacing); /* 使用统一的顶部间距变量 */
-  width: 100%;
-}
-
 /* 响应式调整 */
-@media (max-width: 768px) {
-  .main-content {
-    margin-left: 60px; /* 与侧边栏宽度匹配 */
-    margin-bottom: 60px; /* 为底部导航栏留出空间 */
-  }
-  
-  .content-area {
-    padding: var(--spacing-md);
-  }
-  
-  .page-container,
-  .dashboard-page,
-  .portfolio-page,
-  .portfolio-rebalance-page,
-  .decision-comparison-page,
-  .news-analysis-page,
-  .policy-analysis-page,
-  .behavior-profile-page,
-  .behavior-alerts-page,
-  .chat-interface-page,
-  .scenario-simulation-page,
-  .learning-center-page,
-  .course-detail-page,
-  .trading-simulation-page,
-  .behavior-correction-page {
-    padding: var(--spacing-md) var(--spacing-md);
-    padding-top: var(--page-top-spacing); /* 保持统一的顶部间距 */
-    padding-bottom: calc(var(--spacing-md) + 70px); /* 增加底部间距，确保内容不被底部导航栏遮挡 */
-  }
-}
-
-@media (max-width: 480px) {
-  .main-content {
-    margin-left: 50px; /* 与超小屏幕设备侧边栏宽度匹配 */
-  }
-  
-  .page-container,
-  .dashboard-page,
-  .portfolio-page,
-  .portfolio-rebalance-page,
-  .decision-comparison-page,
-  .news-analysis-page,
-  .policy-analysis-page,
-  .behavior-profile-page,
-  .behavior-alerts-page,
-  .chat-interface-page,
-  .scenario-simulation-page,
-  .learning-center-page,
-  .course-detail-page,
-  .trading-simulation-page,
-  .behavior-correction-page {
-    padding: var(--spacing-sm);
+@media (max-width: var(--breakpoint-md)) {
+  .page-container {
+    padding: var(--page-padding-y-mobile) var(--page-padding-x-mobile);
     padding-top: var(--page-top-spacing);
   }
 }
