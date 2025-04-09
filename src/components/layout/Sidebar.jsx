@@ -168,8 +168,8 @@ const Sidebar = () => {
         <nav className="sidebar-nav">
           {/* 仪表盘 */}
           <div 
-            className={`nav-item ${isActive('/') && !isActive('/behavior') && !isActive('/cognitive') && !isActive('/decision') && !isActive('/information') ? 'active' : ''}`}
-            onClick={() => handleNavigation('/')}
+            className={`nav-item ${isActive('/dashboard') && !isActive('/dashboard/behavior') && !isActive('/dashboard/cognitive') && !isActive('/dashboard/decision') && !isActive('/dashboard/information') ? 'active' : ''}`}
+            onClick={() => handleNavigation('/dashboard')}
           >
             <HomeOutlined className="nav-icon" />
             {!collapsed && <span className="nav-text">仪表盘</span>}
@@ -177,30 +177,30 @@ const Sidebar = () => {
           
           {/* 认知诊断与教学模块 */}
           {renderNavGroup('cognitive', <ExperimentOutlined className="nav-icon" />, '认知诊断与教学', [
-            { path: '/cognitive/chat', icon: <RobotOutlined className="nav-subicon" />, label: 'AI对话诊断' },
-            { path: '/cognitive/learning', icon: <ReadOutlined className="nav-subicon" />, label: '学习中心' },
-            { path: '/cognitive/simulation', icon: <AreaChartOutlined className="nav-subicon" />, label: '场景模拟' }
-          ], '/cognitive/chat')}
+            { path: '/dashboard/cognitive/chat', icon: <RobotOutlined className="nav-subicon" />, label: 'AI对话诊断' },
+            { path: '/dashboard/cognitive/learning', icon: <ReadOutlined className="nav-subicon" />, label: '学习中心' },
+            { path: '/dashboard/cognitive/simulation', icon: <AreaChartOutlined className="nav-subicon" />, label: '场景模拟' }
+          ], '/dashboard/cognitive/chat')}
           
           {/* 行为矫正模块 */}
           {renderNavGroup('behavior', <UserOutlined className="nav-icon" />, '行为矫正', [
-            { path: '/behavior/profile', icon: <UserOutlined className="nav-subicon" />, label: '行为画像' },
-            { path: '/behavior/trading', icon: <AreaChartOutlined className="nav-subicon" />, label: '模拟交易' },
-            { path: '/behavior/alerts', icon: <BellOutlined className="nav-subicon" />, label: '行为提醒', badge: 3 }
-          ], '/behavior/profile')}
+            { path: '/dashboard/behavior/profile', icon: <UserOutlined className="nav-subicon" />, label: '行为画像' },
+            { path: '/dashboard/behavior/trading', icon: <AreaChartOutlined className="nav-subicon" />, label: '模拟交易' },
+            { path: '/dashboard/behavior/alerts', icon: <BellOutlined className="nav-subicon" />, label: '行为提醒', badge: 3 }
+          ], '/dashboard/behavior/profile')}
           
           {/* 决策支持模块 */}
           {renderNavGroup('decision', <AreaChartOutlined className="nav-icon" />, '决策支持', [
-            { path: '/decision/portfolio', icon: <AreaChartOutlined className="nav-subicon" />, label: '投资组合分析' },
-            { path: '/decision/rebalance', icon: <SettingOutlined className="nav-subicon" />, label: '再平衡建议' },
-            { path: '/decision/comparison', icon: <FileTextOutlined className="nav-subicon" />, label: '决策对比' }
-          ], '/decision/portfolio')}
+            { path: '/dashboard/decision/portfolio', icon: <AreaChartOutlined className="nav-subicon" />, label: '投资组合分析' },
+            { path: '/dashboard/decision/rebalance', icon: <SettingOutlined className="nav-subicon" />, label: '再平衡建议' },
+            { path: '/dashboard/decision/comparison', icon: <FileTextOutlined className="nav-subicon" />, label: '决策对比' }
+          ], '/dashboard/decision/portfolio')}
           
           {/* 信息解读模块 */}
           {renderNavGroup('information', <ReadOutlined className="nav-icon" />, '信息解读', [
-            { path: '/information/news', icon: <FileTextOutlined className="nav-subicon" />, label: '新闻解读' },
-            { path: '/information/policy', icon: <FileTextOutlined className="nav-subicon" />, label: '政策分析' }
-          ], '/information/news')}
+            { path: '/dashboard/information/news', icon: <FileTextOutlined className="nav-subicon" />, label: '新闻解读' },
+            { path: '/dashboard/information/policy', icon: <FileTextOutlined className="nav-subicon" />, label: '政策分析' }
+          ], '/dashboard/information/news')}
         </nav>
       </div>
       

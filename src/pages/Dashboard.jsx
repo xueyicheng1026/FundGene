@@ -112,7 +112,7 @@ const Dashboard = () => {
         <Card className="portfolio-overview-card">
           <div className="card-header">
             <h2>资产概览</h2>
-            <Link to="/decision/portfolio" className="view-all-link">查看详情</Link>
+            <Link to="/dashboard/decision/portfolio" className="view-all-link">查看详情</Link>
           </div>
           
           {loading ? (
@@ -141,8 +141,8 @@ const Dashboard = () => {
               {renderAssetAllocation()}
               
               <div className="quick-actions">
-                <Link to="/decision/rebalance" className="quick-action-button">再平衡建议</Link>
-                <Link to="/behavior/trading" className="quick-action-button">模拟交易</Link>
+                <Link to="/dashboard/decision/rebalance" className="quick-action-button">再平衡建议</Link>
+                <Link to="/dashboard/behavior/trading" className="quick-action-button">模拟交易</Link>
               </div>
             </>
           ) : (
@@ -154,7 +154,7 @@ const Dashboard = () => {
         <Card className="behavior-alerts-card">
           <div className="card-header">
             <h2>行为提醒</h2>
-            <Link to="/behavior/alerts" className="view-all-link">查看全部</Link>
+            <Link to="/dashboard/behavior/alerts" className="view-all-link">查看全部</Link>
           </div>
           
           {loading ? (
@@ -168,14 +168,14 @@ const Dashboard = () => {
                     <span className="alert-title">{alert.title}</span>
                   </div>
                   <p className="alert-description">{alert.behavior}</p>
-                  <Link to="/behavior/alerts" className="alert-action">查看详情</Link>
+                  <Link to="/dashboard/behavior/alerts" className="alert-action">查看详情</Link>
                 </div>
               ))}
             </div>
           ) : (
             <div className="empty-alerts">
               <p>暂无高优先级提醒</p>
-              <Link to="/behavior/profile" className="check-profile-link">查看我的行为画像</Link>
+              <Link to="/dashboard/behavior/profile" className="check-profile-link">查看我的行为画像</Link>
             </div>
           )}
         </Card>
@@ -185,8 +185,8 @@ const Dashboard = () => {
           <div className="card-header">
             <h2>新闻与政策解读</h2>
             <div className="tab-links">
-              <Link to="/information/news" className="tab-link">新闻</Link>
-              <Link to="/information/policy" className="tab-link">政策</Link>
+              <Link to="/dashboard/information/news" className="tab-link">新闻</Link>
+              <Link to="/dashboard/information/policy" className="tab-link">政策</Link>
             </div>
           </div>
           
@@ -236,19 +236,19 @@ const Dashboard = () => {
           <div className="suggested-questions">
             <h3 className="sub-section-title">您可能想问</h3>
             <div className="question-bubbles">
-              <Link to="/cognitive/chat?q=当前市场行情分析" className="question-bubble">当前市场行情分析</Link>
-              <Link to="/cognitive/chat?q=如何降低投资组合风险" className="question-bubble">如何降低投资组合风险</Link>
-              <Link to="/cognitive/chat?q=常见的投资者行为偏差" className="question-bubble">常见的投资者行为偏差</Link>
+              <Link to="/dashboard/cognitive/chat?q=当前市场行情分析" className="question-bubble">当前市场行情分析</Link>
+              <Link to="/dashboard/cognitive/chat?q=如何降低投资组合风险" className="question-bubble">如何降低投资组合风险</Link>
+              <Link to="/dashboard/cognitive/chat?q=常见的投资者行为偏差" className="question-bubble">常见的投资者行为偏差</Link>
             </div>
           </div>
-          <Link to="/cognitive/chat" className="start-chat-button">开始对话</Link>
+          <Link to="/dashboard/cognitive/chat" className="start-chat-button">开始对话</Link>
         </Card>
       </div>
 
       <div className="quick-access-section">
         <h2 className="section-title">快速访问</h2>
         <div className="quick-access-grid">
-          <Link to="/cognitive/simulation" className="quick-access-card">
+          <Link to="/dashboard/cognitive/simulation" className="quick-access-card">
             <div className="quick-access-icon simulation-icon">🔄</div>
             <h3>场景模拟</h3>
             <p>体验历史市场环境，练习决策能力</p>
@@ -260,13 +260,13 @@ const Dashboard = () => {
             <p>了解您的投资行为特征和认知偏差</p>
           </Link>
           
-          <Link to="/decision/rebalance" className="quick-access-card">
+          <Link to="/dashboard/decision/rebalance" className="quick-access-card">
             <div className="quick-access-icon rebalance-icon">⚖️</div>
             <h3>投资组合再平衡</h3>
             <p>获取基于AI的再平衡建议</p>
           </Link>
           
-          <Link to="/information/policy" className="quick-access-card">
+          <Link to="/dashboard/information/policy" className="quick-access-card">
             <div className="quick-access-icon policy-icon">📋</div>
             <h3>政策解读</h3>
             <p>了解最新政策对投资的影响</p>

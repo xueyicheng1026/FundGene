@@ -31,7 +31,7 @@ const Header = ({ toggleSidebar, sidebarCollapsed }) => {
           >
             {sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           </button>
-          <Link to="/" className="logo-link">
+          <Link to="/dashboard" className="logo-link">
             <img src="/logo-icon.svg" alt="FundGene Logo" className="logo-icon" />
             <span className="logo">FundGene</span>
           </Link>
@@ -67,10 +67,10 @@ const Header = ({ toggleSidebar, sidebarCollapsed }) => {
                   
                   <div className="dropdown-divider"></div>
                   
-                  <Link to="/user/profile" className="dropdown-item">
+                  <Link to="/dashboard/user/profile" className="dropdown-item">
                     个人资料
                   </Link>
-                  <Link to="/user/settings" className="dropdown-item">
+                  <Link to="/dashboard/user/settings" className="dropdown-item">
                     账户设置
                   </Link>
                   

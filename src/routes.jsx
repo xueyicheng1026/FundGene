@@ -42,7 +42,7 @@ const router = createBrowserRouter([
   // 将根路径重定向到登录页面
   {
     path: '/',
-    element: <Navigate to="/login" replace />
+    element: <Navigate to="/dashboard" replace />
   },
   // 登录、注册等公共页面
   { path: '/login', element: <Login /> },
@@ -68,15 +68,16 @@ const router = createBrowserRouter([
         ]
       },
       
-      // 行为矫正
+      // 行为矫正 - 修改路由结构，去掉不必要的包装元素
       {
         path: 'behavior',
-        element: <BehaviorCorrection />,
         children: [
           { index: true, element: <Navigate to="/dashboard/behavior/profile" replace /> },
           { path: 'profile', element: <BehaviorProfile /> },
           { path: 'trading', element: <TradingSimulation /> },
-          { path: 'alerts', element: <BehaviorAlerts /> }
+          { path: 'alerts', element: <BehaviorAlerts /> },
+          // 添加一个包含所有子路由的BehaviorCorrection路由
+          { path: 'correction', element: <BehaviorCorrection /> }
         ]
       },
       
