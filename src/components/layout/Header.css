@@ -48,23 +48,6 @@
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-@media (max-width: 768px) {
-  .sidebar-toggle {
-    font-size: var(--font-size-xl);
-    margin-right: var(--spacing-xs);
-    padding: var(--spacing-xs);
-  }
-  
-  .logo {
-    font-size: var(--font-size-xl);
-  }
-  
-  .logo-icon {
-    height: 24px;
-    width: 24px;
-  }
-}
-
 .logo-link {
   text-decoration: none;
   display: flex;
@@ -84,6 +67,7 @@
   background: linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text; /* 标准语法 */
   
   /* 增加一些立体感和大小 */
   font-size: var(--font-size-2xl);
@@ -93,7 +77,6 @@
   /* 增强显示效果 */
   text-decoration: none;
   display: inline-block;
-  text-shadow: none; /* 移除之前的文本阴影，因为使用了渐变色 */
 }
 
 /* 添加一个悬停效果，鼠标移上去时变化 */
@@ -101,6 +84,7 @@
   background: linear-gradient(45deg, #a18cd1 0%, #fbc2eb 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text; /* 标准语法 */
   transform: scale(1.05);
   transition: var(--transition-default);
 }
@@ -117,44 +101,117 @@
   color: white;
   border-radius: var(--border-radius-md);
   transition: background-color 0.2s;
+  height: 36px;
+  width: 36px;
+  justify-content: center;
 }
 
 .theme-toggle:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-.theme-toggle-text {
-  margin-left: var(--spacing-xs);
-  font-size: var(--font-size-sm);
-  display: none;
+/* 用户菜单样式 */
+.user-menu-container {
+  position: relative;
 }
 
-@media (min-width: 768px) {
-  .theme-toggle-text {
-    display: inline;
-  }
-}
-
-.user-menu {
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
-}
-
-.user-name {
-  margin-right: var(--spacing-md);
-}
-
-.logout-button {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
   color: white;
-  padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: var(--border-radius-md);
   cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.logout-button:hover {
-  background: rgba(255, 255, 255, 0.3);
+.user-avatar:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 200px;
+  background-color: white;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1010;
+  overflow: hidden;
+  border: 1px solid var(--neutral-200);
+}
+
+.user-info {
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+}
+
+.user-display-name {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-xs);
+}
+
+.user-email {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: var(--neutral-200);
+  width: 100%;
+}
+
+.dropdown-item {
+  display: block;
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: var(--font-size-md);
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: var(--neutral-100);
+}
+
+.logout-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--error-color);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .sidebar-toggle {
+    font-size: var(--font-size-xl);
+    margin-right: var(--spacing-xs);
+    padding: var(--spacing-xs);
+  }
+  
+  .logo {
+    font-size: var(--font-size-xl);
+  }
+  
+  .logo-icon {
+    height: 24px;
+    width: 24px;
+  }
+  
+  .header-container {
+    padding: 0 var(--spacing-sm);
+  }
 }
 
 /* 深色模式的特定调整 */
@@ -163,7 +220,6 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* 用户下拉菜单深色模式 */
 .dark-theme .user-dropdown {
   background-color: var(--dropdown-background);
   border-color: var(--neutral-300);
@@ -179,4 +235,12 @@
 
 .dark-theme .dropdown-item:hover {
   background-color: var(--neutral-300);
+}
+
+.dark-theme .user-display-name {
+  color: var(--text-heading);
+}
+
+.dark-theme .user-email {
+  color: var(--text-secondary);
 }

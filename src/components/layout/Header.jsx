@@ -2,10 +2,10 @@ import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
 import { ThemeContext } from '../../contexts/ThemeContext';
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { UserOutlined } from '@ant-design/icons';
 import './Header.css';
 
-const Header = ({ toggleSidebar, sidebarCollapsed }) => {
+const Header = () => {
   const { user, logout } = useContext(AuthContext);
   const { theme, toggleTheme } = useContext(ThemeContext);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -24,15 +24,8 @@ const Header = ({ toggleSidebar, sidebarCollapsed }) => {
     <header className="header">
       <div className="header-container">
         <div className="header-left">
-          <button 
-            className="sidebar-toggle" 
-            onClick={toggleSidebar}
-            aria-label="切换侧边栏"
-          >
-            {sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          </button>
           <Link to="/dashboard" className="logo-link">
-            <img src="/logo-icon.svg" alt="FundGene Logo" className="logo-icon" />
+            <img src="/logo-icon.svg" alt="FundGene" className="logo-icon" />
             <span className="logo">FundGene</span>
           </Link>
         </div>
@@ -45,22 +38,19 @@ const Header = ({ toggleSidebar, sidebarCollapsed }) => {
             title={`切换到${theme === 'light' ? '深色' : '浅色'}模式`}
           >
             {theme === 'light' ? '🌙' : '☀️'}
-            <span className="theme-toggle-text">
-              {theme === 'light' ? '深色模式' : '浅色模式'}
-            </span>
           </button>
           
           {user && (
             <div className="user-menu-container">
               <div className="user-avatar" onClick={toggleUserMenu}>
-                {user.username?.charAt(0).toUpperCase() || 'U'}
+                {user.username ? user.username.charAt(0).toUpperCase() : <UserOutlined />}
               </div>
               
               {userMenuOpen && (
                 <div className="user-dropdown">
                   <div className="user-info">
                     <span className="user-display-name">
-                      {user.username || user.name || '用户'}
+                      {user.username || '用户'}
                     </span>
                     <span className="user-email">{user.email || ''}</span>
                   </div>

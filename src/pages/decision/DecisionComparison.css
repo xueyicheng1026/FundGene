@@ -1,0 +1,506 @@
+/* 导入基础页面样式 */
+@import '../css-base.css';
+
+/* 继承基础页面样式 */
+.comparison-page {
+  composes: base-page;
+}
+
+/* 页面头部继承基础样式 */
+.comparison-page .page-header {
+  composes: base-page-header;
+}
+
+.comparison-page .page-title {
+  composes: base-page-title;
+}
+
+.comparison-page .page-description {
+  composes: base-page-description;
+}
+
+/* 决策对比部分 */
+.comparison-overview {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--section-margin-bottom);
+}
+
+/* 示例数据提示条 */
+.example-data-notice {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: var(--border-radius-md);
+  color: var(--info-color);
+  border-left: 4px solid var(--info-color);
+}
+
+.notice-icon {
+  margin-right: var(--spacing-sm);
+  font-size: var(--font-size-lg);
+}
+
+.reload-button {
+  margin-left: auto;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: transparent;
+  border: 1px solid var(--info-color);
+  border-radius: var(--border-radius-sm);
+  color: var(--info-color);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.reload-button:hover {
+  background-color: var(--info-color);
+  color: white;
+}
+
+/* 场景选择器 */
+.scenario-selector {
+  margin-bottom: var(--spacing-lg);
+}
+
+.selector-title {
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.scenario-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.scenario-button {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: 1px solid var(--neutral-300);
+  border-radius: var(--border-radius-md);
+  background-color: var(--neutral-50);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.scenario-button.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.scenario-button:hover:not(.active) {
+  background-color: var(--neutral-100);
+}
+
+.comparison-chart-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+  margin-bottom: var(--spacing-xl);
+}
+
+.chart-container {
+  height: 400px;
+  margin-bottom: var(--spacing-md);
+}
+
+.chart-title {
+  font-size: var(--font-size-lg);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.chart-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* 统计数据部分 */
+.performance-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.stat-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+}
+
+.stat-title {
+  font-size: var(--font-size-md);
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.stat-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+}
+
+.positive {
+  color: var(--success-color);
+}
+
+.negative {
+  color: var(--error-color);
+}
+
+.neutral {
+  color: var(--info-color);
+}
+
+/* 详细分析卡片 */
+.details-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+  margin-bottom: var(--section-margin-bottom);
+}
+
+.details-title {
+  font-size: var(--font-size-lg);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+  font-family: var(--font-family-base);
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.comparison-table th {
+  background-color: var(--neutral-100);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.comparison-table tr:last-child td {
+  border-bottom: none;
+}
+
+.comparison-table td {
+  font-size: var(--font-size-sm);
+  vertical-align: middle;
+}
+
+/* 表格中的表现指标 */
+.performance-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.indicator-icon {
+  font-size: var(--font-size-sm);
+}
+
+/* 分析内容 */
+.analysis-section {
+  margin-top: var(--spacing-xl);
+}
+
+.analysis-content {
+  color: var(--text-secondary);
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-md);
+}
+
+.analysis-points {
+  padding-left: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+}
+
+.analysis-points li {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.analysis-highlight {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 行动按钮 */
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.action-buttons .btn {
+  min-width: 160px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--border-radius-md);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-md);
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.action-buttons .btn.primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.action-buttons .btn.primary:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.action-buttons .btn.secondary {
+  background-color: var(--neutral-100);
+  color: var(--text-primary);
+  border: 1px solid var(--neutral-300);
+}
+
+.action-buttons .btn.secondary:hover {
+  background-color: var(--neutral-200);
+  transform: translateY(-2px);
+}
+
+/* 时间段选择器 */
+.period-selector {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.period-button {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: 1px solid var(--neutral-300);
+  border-radius: var(--border-radius-md);
+  background-color: var(--neutral-50);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.period-button.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.period-button:hover:not(.active) {
+  background-color: var(--neutral-100);
+}
+
+/* 指标说明 */
+.metrics-explanation {
+  background-color: var(--neutral-50);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  border-left: 4px solid var(--info-color);
+}
+
+.metrics-title {
+  font-size: var(--font-size-md);
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.metrics-list {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.metrics-list li {
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.metrics-term {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+/* 加载和错误状态 */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  font-size: var(--font-size-lg);
+  color: var(--text-tertiary);
+}
+
+.error {
+  max-width: 800px;
+  margin: 100px auto;
+  padding: var(--spacing-lg);
+  background-color: rgba(239, 68, 68, 0.1);
+  border-left: 4px solid var(--error-color);
+  color: var(--error-color);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-md);
+}
+
+/* 响应式调整 */
+@media (max-width: var(--breakpoint-lg)) {
+  .performance-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .scenario-buttons {
+    flex-wrap: wrap;
+  }
+  
+  .scenario-button {
+    flex: 1 1 calc(50% - var(--spacing-sm));
+    text-align: center;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .action-buttons .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: var(--breakpoint-md)) {
+  .comparison-page {
+    padding: var(--page-container-padding-y-mobile) var(--page-container-padding-x-mobile);
+    padding-top: var(--page-top-spacing);
+  }
+  
+  .example-data-notice {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .reload-button {
+    margin-left: 0;
+    margin-top: var(--spacing-sm);
+  }
+  
+  .period-selector,
+  .scenario-buttons {
+    overflow-x: auto;
+    padding-bottom: var(--spacing-xs);
+  }
+  
+  .period-button,
+  .scenario-button {
+    white-space: nowrap;
+  }
+  
+  .comparison-table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* 深色模式适配 */
+.dark-theme .chart-title,
+.dark-theme .details-title,
+.dark-theme .stat-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .stat-value {
+  color: var(--text-primary);
+}
+
+.dark-theme .chart-description,
+.dark-theme .stat-description,
+.dark-theme .analysis-content,
+.dark-theme .analysis-points li {
+  color: var(--text-description);
+}
+
+.dark-theme .comparison-table th {
+  background-color: var(--table-header-bg);
+  color: var(--text-secondary);
+}
+
+.dark-theme .comparison-table td {
+  color: var(--text-primary);
+}
+
+.dark-theme .period-button,
+.dark-theme .scenario-button {
+  background-color: var(--neutral-100);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.dark-theme .period-button.active,
+.dark-theme .scenario-button.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.dark-theme .metrics-explanation {
+  background-color: var(--neutral-100);
+}
+
+.dark-theme .example-data-notice {
+  background-color: rgba(59, 130, 246, 0.15);
+  border-color: var(--info-color);
+  color: var(--info-light);
+}
+
+.dark-theme .reload-button {
+  border-color: var(--info-light);
+  color: var(--info-light);
+}
+
+.dark-theme .reload-button:hover {
+  background-color: var(--info-color);
+  color: var(--text-inverse);
+}

@@ -5,12 +5,7 @@ import { DECISION, DECISION_PORTFOLIO } from '../constants';
 // 使用React.lazy实现组件懒加载
 const Portfolio = lazy(() => import('../../pages/decision/Portfolio'));
 const PortfolioRebalancePage = lazy(() => import('../../pages/decision/PortfolioRebalance'));
-
-// 临时占位组件
-const PlaceholderComponent = (name) => () => <div>正在开发中: {name} 组件</div>;
-const DecisionComparison = lazy(() => Promise.resolve({
-  default: PlaceholderComponent('决策对比')
-}));
+const DecisionComparison = lazy(() => import('../../pages/decision/DecisionComparison'));
 
 // 决策支持模块路由配置
 const decisionRoutes = {
