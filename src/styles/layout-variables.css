@@ -1,5 +1,42 @@
 /* 布局变量 - 专门用于统一不同页面和组件的布局变量 */
 :root {
+  /* 页面容器尺寸 */
+  --page-max-width: 1200px;
+  --page-min-width: 320px;
+  
+  /* 页面间距 */
+  --page-padding-x: 2rem;
+  --page-padding-y: 2rem;
+  --page-padding-x-mobile: 1rem;
+  --page-padding-y-mobile: 1.5rem;
+  
+  /* 顶部导航栏相关 */
+  --header-height: 64px;
+  --header-z-index: 100;
+  
+  /* 侧边栏相关 */
+  --sidebar-width: 220px;
+  --sidebar-collapsed-width: 60px;
+  --sidebar-z-index: 90;
+  
+  /* 页面顶部间距 - 用于统一所有页面顶部与导航栏的间距 */
+  --page-top-spacing: calc(var(--header-height) + 0rem);
+  
+  /* 组件间距 - 使用统一的变量命名 */
+  --component-margin-bottom: var(--spacing-md);
+  --section-margin-bottom: var(--spacing-xl);
+  --subsection-margin-bottom: var(--spacing-lg);
+  
+  /* 标题间距 */
+  --section-title-margin-bottom: var(--spacing-md);
+  --subsection-title-margin-bottom: var(--spacing-sm);
+  
+  /* 卡片间距和边距 */
+  --card-margin-bottom: var(--spacing-lg);
+  --card-padding: var(--spacing-lg);
+  --card-padding-mobile: 1rem;
+  --card-title-margin-bottom: 1rem;
+  
   /* 页面容器设置 */
   --page-container-width: var(--page-max-width);
   --page-container-padding-x: var(--page-padding-x);

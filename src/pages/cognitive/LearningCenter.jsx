@@ -101,8 +101,8 @@ const LearningCenter = () => {
   return (
     <div className="learning-center-page">
       <div className="page-header">
-        <h1 className="page-title">学习中心</h1>
-        <p className="page-description">
+        <h1 className="page-title dark-text-heading">学习中心</h1>
+        <p className="page-description dark-text-description">
           提升您的投资知识和认知能力，通过系统化的学习内容和互动课程，培养理性投资思维。
         </p>
       </div>
@@ -110,10 +110,10 @@ const LearningCenter = () => {
       {/* 搜索栏 */}
       <div className="search-bar">
         <div className="search-input-container">
-          <SearchOutlined className="search-icon" />
+          <SearchOutlined className="search-icon dark-text-meta" />
           <input
             type="text"
-            className="search-input"
+            className="search-input dark-input dark-focus"
             placeholder="搜索课程、文章或知识点..."
             value={searchQuery}
             onChange={handleSearchChange}
@@ -124,12 +124,12 @@ const LearningCenter = () => {
       {/* 进行中的课程 */}
       {inProgressCourses.length > 0 && (
         <div className="in-progress-section">
-          <h2 className="section-title">继续学习</h2>
+          <h2 className="section-title dark-text-heading">继续学习</h2>
           <div className="course-cards in-progress">
             {inProgressCourses.map(course => (
               <Card 
                 key={course.id} 
-                className="course-card in-progress"
+                className="course-card in-progress dark-bg-card dark-shadow-sm dark-border-accent"
                 onClick={() => handleCourseClick(course.id)}
               >
                 <div className="course-progress-bar">
@@ -138,14 +138,14 @@ const LearningCenter = () => {
                     style={{ width: `${progress[course.id].percentage}%` }}
                   ></div>
                 </div>
-                <h3 className="course-title">{course.title}</h3>
+                <h3 className="course-title dark-text-heading">{course.title}</h3>
                 <div className="course-meta">
-                  <span className="course-category">{course.category}</span>
-                  <span className="course-progress">
+                  <span className="course-category dark-text-meta">{course.category}</span>
+                  <span className="course-progress dark-text-meta">
                     已完成 {progress[course.id].percentage}%
                   </span>
                 </div>
-                <p className="course-last-accessed">
+                <p className="course-last-accessed dark-text-meta">
                   上次学习: {new Date(course.lastAccessed).toLocaleDateString()}
                 </p>
                 <button className="continue-button">继续学习</button>
@@ -190,7 +190,7 @@ const LearningCenter = () => {
           <h2 className="section-title">全部课程</h2>
           <div className="category-filter">
             <button 
-              className={`category-button ${activeCategory === 'all' ? 'active' : ''}`}
+              className={`category-button ${activeCategory === 'all' ? 'active' : ''} ${activeCategory !== 'all' ? 'dark-text-secondary dark-bg-tertiary' : ''}`}
               onClick={() => handleCategoryChange('all')}
             >
               全部
@@ -198,7 +198,7 @@ const LearningCenter = () => {
             {categories.map(category => (
               <button 
                 key={category}
-                className={`category-button ${activeCategory === category ? 'active' : ''}`}
+                className={`category-button ${activeCategory === category ? 'active' : ''} ${activeCategory !== category ? 'dark-text-secondary dark-bg-tertiary' : ''}`}
                 onClick={() => handleCategoryChange(category)}
               >
                 {category}
@@ -254,38 +254,38 @@ const LearningCenter = () => {
         </p>
         
         <div className="learning-paths">
-          <Card className="learning-path-card">
-            <h3 className="path-title">投资新手入门</h3>
-            <p className="path-description">
+          <Card className="learning-path-card dark-bg-card dark-shadow-sm">
+            <h3 className="path-title dark-text-heading">投资新手入门</h3>
+            <p className="path-description dark-text-description">
               适合刚开始投资的用户，涵盖基础投资概念、基金类型和简单的分析方法。
             </p>
             <div className="path-stats">
-              <span className="path-courses">5门课程</span>
-              <span className="path-duration">总时长: 5小时</span>
+              <span className="path-courses dark-text-meta">5门课程</span>
+              <span className="path-duration dark-text-meta">总时长: 5小时</span>
             </div>
             <button className="path-button">查看路径</button>
           </Card>
           
-          <Card className="learning-path-card">
-            <h3 className="path-title">基金投资进阶</h3>
-            <p className="path-description">
+          <Card className="learning-path-card dark-bg-card dark-shadow-sm">
+            <h3 className="path-title dark-text-heading">基金投资进阶</h3>
+            <p className="path-description dark-text-description">
               进一步深入基金投资领域，学习更复杂的分析方法和投资策略。
             </p>
             <div className="path-stats">
-              <span className="path-courses">7门课程</span>
-              <span className="path-duration">总时长: 8小时</span>
+              <span className="path-courses dark-text-meta">7门课程</span>
+              <span className="path-duration dark-text-meta">总时长: 8小时</span>
             </div>
             <button className="path-button">查看路径</button>
           </Card>
           
-          <Card className="learning-path-card">
-            <h3 className="path-title">行为金融学专题</h3>
-            <p className="path-description">
+          <Card className="learning-path-card dark-bg-card dark-shadow-sm">
+            <h3 className="path-title dark-text-heading">行为金融学专题</h3>
+            <p className="path-description dark-text-description">
               深入了解投资心理和认知偏差，掌握如何避免常见的投资行为陷阱。
             </p>
             <div className="path-stats">
-              <span className="path-courses">4门课程</span>
-              <span className="path-duration">总时长: 6小时</span>
+              <span className="path-courses dark-text-meta">4门课程</span>
+              <span className="path-duration dark-text-meta">总时长: 6小时</span>
             </div>
             <button className="path-button">查看路径</button>
           </Card>

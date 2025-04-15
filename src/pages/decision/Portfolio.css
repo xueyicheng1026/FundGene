@@ -20,7 +20,10 @@
 }
 
 /* 资产配置概览 */
-.asset-allocation-overview {
+.portfolio-overview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
   margin-bottom: var(--section-margin-bottom);
 }
 
@@ -29,42 +32,26 @@
   composes: base-section-title;
 }
 
-/* 概览网格 */
-.overview-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: var(--spacing-lg);
-}
-
 /* 图表和摘要 */
-.allocation-chart {
-  composes: base-card;
+.portfolio-summary-card,
+.portfolio-chart-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
 }
 
-.chart-title {
-  composes: base-card-title;
+.card-title {
+  font-size: var(--font-size-lg);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
 }
 
 .chart-container {
   height: 300px;
   margin-bottom: var(--spacing-md);
-}
-
-.allocation-summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-
-.summary-card {
-  composes: base-card;
-}
-
-.summary-card-title {
-  font-size: var(--font-size-md);
-  margin-top: 0;
-  margin-bottom: var(--spacing-md);
-  color: var(--text-primary);
 }
 
 /* 通用状态样式 */
@@ -76,13 +63,211 @@
   color: var(--error-color);
 }
 
+/* 资产统计数据 */
+.portfolio-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.stat-item {
+  flex: 1 1 calc(50% - var(--spacing-lg));
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-value {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+/* 风险等级样式 */
+.risk-level {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+}
+
+.risk-high {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+}
+
+.risk-medium {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--warning-color);
+}
+
+.risk-low {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success-color);
+}
+
+.risk-verylow {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--info-color);
+}
+
+/* 投资组合详情卡片 */
+.portfolio-details-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+  margin-bottom: var(--section-margin-bottom);
+}
+
+.portfolio-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+  font-family: var(--font-family-base);
+}
+
+.portfolio-table th,
+.portfolio-table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.portfolio-table th {
+  background-color: var(--neutral-100);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.portfolio-table tr:last-child td {
+  border-bottom: none;
+}
+
+.portfolio-table td {
+  font-size: var(--font-size-sm);
+  vertical-align: middle;
+}
+
+/* 分析卡片 */
+.portfolio-analysis-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+  margin-bottom: var(--section-margin-bottom);
+}
+
+.analysis-content {
+  color: var(--text-secondary);
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-md);
+}
+
+.analysis-points {
+  padding-left: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+}
+
+.analysis-points li {
+  margin-bottom: var(--spacing-md);
+  color: var (--text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.analysis-highlight {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 按钮样式 */
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.action-buttons .btn {
+  min-width: 160px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--border-radius-md);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-md);
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.action-buttons .btn.primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.action-buttons .btn.primary:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.action-buttons .btn.secondary {
+  background-color: var(--neutral-100);
+  color: var(--text-primary);
+  border: 1px solid var(--neutral-300);
+}
+
+.action-buttons .btn.secondary:hover {
+  background-color: var(--neutral-200);
+  transform: translateY(-2px);
+}
+
+/* 加载和错误状态 */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  font-size: var(--font-size-lg);
+  color: var(--text-tertiary);
+}
+
+.error {
+  max-width: 800px;
+  margin: 100px auto;
+  padding: var(--spacing-lg);
+  background-color: rgba(239, 68, 68, 0.1);
+  border-left: 4px solid var(--error-color);
+  color: var(--error-color);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-md);
+}
+
 /* 响应式调整 */
 @media (max-width: var(--breakpoint-lg)) {
-  .overview-grid {
+  .portfolio-overview {
     grid-template-columns: 1fr;
   }
   
-  .insight-card {
+  .portfolio-analysis-card,
+  .portfolio-details-card,
+  .portfolio-chart-card,
+  .portfolio-summary-card {
     padding: var(--card-padding-mobile);
   }
 }
@@ -93,7 +278,41 @@
     padding-top: var(--page-top-spacing);
   }
   
-  .insights-list {
-    grid-template-columns: 1fr;
+  .portfolio-stats {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  
+  .stat-item {
+    flex: 1 1 100%;
+  }
+  
+  .portfolio-table {
+    display: block;
+    overflow-x: auto;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .action-buttons .btn {
+    width: 100%;
   }
 }
+
+@media (max-width: var(--breakpoint-sm)) {
+  .stat-value {
+    font-size: var(--font-size-lg);
+  }
+  
+  .analysis-content {
+    font-size: var(--font-size-sm);
+  }
+  
+  .analysis-points {
+    padding-left: var(--spacing-lg);
+  }
+}
+

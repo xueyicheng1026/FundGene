@@ -71,40 +71,40 @@ const ScenarioSimulation = () => {
   return (
     <div className="scenario-simulation-page">
       <div className="page-header">
-        <h1 className="page-title">场景模拟</h1>
-        <p className="page-description">
+        <h1 className="page-title dark-text-heading">场景模拟</h1>
+        <p className="page-description dark-text-description">
           通过历史市场场景模拟，让您身临其境地体验各种市场环境，在实践中学习如何应对不同的市场状况和克服投资心理偏差。
         </p>
       </div>
       
       {selectedScenario ? (
-        <Card className="scenario-detail-card">
+        <Card className="scenario-detail-card dark-bg-card dark-shadow-sm">
           <button 
-            className="back-button"
+            className="back-button dark-text-link"
             onClick={handleCloseScenario}
           >
             返回场景列表
           </button>
           
           <div className="scenario-detail-header">
-            <h2 className="scenario-title">{selectedScenario.title}</h2>
+            <h2 className="scenario-title dark-text-heading">{selectedScenario.title}</h2>
             <div className="scenario-meta">
-              <span className="scenario-difficulty">{selectedScenario.difficulty}</span>
-              <span className="scenario-duration">{selectedScenario.duration}</span>
+              <span className="scenario-difficulty dark-text-meta">{selectedScenario.difficulty}</span>
+              <span className="scenario-duration dark-text-meta">{selectedScenario.duration}</span>
             </div>
           </div>
           
-          <p className="scenario-description">{selectedScenario.description}</p>
+          <p className="scenario-description dark-text-description">{selectedScenario.description}</p>
           
           <div className="scenario-tags">
             {selectedScenario.tags.map(tag => (
-              <span key={tag} className="scenario-tag">{tag}</span>
+              <span key={tag} className="scenario-tag dark-bg-tertiary dark-text-secondary">{tag}</span>
             ))}
           </div>
           
           <div className="scenario-details">
-            <h3 className="section-title">场景背景</h3>
-            <p className="scenario-background">
+            <h3 className="section-title dark-text-heading">场景背景</h3>
+            <p className="scenario-background dark-text-description">
               {selectedScenario.id === 'scenario-2015-crash' ? 
                 '2015年中国股市经历了罕见的大幅波动。6月股指达到高点后，仅用不到一个月时间，上证指数从5178点最低跌至3373点，跌幅超过30%。本场景将让您体验当时的市场环境，在信息不完全的情况下做出投资决策。' : 
               selectedScenario.id === 'scenario-2008-financial-crisis' ?
@@ -149,22 +149,22 @@ const ScenarioSimulation = () => {
           {scenarios.map(scenario => (
             <Card 
               key={scenario.id}
-              className={`scenario-card ${scenario.completed ? 'completed' : ''}`}
+              className={`scenario-card ${scenario.completed ? 'completed' : ''} dark-bg-card dark-shadow-sm`}
               onClick={() => handleSelectScenario(scenario.id)}
             >
               {scenario.completed && (
                 <div className="completion-badge">已完成</div>
               )}
-              <h2 className="scenario-title">{scenario.title}</h2>
-              <p className="scenario-description">{scenario.description}</p>
+              <h2 className="scenario-title dark-text-heading">{scenario.title}</h2>
+              <p className="scenario-description dark-text-description">{scenario.description}</p>
               <div className="scenario-footer">
                 <div className="scenario-meta">
-                  <span className="scenario-difficulty">{scenario.difficulty}</span>
-                  <span className="scenario-duration">{scenario.duration}</span>
+                  <span className="scenario-difficulty dark-text-meta">{scenario.difficulty}</span>
+                  <span className="scenario-duration dark-text-meta">{scenario.duration}</span>
                 </div>
                 <div className="scenario-tags">
                   {scenario.tags.slice(0, 2).map(tag => (
-                    <span key={tag} className="scenario-tag">{tag}</span>
+                    <span key={tag} className="scenario-tag dark-bg-tertiary dark-text-secondary">{tag}</span>
                   ))}
                   {scenario.tags.length > 2 && (
                     <span className="scenario-tag more">+{scenario.tags.length - 2}</span>

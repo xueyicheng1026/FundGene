@@ -1,13 +1,29 @@
+/* 卡片组件样式 */
+
+/* 基础卡片 */
 .card {
-  background-color: white;
+  background-color: var(--card-background);
   border-radius: var(--border-radius-lg);
-  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  padding: var(--card-padding);
+  margin-bottom: var(--card-margin-bottom);
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .card-bordered {
   border: 1px solid var(--neutral-200);
 }
 
+.card-hoverable:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* 阴影变体 */
 .card-shadow-none {
   box-shadow: none;
 }
@@ -24,6 +40,7 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* 内边距变体 */
 .card-padding-none {
   padding: 0;
 }
@@ -44,68 +61,176 @@
   padding: var(--spacing-xl);
 }
 
-/* 深色模式调整 */
+/* 卡片尺寸变体 */
+.card-sm {
+  padding: var(--spacing-md);
+}
+
+.card-lg {
+  padding: var(--spacing-xl);
+}
+
+/* 无内边距卡片 */
+.card-no-padding {
+  padding: 0;
+}
+
+/* 卡片头部 */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.card-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.card-subtitle {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+.card-extra {
+  color: var(--text-secondary);
+}
+
+/* 卡片内容 */
+.card-content {
+  margin-bottom: var(--spacing-md);
+}
+
+/* 卡片底部 */
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--neutral-200);
+}
+
+/* 卡片变体 - 突出显示卡片 */
+.card-highlighted {
+  border-left: 4px solid var(--primary-color);
+}
+
+/* 卡片变体 - 状态卡片 */
+.card-success {
+  border-top: 4px solid var(--success-color);
+}
+
+.card-error {
+  border-top: 4px solid var(--error-color);
+}
+
+.card-warning {
+  border-top: 4px solid var(--warning-color);
+}
+
+.card-info {
+  border-top: 4px solid var(--info-color);
+}
+
+/* 分隔卡片内容 */
+.card-divider {
+  height: 1px;
+  background-color: var(--neutral-200);
+  margin: var(--spacing-md) 0;
+}
+
+/* 卡片列表项 */
+.card-list-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.card-list-item:last-child {
+  border-bottom: none;
+}
+
+/* 卡片网格布局 */
+.card-grid {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.card-grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.card-grid-cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* 卡片统计数字 */
+.card-stat {
+  text-align: center;
+  padding: var(--spacing-md);
+}
+
+.card-stat-value {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.card-stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  margin-top: var(--spacing-xs);
+}
+
+/* 深色模式适配 */
 .dark-theme .card {
   background-color: var(--card-background);
-  border-color: var(--neutral-300);
 }
 
 .dark-theme .card-bordered {
-  border-color: var(--neutral-300);
+  border-color: var(--neutral-700);
 }
 
-/* 确保卡片内的标题和重要文本在深色背景下可见 */
-.dark-theme .card h1,
-.dark-theme .card h2,
-.dark-theme .card h3,
-.dark-theme .card h4,
-.dark-theme .card h5,
-.dark-theme .card h6,
-.dark-theme .card-title,
+.dark-theme .card-title {
+  color: var(--text-light);
+}
+
 .dark-theme .card .section-title,
 .dark-theme .card .subsection-title {
-  color: #ffffff; /* 纯白色标题 */
-  /* 轻微的文本阴影增强可读性 */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  color: var(--text-light);
 }
 
-.dark-theme .card p {
-  color: #f3f4f6; /* 亮一些的段落文本 */
+.dark-theme .card-footer,
+.dark-theme .card-divider,
+.dark-theme .card-list-item {
+  border-color: var(--neutral-600);
 }
 
-.dark-theme .card .card-description,
-.dark-theme .card .text-description {
-  color: #d1d5db; /* 更明显的描述文本 */
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .card-padding-md {
+    padding: var(--spacing-sm);
+  }
+  
+  .card-padding-lg {
+    padding: var(--spacing-md);
+  }
+  
+  .card-padding-xl {
+    padding: var(--spacing-lg);
+  }
 }
 
-.dark-theme .card strong,
-.dark-theme .card b {
-  color: #ffffff; /* 纯白色突出显示重要文本 */
-}
-
-/* 卡片中的次要文本 */
-.dark-theme .card .text-secondary,
-.dark-theme .card .text-meta {
-  color: #cbd5e1; /* 确保次要文本仍然清晰可见 */
-}
-
-/* 确保用户设置卡片在深色模式下正确渲染 */
-.dark-theme .card.settings-card,
-.dark-theme .card.profile-card {
-  background-color: var(--card-background);
-  border-color: var(--neutral-300);
-  color: var(--text-primary);
-}
-
-.dark-theme .card.settings-card .card-title,
-.dark-theme .card.profile-card .section-title {
-  color: var(--text-heading);
-}
-
-.dark-theme .card.settings-card .setting-name {
-  color: var(--text-primary);
-}
-
-.dark-theme .card.settings-card .setting-description {
-  color: var(--text-meta);
+@media (max-width: var(--breakpoint-md)) {
+  .card-grid-cols-2,
+  .card-grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
 }

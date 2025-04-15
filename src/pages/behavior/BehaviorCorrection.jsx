@@ -39,27 +39,27 @@ const BehaviorCorrection = () => {
   return (
     <div className="behavior-correction-page">
       <div className="page-header">
-        <h1 className="page-title">行为矫正</h1>
-        <p className="page-description">
+        <h1 className="page-title dark-text-heading">行为矫正</h1>
+        <p className="page-description dark-text-description">
           帮助您识别投资行为中的认知偏差，通过模拟交易实践和实时反馈，培养更理性的投资习惯。
         </p>
       </div>
 
-      <div className="behavior-tabs">
+      <div className="behavior-tabs dark-border-light">
         <button 
-          className={`tab-button ${activePage === 'profile' ? 'active' : ''}`}
+          className={`tab-button ${activePage === 'profile' ? 'active dark-bg-primary-light' : ''} dark-text-primary dark-hover`}
           onClick={() => handleTabChange('profile')}
         >
           行为画像
         </button>
         <button 
-          className={`tab-button ${activePage === 'trading' ? 'active' : ''}`}
+          className={`tab-button ${activePage === 'trading' ? 'active dark-bg-primary-light' : ''} dark-text-primary dark-hover`}
           onClick={() => handleTabChange('trading')}
         >
           模拟交易
         </button>
         <button 
-          className={`tab-button ${activePage === 'alerts' ? 'active' : ''}`}
+          className={`tab-button ${activePage === 'alerts' ? 'active dark-bg-primary-light' : ''} dark-text-primary dark-hover`}
           onClick={() => handleTabChange('alerts')}
         >
           行为提醒
@@ -72,12 +72,12 @@ const BehaviorCorrection = () => {
       </div>
 
       <div className="behavior-modules-cards">
-        <h2 className="section-title">行为矫正模块</h2>
+        <h2 className="section-title dark-text-heading">行为矫正模块</h2>
         <div className="module-cards">
-          <Card className="module-card">
+          <Card className="module-card dark-bg-card dark-shadow-sm dark-border-accent">
             <div className="module-icon profile-icon">👤</div>
-            <h3 className="module-title">行为画像</h3>
-            <p className="module-description">
+            <h3 className="module-title dark-text-heading">行为画像</h3>
+            <p className="module-description dark-text-description">
               深入分析您的投资行为特征和认知偏差，提供个性化的改进建议。
             </p>
             {/* 修改这里，移除onClick事件，使用纯链接导航，不再触发侧边栏状态更新 */}
@@ -89,10 +89,10 @@ const BehaviorCorrection = () => {
             </Link>
           </Card>
 
-          <Card className="module-card">
+          <Card className="module-card dark-bg-card dark-shadow-sm dark-border-accent">
             <div className="module-icon trading-icon">📊</div>
-            <h3 className="module-title">模拟交易</h3>
-            <p className="module-description">
+            <h3 className="module-title dark-text-heading">模拟交易</h3>
+            <p className="module-description dark-text-description">
               在模拟市场环境中练习投资技能，获取实时反馈，发现并纠正非理性行为。
             </p>
             {/* 修改这里，移除onClick事件 */}
@@ -104,10 +104,10 @@ const BehaviorCorrection = () => {
             </Link>
           </Card>
 
-          <Card className="module-card">
+          <Card className="module-card dark-bg-card dark-shadow-sm dark-border-accent">
             <div className="module-icon alerts-icon">🔔</div>
-            <h3 className="module-title">行为提醒</h3>
-            <p className="module-description">
+            <h3 className="module-title dark-text-heading">行为提醒</h3>
+            <p className="module-description dark-text-description">
               实时监测您的投资行为，当检测到可能的非理性决策时提供警示和建议。
             </p>
             {/* 修改这里，移除onClick事件 */}

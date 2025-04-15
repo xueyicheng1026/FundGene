@@ -291,12 +291,12 @@ input:checked + .toggle-slider:before {
 }
 
 .dark-theme .setting-description {
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
 }
 
 .dark-theme .theme-button {
-  background-color: var(--neutral-300);
-  border-color: var(--neutral-400);
+  background-color: var(--neutral-200);
+  border-color: var(--neutral-300);
   color: var(--text-primary);
 }
 

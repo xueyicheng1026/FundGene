@@ -1,91 +1,179 @@
 /* 深色模式变量 */
 .dark-theme {
-  /* 主色调 - 略微调亮以在深色背景上更加突出 */
-  --primary-color: #3b82f6;
-  --primary-light: #60a5fa;
+  /* 主色调 - 优化亮度和对比度 */
+  --primary-color: #4287f5; /* 增加明亮度，提高在深色背景上的可见性 */
+  --primary-light: #6fb0ff; /* 调亮以提供更好的层次感 */
   --primary-dark: #2563eb;
+  --primary-bg: rgba(66, 135, 245, 0.12); /* 降低不透明度，减少视觉压力 */
+
+  /* 辅助色 - 调整饱和度与对比度 */
+  --accent-color: #b292fa; /* 增加亮度 */
+  --accent-light: #d0c3fd; /* 更软的色调 */
+  --accent-dark: #8b5cf6;
   
-  /* 辅助色 */
-  --secondary-color: #34d399;
-  --secondary-light: #6ee7b7;
-  --secondary-dark: #10b981;
+  /* 功能色 - 调整为深色背景下更加舒适的色调 */
+  --success-color: #2dcb92; /* 减少绿色亮度，更舒适 */
+  --success-light: #5de0ad; /* 减少饱和度 */
+  --success-dark: #10b981;
   
-  /* 强调色 */
-  --accent-color: #fbbf24;
-  --accent-light: #fcd34d;
-  --accent-dark: #f59e0b;
+  --error-color: #f47373; /* 轻微减少亮度，降低视觉刺激 */
+  --error-light: #fcb5b5; /* 更柔和的错误提示 */
+  --error-dark: #ef4444;
   
-  /* 中性色 - 反转亮度 */
-  --neutral-50: #1f2937;
-  --neutral-100: #111827;
-  --neutral-200: #1f2937;
-  --neutral-300: #374151;
-  --neutral-400: #4b5563;
-  --neutral-500: #6b7280;
-  --neutral-600: #9ca3af;
-  --neutral-700: #d1d5db;
-  --neutral-800: #e5e7eb;
-  --neutral-900: #f9fafb;
+  --warning-color: #f5ba45; /* 降低亮度，更适合深色模式 */
+  --warning-light: #f8cc64; /* 降低饱和度 */
+  --warning-dark: #f59e0b;
   
-  /* 功能色 */
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --info-color: #3b82f6;
+  --info-color: #38d1e6; /* 调整青色以提高易读性 */
+  --info-light: #78e6f2; /* 调亮 */
+  --info-dark: #06b6d4;
   
-  /* 文字色 - 统一管理所有文字颜色变量 */
-  --text-primary: #f9fafb;      /* 主文本颜色 - 调亮 */
-  --text-secondary: #e5e7eb;    /* 次要文本颜色 - 调亮 */
-  --text-tertiary: #9ca3af;     /* 第三级文本颜色 - 保持 */
-  --text-light: #1f2937;        /* 浅色背景上的文本 */
+  /* 中性色 - 重新调整亮度梯度，提供更自然的过渡 */
+  --neutral-50: #121214; /* 更深的背景色 */
+  --neutral-100: #1e1e21; /* 更柔和的对比 */
+  --neutral-200: #2e2e33; /* 增加层次感 */
+  --neutral-300: #45454d; /* 更均衡的灰阶 */
+  --neutral-400: #646470; /* 提高可辨识度 */
+  --neutral-500: #9292a0; /* 降低饱和度 */
+  --neutral-600: #c8c8d0; /* 提高文本可读性 */
+  --neutral-700: #dfdfe5; /* 更柔和的高亮色 */
+  --neutral-800: #ebebf0; /* 降低刺眼程度 */
+  --neutral-900: #f7f7fa; /* 更温和的最亮色调 */
   
-  /* 特殊文本颜色 */
-  --text-heading: #ffffff;      /* 标题文本 - 纯白色更清晰 */
-  --text-bold: #ffffff;         /* 加粗文本颜色 - 纯白色 */
-  --text-title: #ffffff;        /* 页面和卡片标题 - 纯白色 */
-  --text-description: #d1d5db;  /* 描述性文本 - 调亮 */
-  --text-meta: #cbd5e1;         /* 元数据文本 - 调亮 */
-  --text-hint: #94a3b8;         /* 提示性文本和标签 - 调亮 */
-  --text-link: #60a5fa;         /* 链接文本颜色 - 更鲜明的蓝色 */
-  --text-link-hover: #93c5fd;   /* 链接悬停颜色 - 更亮 */
+  /* 背景色 - 调整以减少眼部疲劳 */
+  --background-light: #141417; /* 微调以减轻视觉压力 */
+  --background-dark: #0a0a0c; /* 更深但不刺眼 */
+  --card-background: #1e1e21; /* 与中性色协调 */
   
-  /* 背景色 */
-  --background-light: #111827;
-  --background-default: #1f2937;
-  --background-dark: #374151;
+  /* 文本颜色 - 优化对比度和易读性 */
+  --text-primary: #f0f0f5; /* 降低白色强度，减轻眼部压力 */
+  --text-secondary: #c8c8d0; /* 提高可读性 */
+  --text-tertiary: #9292a0; /* 更柔和的辅助文本 */
+  --text-light: #25252c; /* 调整以匹配整体色调 */
   
-  /* 表格和边框颜色 */
-  --border-color: #374151;
-  --table-header-bg: #1f2937;
-  --table-row-hover: #374151;
+  /* 特殊文本颜色 - 增强层次感和舒适度 */
+  --text-heading: #f7f7fa; /* 不使用纯白，减轻视觉冲击 */
+  --text-bold: #f0f0f5; /* 粗体文本稍微调暗 */
+  --text-title: #f0f0f5; /* 统一标题文本 */
+  --text-description: #c8c8d0; /* 提高描述文本可读性 */
+  --text-meta: #9292a0; /* 协调元数据文本 */
+  --text-hint: #646470; /* 提示文本更明显 */
+  --text-link: #6fb0ff; /* 链接更明显 */
+  --text-link-hover: #a3d0ff; /* 鼠标悬停效果更明显 */
   
-  /* 卡片和组件背景 */
-  --card-background: #1f2937;
-  --header-background: #111827;
-  --sidebar-background: #1f2937;
-  --dropdown-background: #111827;
-  --tooltip-background: #111827;
-  --modal-background: #1f2937;
+  /* 表格和边框颜色 - 提供更细腻的视觉分隔 */
+  --border-color: #2e2e33; /* 更柔和的边框 */
+  --table-header-bg: #1e1e21; /* 与卡片背景协调 */
+  --table-row-hover: #2e2e33; /* 更明显的悬停效果 */
   
-  /* 阴影 - 在深色模式下更加柔和 */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4), 0 4px 6px rgba(0, 0, 0, 0.3);
+  /* 组件背景 - 统一协调各组件背景色 */
+  --header-background: #1e1e21; /* 与卡片背景统一 */
+  --sidebar-background: #1e1e21; /* 统一侧边栏背景 */
+  --dropdown-background: #141417; /* 下拉菜单稍暗 */
+  --tooltip-background: #25252c; /* 提高工具提示可见性 */
+  --modal-background: #1e1e21; /* 统一模态框背景 */
   
-  /* 用户界面特定变量 */
-  --user-card-bg: var(--card-background);
-  --user-title-color: var(--text-heading);
-  --user-text-color: var(--text-primary);
-  --user-meta-color: var(--text-meta);
+  /* 阴影 - 优化深色背景下的立体感 */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.35), 0 2px 5px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 20px -3px rgba(0, 0, 0, 0.5), 0 4px 8px -2px rgba(0, 0, 0, 0.3);
   
-  /* 设置界面特定变量 */
-  --settings-border-color: var(--neutral-400);
-  --settings-control-bg: var(--neutral-300);
-  --settings-toggle-bg: var(--neutral-500);
+  /* 表单元素 - 改善表单交互体验 */
+  --input-bg: #25252c; /* 提高与背景的对比度 */
+  --input-text: #f0f0f5; /* 保持文本清晰可见 */
+  --input-border: #45454d; /* 边框更明显 */
+  --input-focus-border: #6fb0ff; /* 聚焦状态更明显 */
   
-  /* 确保表单元素对比度足够 */
-  --input-bg-dark: var(--neutral-300);
-  --input-text-dark: var(--text-light);
-  --input-border-dark: var(--neutral-400);
-  --input-focus-border-dark: var(--primary-light);
+  /* 新增：滚动条样式 */
+  --scrollbar-thumb: #45454d; /* 滚动条滑块 */
+  --scrollbar-track: #1e1e21; /* 滚动条轨道 */
+  
+  /* 新增：选择文本颜色 */
+  --selection-bg: rgba(66, 135, 245, 0.3); /* 文本选择背景 */
+  --selection-text: #f0f0f5; /* 文本选择颜色 */
+}
+
+/* 自定义滚动条 */
+.dark-theme *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark-theme *::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.dark-theme *::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+}
+
+/* 文本选择样式 */
+.dark-theme ::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+/* 图表深色模式样式增强 - 添加到文件末尾 */
+
+/* 图表通用深色模式样式 */
+.dark-theme .recharts-wrapper {
+  background-color: transparent;
+}
+
+.dark-theme .recharts-surface {
+  filter: brightness(0.9);
+}
+
+/* 文本样式 */
+.dark-theme .recharts-text,
+.dark-theme .recharts-cartesian-axis-tick-value,
+.dark-theme .recharts-legend-item-text {
+  fill: var(--text-secondary) !important;
+}
+
+/* 网格线 */
+.dark-theme .recharts-cartesian-grid-horizontal line,
+.dark-theme .recharts-cartesian-grid-vertical line {
+  stroke: var(--neutral-300) !important;
+  opacity: 0.3;
+}
+
+/* 图例样式 */
+.dark-theme .recharts-default-legend {
+  background-color: transparent !important;
+}
+
+/* 工具提示 */
+.dark-theme .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: var(--tooltip-background) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.dark-theme .recharts-tooltip-wrapper .recharts-tooltip-label {
+  color: var(--text-heading) !important;
+}
+
+.dark-theme .recharts-tooltip-wrapper .recharts-tooltip-item-list {
+  color: var(--text-primary) !important;
+}
+
+/* 重新平衡图表特定样式 */
+.dark-theme .allocation-chart .chart-container {
+  background-color: var(--card-background);
+}
+
+.dark-theme .allocation-chart .allocation-table th {
+  background-color: var(--table-header-bg);
+  color: var(--text-secondary);
+}
+
+.dark-theme .allocation-chart .allocation-table td {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark-theme .allocation-chart .significant-diff {
+  color: var(--error-color);
 }

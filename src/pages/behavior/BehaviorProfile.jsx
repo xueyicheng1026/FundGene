@@ -51,14 +51,14 @@ const BehaviorProfile = () => {
   return (
     <div className="behavior-profile-page">
       <div className="page-header">
-        <h1 className="page-title">行为画像</h1>
-        <p className="page-description">
+        <h1 className="page-title dark-text-heading">行为画像分析</h1>
+        <p className="page-description dark-text-description">
           基于您的投资历史，我们分析了您的行为特征和可能存在的认知偏差，帮助您更好地了解自己的投资风格和提升决策质量。
         </p>
       </div>
       
       <div className="behavior-profile-overview">
-        <Card className="risk-score-card">
+        <Card className="risk-score-card dark-bg-card dark-shadow-sm">
           <h2 className="card-title">风险承受能力</h2>
           <div className="score-circle large">
             <svg viewBox="0 0 36 36">
@@ -80,7 +80,7 @@ const BehaviorProfile = () => {
           </div>
         </Card>
         
-        <Card className="trade-style-card">
+        <Card className="trade-style-card dark-bg-card dark-shadow-sm">
           <h2 className="card-title">交易风格分析</h2>
           <div className="trade-stats">
             <div className="stat-item">

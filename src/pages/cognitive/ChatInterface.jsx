@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getChatHistory, sendMessage, getPersonalizedPrompts } from '../../services/chatService';
+import { Link } from 'react-router-dom';
 import './ChatInterface.css';
 
 const ChatInterface = () => {
@@ -130,7 +131,7 @@ const ChatInterface = () => {
   ];
 
   if (loading) {
-    return <div className="loading">加载聊天记录中...</div>;
+    return <div className="page-loading">加载聊天记录中...</div>;
   }
 
   // 使用个性化提示或默认提示
@@ -147,29 +148,29 @@ const ChatInterface = () => {
     : defaultQuestions.map(text => ({ id: `default-${Date.now()}-${Math.random()}`, text }));
 
   return (
-    <div className="chat-page">
+    <div className="chat-interface-page">
       <div className="page-header">
-        <h1 className="page-title">AI投资顾问</h1>
-        <p className="page-description">
+        <h1 className="page-title dark-text-heading">AI投资顾问</h1>
+        <p className="page-description dark-text-description">
           与AI对话，获取个性化投资建议和知识讲解。AI会根据您的投资历史和风险偏好提供针对性的指导。
         </p>
       </div>
 
       <div className="chat-container">
         <div className="chat-main">
-          <div className="chat-card">
+          <div className="card dark-bg-card dark-shadow-sm">
             <div className="chat-header">
-              <h2>智能对话</h2>
+              <h2 className="section-title dark-text-heading">智能对话</h2>
             </div>
 
-            <div className="chat-messages" ref={chatContainerRef}>
+            <div className="chat-messages dark-border dark-bg-primary" ref={chatContainerRef}>
               {messages.map((message) => (
                 <div
                   key={message.id}
                   className={`message ${message.role === 'user' ? 'message-user' : 'message-assistant'}`}
                 >
                   <div className="message-avatar">{message.role === 'user' ? '👤' : '🤖'}</div>
-                  <div className="message-content">
+                  <div className={`message-content ${message.role === 'user' ? 'dark-bg-primary-light' : 'dark-bg-secondary'} dark-text-primary`}>
                     {message.content.split('\n').map((paragraph, index) => (
                       <p key={index}>{paragraph}</p>
                     ))}
@@ -194,7 +195,7 @@ const ChatInterface = () => {
 
             <div className="chat-input-container">
               <textarea
-                className="chat-input"
+                className="chat-input dark-input dark-focus"
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
@@ -203,7 +204,7 @@ const ChatInterface = () => {
                 disabled={sending}
               />
               <button
-                className="send-button"
+                className="btn primary"
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || sending}
               >
@@ -214,8 +215,8 @@ const ChatInterface = () => {
         </div>
 
         <div className="chat-sidebar">
-          <div className="quick-questions-card">
-            <h3>推荐问题</h3>
+          <div className="card card-sm dark-bg-card dark-shadow-sm">
+            <h3 className="title-group dark-text-heading">推荐问题</h3>
             <div className="quick-questions-list">
               {quickQuestions.map((question, index) => (
                 <button 
@@ -229,34 +230,34 @@ const ChatInterface = () => {
             </div>
           </div>
 
-          <div className="behavior-card">
-            <h3>您的投资行为分析</h3>
+          <div className="card card-sm">
+            <h3 className="title-group">您的投资行为分析</h3>
             <div className="behavior-summary">
               <div className="behavior-item">
-                <span className="behavior-label">损失厌恶</span>
+                <span className="text-sm">损失厌恶</span>
                 <div className="behavior-bar">
                   <div className="behavior-fill" style={{ width: '75%' }}></div>
                 </div>
-                <span className="behavior-score">较高</span>
+                <span className="text-sm text-bold">较高</span>
               </div>
 
               <div className="behavior-item">
-                <span className="behavior-label">过度自信</span>
+                <span className="text-sm">过度自信</span>
                 <div className="behavior-bar">
                   <div className="behavior-fill" style={{ width: '60%' }}></div>
                 </div>
-                <span className="behavior-score">中等</span>
+                <span className="text-sm">中等</span>
               </div>
 
               <div className="behavior-item">
-                <span className="behavior-label">从众心理</span>
+                <span className="text-sm">从众心理</span>
                 <div className="behavior-bar">
                   <div className="behavior-fill" style={{ width: '30%' }}></div>
                 </div>
-                <span className="behavior-score">较低</span>
+                <span className="text-sm">较低</span>
               </div>
             </div>
-            <p className="behavior-note">
+            <p className="text-sm text-tertiary mt-md">
               您的投资行为显示出较高的损失厌恶特征，建议在决策时更加理性，制定明确的投资计划并坚持执行。
             </p>
           </div>

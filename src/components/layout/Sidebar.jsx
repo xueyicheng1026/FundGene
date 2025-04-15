@@ -11,7 +11,8 @@ import {
   RightOutlined,
   LeftOutlined,
   BellOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  MenuOutlined
 } from '@ant-design/icons';
 import { AuthContext } from '../../contexts/AuthContext';
 import './Sidebar.css';
@@ -23,10 +24,49 @@ const Sidebar = () => {
   const [activeGroup, setActiveGroup] = useState(null);
   const [hoverGroup, setHoverGroup] = useState(null);
   const [mouseInSidebar, setMouseInSidebar] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const sidebarActionRef = useRef(false);
-  const prevPathRef = useRef(location.pathname);
   const sidebarRef = useRef(null);
   const { logout } = useContext(AuthContext);
+
+  // 响应窗口大小变化
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      
+      // 在移动端自动折叠
+      if (mobile && !collapsed) {
+        setCollapsed(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // 初始检查
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [collapsed]);
+
+  // 监听路径变化
+  useEffect(() => {
+    // 在移动设备上，路径变化时折叠侧边栏
+    if (isMobile) {
+      setCollapsed(true);
+    }
+    
+    // 根据当前路径设置激活的导航组
+    const pathSegments = location.pathname.split('/').filter(Boolean);
+    if (pathSegments.length > 1 && pathSegments[1]) {
+      const currentSection = pathSegments[1];
+      if (['cognitive', 'behavior', 'decision', 'information'].includes(currentSection)) {
+        setActiveGroup(currentSection);
+      } else {
+        setActiveGroup(null);
+      }
+    } else {
+      setActiveGroup(null);
+    }
+  }, [location.pathname, isMobile]);
 
   // 检查路径是否激活
   const isActive = (path) => {
@@ -42,10 +82,11 @@ const Sidebar = () => {
   const handleMouseLeave = () => {
     setMouseInSidebar(false);
     
-    // 只有在不是用户操作时才清除悬停和活动状态
     if (!sidebarActionRef.current) {
       setHoverGroup(null);
-      setActiveGroup(null);
+      if (isMobile) {
+        setActiveGroup(null);
+      }
     }
     sidebarActionRef.current = false;
   };
@@ -59,7 +100,6 @@ const Sidebar = () => {
 
   // 鼠标离开导航组
   const handleGroupMouseLeave = () => {
-    // 不要立即清除悬停状态，给用户时间移动到子菜单
     if (!mouseInSidebar) {
       setTimeout(() => {
         setHoverGroup(null);
@@ -73,10 +113,10 @@ const Sidebar = () => {
     setActiveGroup(activeGroup === group ? null : group);
   };
 
-  // 切换侧边栏折叠状态 - 修复重复代码和语法错误
+  // 切换侧边栏折叠状态
   const toggleCollapsed = () => {
     setCollapsed(!collapsed);
-    // 清除状态只需要在展开时执行一次
+    
     if (collapsed) {
       setActiveGroup(null);
       setHoverGroup(null);
@@ -88,7 +128,8 @@ const Sidebar = () => {
     sidebarActionRef.current = true;
     navigate(path);
     
-    if (collapsed) {
+    if (isMobile) {
+      setCollapsed(true);
       setTimeout(() => {
         setActiveGroup(null);
         setHoverGroup(null);
@@ -102,7 +143,7 @@ const Sidebar = () => {
     navigate('/login');
   };
 
-  // 渲染导航组 - 确保鼠标事件正确绑定到每个组
+  // 渲染导航组
   const renderNavGroup = (groupKey, icon, title, items, defaultPath) => {
     const isExpanded = activeGroup === groupKey || hoverGroup === groupKey;
     
@@ -116,7 +157,7 @@ const Sidebar = () => {
           className={`nav-group-header ${isActive(`/${groupKey}`) ? 'active' : ''}`}
           onClick={() => {
             toggleGroup(groupKey);
-            if (collapsed) {
+            if (collapsed && !isMobile) {
               handleNavigation(defaultPath);
             }
           }}
@@ -130,7 +171,6 @@ const Sidebar = () => {
           )}
         </div>
         
-        {/* 子菜单，确保在悬停或展开时显示 */}
         <div className="nav-group-items">
           {items.map((item) => (
             <div 
@@ -160,7 +200,7 @@ const Sidebar = () => {
           {!collapsed && <h1 className="sidebar-title">智能基金顾问</h1>}
         </div>
         <button className="collapse-button" onClick={toggleCollapsed}>
-          {collapsed ? <RightOutlined /> : <LeftOutlined />}
+          {collapsed ? <MenuOutlined /> : <LeftOutlined />}
         </button>
       </div>
       

@@ -36,58 +36,58 @@ const Portfolio = () => {
   }, []);
 
   if (loading) {
-    return <div className="loading">加载投资组合数据中...</div>;
+    return <div className="loading dark-text-tertiary">加载投资组合数据中...</div>;
   }
 
   if (error) {
-    return <div className="error">{error}</div>;
+    return <div className="error dark-bg-error dark-text-error">{error}</div>;
   }
 
   return (
     <div className="portfolio-page">
       <div className="page-header">
-        <h1 className="page-title">投资组合分析</h1>
-        <p className="page-description">
+        <h1 className="page-title dark-text-heading">投资组合分析</h1>
+        <p className="page-description dark-text-description">
           全面分析您的资产配置，评估风险收益特征，并提供针对性的优化建议。
         </p>
       </div>
 
       <div className="portfolio-overview">
-        <Card className="portfolio-summary-card">
-          <h2 className="card-title">资产概览</h2>
+        <Card className="portfolio-summary-card dark-bg-card dark-shadow-sm">
+          <h2 className="card-title dark-text-heading">资产概览</h2>
           <div className="portfolio-stats">
             <div className="stat-item">
-              <span className="stat-label">总资产</span>
-              <span className="stat-value">¥{totalValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span>
+              <span className="stat-label dark-text-meta">总资产</span>
+              <span className="stat-value dark-text-bold">¥{totalValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="stat-item">
-              <span className="stat-label">基金数量</span>
-              <span className="stat-value">12</span>
+              <span className="stat-label dark-text-meta">基金数量</span>
+              <span className="stat-value dark-text-bold">12</span>
             </div>
             <div className="stat-item">
-              <span className="stat-label">年化收益</span>
-              <span className="stat-value positive">+8.2%</span>
+              <span className="stat-label dark-text-meta">年化收益</span>
+              <span className="stat-value positive dark-success">+8.2%</span>
             </div>
             <div className="stat-item">
-              <span className="stat-label">波动率</span>
-              <span className="stat-value">12.5%</span>
+              <span className="stat-label dark-text-meta">波动率</span>
+              <span className="stat-value dark-text-bold">12.5%</span>
             </div>
           </div>
         </Card>
 
-        <Card className="portfolio-chart-card">
-          <h2 className="card-title">资产配置</h2>
+        <Card className="portfolio-chart-card dark-bg-card dark-shadow-sm">
+          <h2 className="card-title dark-text-heading">资产配置</h2>
           <div className="chart-container">
             <PortfolioChart data={portfolioData} />
           </div>
         </Card>
       </div>
 
-      <Card className="portfolio-details-card">
-        <h2 className="card-title">资产明细</h2>
-        <table className="portfolio-table">
+      <Card className="portfolio-details-card dark-bg-card dark-shadow-sm">
+        <h2 className="card-title dark-text-heading">资产明细</h2>
+        <table className="portfolio-table dark-border">
           <thead>
-            <tr>
+            <tr className="dark-table-header">
               <th>基金类型</th>
               <th>金额 (元)</th>
               <th>占比 (%)</th>
@@ -97,16 +97,16 @@ const Portfolio = () => {
           </thead>
           <tbody>
             {portfolioData.map((item, index) => (
-              <tr key={index}>
-                <td>{item.name}</td>
-                <td>¥{item.value.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
-                <td>{item.percent.toFixed(1)}%</td>
+              <tr key={index} className="dark-table-row-hover">
+                <td className="dark-text-primary">{item.name}</td>
+                <td className="dark-text-primary">¥{item.value.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+                <td className="dark-text-primary">{item.percent.toFixed(1)}%</td>
                 <td>
                   <span className={`risk-level risk-${getRiskLevel(item.name)}`}>
                     {getRiskLevelText(item.name)}
                   </span>
                 </td>
-                <td className={getReturnClass(item.name)}>
+                <td className={`${getReturnClass(item.name)} dark-success`}>
                   {getReturnRate(item.name)}
                 </td>
               </tr>
@@ -116,19 +116,19 @@ const Portfolio = () => {
       </Card>
 
       <div className="portfolio-analysis">
-        <Card className="portfolio-analysis-card">
-          <h2 className="card-title">投资组合分析</h2>
-          <div className="analysis-content">
+        <Card className="portfolio-analysis-card dark-bg-card dark-shadow-sm">
+          <h2 className="card-title dark-text-heading">投资组合分析</h2>
+          <div className="analysis-content dark-text-description">
             <p>您的投资组合整体表现良好，但存在以下几个优化空间：</p>
             <ul className="analysis-points">
               <li>
-                <span className="analysis-highlight">资产集中度较高</span> - 股票型基金占比接近50%，在市场下行时可能面临较大波动。
+                <span className="analysis-highlight dark-text-bold">资产集中度较高</span> - 股票型基金占比接近50%，在市场下行时可能面临较大波动。
               </li>
               <li>
-                <span className="analysis-highlight">债券配置不足</span> - 债券类资产可以在市场波动时提供稳定性，建议适当增加。
+                <span className="analysis-highlight dark-text-bold">债券配置不足</span> - 债券类资产可以在市场波动时提供稳定性，建议适当增加。
               </li>
               <li>
-                <span className="analysis-highlight">缺乏国际市场配置</span> - 考虑增加部分海外资产以提升地域多元化。
+                <span className="analysis-highlight dark-text-bold">缺乏国际市场配置</span> - 考虑增加部分海外资产以提升地域多元化。
               </li>
             </ul>
           </div>
@@ -136,7 +136,7 @@ const Portfolio = () => {
             <Link to="/decision/rebalance" className="btn primary">
               查看再平衡建议
             </Link>
-            <Link to="/cognitive/chat" className="btn secondary">
+            <Link to="/cognitive/chat" className="btn secondary dark-bg-tertiary dark-text-primary dark-hover">
               咨询AI顾问
             </Link>
           </div>

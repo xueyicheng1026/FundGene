@@ -1,7 +1,32 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import classNames from 'classnames';
+import './Input.css';
 
-const Input = ({ 
+/**
+ * 输入框组件
+ * 支持多种变体、尺寸和状态
+ * 
+ * @param {Object} props - 组件属性
+ * @param {string} props.label - 输入框标签
+ * @param {'text'|'password'|'email'|'number'|'tel'|'url'|'search'} props.type - 输入框类型
+ * @param {string} props.placeholder - 占位文本
+ * @param {string|number} props.value - 输入框值
+ * @param {Function} props.onChange - 值变化处理函数
+ * @param {string} props.name - 输入框名称
+ * @param {string|boolean} props.error - 错误信息或错误状态
+ * @param {string} props.helperText - 辅助文本
+ * @param {boolean} props.required - 是否必填
+ * @param {boolean} props.fullWidth - 是否占满容器宽度
+ * @param {boolean} props.disabled - 是否禁用
+ * @param {'sm'|'md'|'lg'} props.size - 输入框尺寸
+ * @param {'default'|'filled'|'outlined'|'underlined'} props.variant - 输入框变体
+ * @param {React.ReactNode} props.prefix - 前缀内容（图标或文本）
+ * @param {React.ReactNode} props.suffix - 后缀内容（图标或文本）
+ * @param {boolean} props.suffixClickable - 后缀是否可点击
+ * @param {Function} props.onSuffixClick - 后缀点击事件处理函数
+ * @param {string} props.className - 自定义类名
+ */
+const Input = forwardRef(({ 
   label,
   type = 'text',
   placeholder,
@@ -13,17 +38,27 @@ const Input = ({
   required = false,
   fullWidth = false,
   disabled = false,
+  size = 'md',
+  variant = 'default',
+  prefix,
+  suffix,
+  suffixClickable = false,
+  onSuffixClick,
   className,
   ...props
-}) => {
+}, ref) => {
   const inputId = name || Math.random().toString(36).substring(2, 9);
+  
+  // 判断是否为搜索框
+  const isSearch = type === 'search';
   
   const inputClasses = classNames(
     'input-field',
+    `input-${size}`,
     {
-      'input-full-width': fullWidth,
       'input-error': error,
       'input-disabled': disabled,
+      [`input-${variant}`]: variant !== 'default',
     },
     className
   );
@@ -32,17 +67,52 @@ const Input = ({
     'form-group',
     {
       'form-group-full-width': fullWidth,
+      'input-with-icon': suffix,
+      'input-with-prefix': prefix || isSearch,
+      'input-search': isSearch
     }
   );
+
+  // 处理搜索图标
+  const renderSearchIcon = () => {
+    if (!isSearch) return null;
+    
+    return (
+      <span className="input-search-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+          />
+        </svg>
+      </span>
+    );
+  };
+
+  // 处理后缀的点击事件
+  const handleSuffixClick = (e) => {
+    if (suffixClickable && onSuffixClick) {
+      e.stopPropagation();
+      onSuffixClick(e);
+    }
+  };
 
   return (
     <div className={formGroupClasses}>
       {label && (
-        <label htmlFor={inputId} className="input-label text-secondary text-sm">
+        <label htmlFor={inputId} className="input-label">
           {label} {required && <span className="input-required">*</span>}
         </label>
       )}
+      
+      {renderSearchIcon()}
+      
+      {prefix && <span className="input-prefix">{prefix}</span>}
+      
       <input
+        ref={ref}
         id={inputId}
         type={type}
         className={inputClasses}
@@ -54,86 +124,108 @@ const Input = ({
         required={required}
         {...props}
       />
+      
+      {suffix && (
+        <span 
+          className={classNames('input-icon', {
+            'input-icon-clickable': suffixClickable
+          })}
+          onClick={handleSuffixClick}
+        >
+          {suffix}
+        </span>
+      )}
+      
       {(error || helperText) && (
-        <p className={`input-helper-text ${error ? 'input-error-text text-error' : 'text-tertiary'} text-xs`}>
+        <p className={`input-helper-text ${error ? 'input-error-text' : ''}`}>
           {error || helperText}
         </p>
       )}
     </div>
   );
-};
+});
+
+/**
+ * 文本区域组件
+ */
+export const TextArea = forwardRef(({
+  rows = 4,
+  className,
+  ...props
+}, ref) => {
+  const textareaClasses = classNames(
+    'input-field',
+    className
+  );
+  
+  return (
+    <Input
+      {...props}
+      ref={ref}
+      as="textarea"
+      className={textareaClasses}
+      rows={rows}
+    />
+  );
+});
+
+/**
+ * 密码输入框组件
+ */
+export const PasswordInput = forwardRef(({
+  ...props
+}, ref) => {
+  const [showPassword, setShowPassword] = React.useState(false);
+  
+  // 切换密码显示/隐藏
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+  
+  // 密码可见性图标
+  const visibilityIcon = showPassword ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M3 3L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+  
+  return (
+    <Input
+      {...props}
+      ref={ref}
+      type={showPassword ? 'text' : 'password'}
+      suffix={visibilityIcon}
+      suffixClickable
+      onSuffixClick={togglePasswordVisibility}
+    />
+  );
+});
+
+/**
+ * 搜索输入框组件
+ */
+export const SearchInput = forwardRef(({
+  ...props
+}, ref) => {
+  return (
+    <Input
+      {...props}
+      ref={ref}
+      type="search"
+    />
+  );
+});
+
+Input.displayName = 'Input';
+TextArea.displayName = 'TextArea';
+PasswordInput.displayName = 'PasswordInput';
+SearchInput.displayName = 'SearchInput';
 
 export default Input;
-
-// CSS
-const styles = `
-  .form-group {
-    margin-bottom: var(--spacing-md);
-  }
-
-  .form-group-full-width {
-    width: 100%;
-  }
-
-  .input-label {
-    display: block;
-    margin-bottom: var(--spacing-xs);
-  }
-
-  .input-required {
-    color: var(--error-color);
-    margin-left: var(--spacing-xs);
-  }
-
-  .input-field {
-    display: block;
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md);
-    line-height: var(--line-height-normal);
-    color: var(--text-primary);
-    background-color: white;
-    background-clip: padding-box;
-    border: 1px solid var(--neutral-300);
-    border-radius: var(--border-radius-md);
-    transition: var(--transition-default);
-  }
-
-  .input-field:focus {
-    border-color: var(--primary-color);
-    outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
-  }
-
-  .input-field::placeholder {
-    color: var(--neutral-400);
-  }
-
-  .input-full-width {
-    width: 100%;
-  }
-
-  .input-error {
-    border-color: var(--error-color);
-  }
-
-  .input-error:focus {
-    box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.25);
-  }
-
-  .input-disabled {
-    background-color: var(--neutral-100);
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-
-  .input-helper-text {
-    margin-top: var(--spacing-xs);
-  }
-`;
-
-// 将样式插入到文档中
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = styles;
-  document.head.appendChild(styleElement);
-}

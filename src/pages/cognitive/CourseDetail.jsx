@@ -74,19 +74,19 @@ const CourseDetail = () => {
   
   return (
     <div className="course-detail-page">
-      <button className="back-button" onClick={handleBackToLearning}>
+      <button className="back-button dark-text-link" onClick={handleBackToLearning}>
         返回学习中心
       </button>
       
       <div className="course-header">
         <div className="course-info">
-          <h1 className="course-title">{course.title}</h1>
+          <h1 className="course-title dark-text-heading">{course.title}</h1>
           <div className="course-meta">
-            <span className="course-category">{course.category}</span>
-            <span className="course-level">{course.level}</span>
-            <span className="course-duration">{course.duration}</span>
+            <span className="course-category dark-text-meta">{course.category}</span>
+            <span className="course-level dark-text-meta">{course.level}</span>
+            <span className="course-duration dark-text-meta">{course.duration}</span>
           </div>
-          <p className="course-description">{course.description}</p>
+          <p className="course-description dark-text-description">{course.description}</p>
         </div>
         <div className="course-image-container">
           <img src={course.imageUrl} alt={course.title} className="course-image" />
@@ -95,22 +95,22 @@ const CourseDetail = () => {
       
       <div className="course-content">
         <div className="course-sidebar">
-          <Card className="syllabus-card">
-            <h2 className="card-title">课程大纲</h2>
+          <Card className="syllabus-card dark-bg-card dark-shadow-sm">
+            <h2 className="card-title dark-text-heading">课程大纲</h2>
             <div className="syllabus-list">
               {course.syllabus.map((lesson) => (
                 <div 
                   key={lesson.id}
-                  className={`syllabus-item ${activeLesson && activeLesson.id === lesson.id ? 'active' : ''}`}
+                  className={`syllabus-item ${activeLesson && activeLesson.id === lesson.id ? 'active dark-active' : ''} dark-hover`}
                   onClick={() => handleSelectLesson(lesson)}
                 >
                   <div className="lesson-info">
-                    <span className="lesson-number">{lesson.id}.</span>
-                    <span className="lesson-title">{lesson.title}</span>
+                    <span className="lesson-number dark-text-meta">{lesson.id}.</span>
+                    <span className="lesson-title dark-text-primary">{lesson.title}</span>
                   </div>
                   <div className="lesson-meta">
-                    <span className="lesson-duration">{lesson.duration}</span>
-                    <span className={`lesson-type ${lesson.type}`}>
+                    <span className="lesson-duration dark-text-meta">{lesson.duration}</span>
+                    <span className={`lesson-type ${lesson.type} dark-text-meta`}>
                       {lesson.type === 'video' ? '视频' : '测验'}
                     </span>
                   </div>
@@ -119,17 +119,17 @@ const CourseDetail = () => {
             </div>
           </Card>
           
-          <Card className="instructor-card">
-            <h2 className="card-title">讲师介绍</h2>
+          <Card className="instructor-card dark-bg-card dark-shadow-sm">
+            <h2 className="card-title dark-text-heading">讲师介绍</h2>
             {course.instructors.map((instructor) => (
               <div key={instructor.id} className="instructor-info">
                 <div className="instructor-avatar-container">
                   <img src={instructor.avatar} alt={instructor.name} className="instructor-avatar" />
                 </div>
                 <div className="instructor-details">
-                  <h3 className="instructor-name">{instructor.name}</h3>
-                  <p className="instructor-title">{instructor.title}</p>
-                  <p className="instructor-bio">{instructor.bio}</p>
+                  <h3 className="instructor-name dark-text-heading">{instructor.name}</h3>
+                  <p className="instructor-title dark-text-meta">{instructor.title}</p>
+                  <p className="instructor-bio dark-text-description">{instructor.bio}</p>
                 </div>
               </div>
             ))}
@@ -138,12 +138,12 @@ const CourseDetail = () => {
         
         <div className="lesson-content">
           {activeLesson ? (
-            <Card className="lesson-card">
+            <Card className="lesson-card dark-bg-card dark-shadow-sm">
               <div className="lesson-header">
-                <h2 className="lesson-title">
+                <h2 className="lesson-title dark-text-heading">
                   {activeLesson.id}. {activeLesson.title}
                 </h2>
-                <span className="lesson-duration">{activeLesson.duration}</span>
+                <span className="lesson-duration dark-text-meta">{activeLesson.duration}</span>
               </div>
               
               {activeLesson.type === 'video' ? (

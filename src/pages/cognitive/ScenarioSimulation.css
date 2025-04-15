@@ -200,45 +200,6 @@
   cursor: not-allowed;
 }
 
-/* 深色模式调整 */
-.dark-theme .scenario-title {
-  color: var(--text-heading);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.dark-theme .scenario-description {
-  color: var(--text-description);
-}
-
-.dark-theme .scenario-difficulty,
-.dark-theme .scenario-duration {
-  color: var(--text-meta);
-}
-
-.dark-theme .scenario-tag {
-  background-color: var(--neutral-300);
-  color: var(--text-hint);
-}
-
-.dark-theme .scenario-tag.more {
-  background-color: var(--neutral-400);
-  color: var(--text-primary);
-}
-
-.dark-theme .completion-badge {
-  color: var(--text-light);
-}
-
-.dark-theme .scenario-card {
-  background-color: var(--card-background);
-  border: 1px solid var(--neutral-400);
-}
-
-.dark-theme .scenario-actions .start-button:disabled {
-  background-color: var(--neutral-500);
-  color: var(--text-secondary);
-}
-
 /* 响应式调整 */
 @media (max-width: 768px) {
   .scenarios-grid {

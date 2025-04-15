@@ -242,7 +242,7 @@
   flex: 1;
   height: 8px;
   background-color: var(--neutral-200);
-  border-radius: var(--border-radius-full);
+  border-radius: var (--border-radius-full);
   overflow: hidden;
 }
 
@@ -390,65 +390,4 @@
   .bias-cards {
     grid-template-columns: 1fr;
   }
-}
-
-/* 深色模式调整 */
-.dark-theme .page-title,
-.dark-theme .card-title,
-.dark-theme .section-title,
-.dark-theme .bias-name,
-.dark-theme .action-title {
-  color: var(--text-heading);
-}
-
-.dark-theme .behavior-profile-page .card {
-  background-color: var(--card-background);
-  border-color: var(--neutral-300);
-}
-
-.dark-theme .score-text {
-  fill: var(--text-heading);
-}
-
-.dark-theme .score-circle .score-bg {
-  stroke: var(--neutral-400);
-}
-
-.dark-theme .knowledge-tag.strength {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: var(--success-color);
-}
-
-.dark-theme .knowledge-tag.weakness {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: var(--error-color);
-}
-
-/* 深色模式调整 - 行为画像 */
-.dark-theme .score-description {
-  color: var(--text-description);
-}
-
-.dark-theme .style-analysis {
-  color: var(--text-description);
-}
-
-.dark-theme .bias-description {
-  color: var(--text-description);
-}
-
-.dark-theme .chart-description {
-  color: var(--text-meta);
-}
-
-.dark-theme .suggestions-list li {
-  color: var(--text-description);
-}
-
-.dark-theme .action-description {
-  color: var(--text-description);
-}
-
-.dark-theme .steps-list li {
-  color: var(--text-description);
 }

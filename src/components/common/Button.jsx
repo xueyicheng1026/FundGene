@@ -1,159 +1,153 @@
 import React from 'react';
 import classNames from 'classnames';
+import './Button.css';
 
+/**
+ * 通用按钮组件
+ * 支持多种变体、尺寸和状态
+ * 
+ * @param {Object} props - 组件属性
+ * @param {React.ReactNode} props.children - 按钮内容
+ * @param {Function} props.onClick - 点击事件处理函数
+ * @param {'button'|'submit'|'reset'} props.type - 按钮类型
+ * @param {'primary'|'secondary'|'outline'|'text'|'success'|'error'|'warning'|'info'} props.variant - 按钮样式变体
+ * @param {'xs'|'sm'|'md'|'lg'|'xl'} props.size - 按钮尺寸
+ * @param {boolean} props.disabled - 是否禁用
+ * @param {boolean} props.loading - 是否处于加载状态
+ * @param {boolean} props.fullWidth - 是否占满容器宽度
+ * @param {React.ReactNode} props.icon - 按钮图标
+ * @param {'left'|'right'} props.iconPosition - 图标位置
+ * @param {boolean} props.iconOnly - 是否只显示图标
+ * @param {'default'|'rounded'|'square'} props.shape - 按钮形状
+ * @param {string} props.className - 自定义类名
+ */
 const Button = ({
   children,
   onClick,
   type = 'button',
   variant = 'primary',
-  size = 'medium',
+  size = 'md',
   disabled = false,
+  loading = false,
   fullWidth = false,
+  icon,
+  iconPosition = 'left',
+  iconOnly = false,
+  shape = 'default',
   className,
   ...props
 }) => {
-  const sizeClasses = {
-    'small': 'text-sm',
-    'medium': 'text-md',
-    'large': 'text-lg'
-  };
-  
+  // 处理加载状态的图标
+  const loadingIcon = (
+    <span className="button-loading-indicator">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25" />
+        <path 
+          d="M12 2C6.47715 2 2 6.47715 2 12C2 12.6343 2.06115 13.2546 2.17849 13.8557" 
+          stroke="currentColor" 
+          strokeWidth="4" 
+          strokeLinecap="round" 
+        />
+      </svg>
+    </span>
+  );
+
   const buttonClasses = classNames(
     'button',
     `button-${variant}`,
     `button-${size}`,
-    sizeClasses[size],
     {
       'button-full-width': fullWidth,
-      'button-disabled': disabled,
+      'button-disabled': disabled || loading,
+      'button-loading': loading,
+      'button-icon-only': iconOnly,
+      'button-rounded': shape === 'rounded',
+      'button-square': shape === 'square',
+      [`button-icon-${iconPosition}`]: icon && !iconOnly,
     },
     className
   );
+
+  const handleClick = (e) => {
+    if (disabled || loading) {
+      e.preventDefault();
+      return;
+    }
+    onClick && onClick(e);
+  };
+
+  // 处理按钮内容
+  const renderContent = () => {
+    if (iconOnly) {
+      return icon || children;
+    }
+
+    if (loading) {
+      return (
+        <>
+          {loadingIcon}
+          {children}
+        </>
+      );
+    }
+
+    if (icon && iconPosition === 'left') {
+      return (
+        <>
+          <span className="button-icon">{icon}</span>
+          {children}
+        </>
+      );
+    }
+
+    if (icon && iconPosition === 'right') {
+      return (
+        <>
+          {children}
+          <span className="button-icon">{icon}</span>
+        </>
+      );
+    }
+
+    return children;
+  };
 
   return (
     <button
       type={type}
       className={buttonClasses}
-      onClick={onClick}
-      disabled={disabled}
+      onClick={handleClick}
+      disabled={disabled || loading}
       {...props}
     >
-      {children}
+      {renderContent()}
     </button>
   );
 };
 
+/**
+ * 按钮组组件
+ * 用于组合多个相关的按钮
+ */
+export const ButtonGroup = ({ 
+  children, 
+  className, 
+  vertical = false,
+  ...props 
+}) => {
+  const groupClasses = classNames(
+    'button-group',
+    {
+      'button-group-vertical': vertical
+    },
+    className
+  );
+
+  return (
+    <div className={groupClasses} {...props}>
+      {children}
+    </div>
+  );
+};
+
 export default Button;
-
-// CSS
-const styles = `
-  .button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: var(--font-weight-medium);
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    transition: var(--transition-default);
-  }
-
-  .button-primary {
-    background-color: var(--primary-color);
-    color: white;
-  }
-
-  .button-primary:hover:not(.button-disabled) {
-    background-color: var(--primary-dark);
-  }
-
-  .button-secondary {
-    background-color: var(--neutral-100);
-    color: var(--text-primary);
-  }
-
-  .button-secondary:hover:not(.button-disabled) {
-    background-color: var(--neutral-200);
-  }
-
-  .button-outline {
-    background-color: transparent;
-    border: 1px solid var(--neutral-300);
-    color: var(--text-primary);
-  }
-
-  .button-outline:hover:not(.button-disabled) {
-    background-color: var(--neutral-50);
-    border-color: var(--neutral-400);
-  }
-
-  .button-text {
-    background-color: transparent;
-    color: var(--primary-color);
-    padding: var(--spacing-xs) var(--spacing-sm);
-  }
-
-  .button-text:hover:not(.button-disabled) {
-    background-color: rgba(37, 99, 235, 0.05);
-  }
-
-  .button-small {
-    padding: var(--spacing-xs) var(--spacing-sm);
-  }
-
-  .button-medium {
-    padding: var(--spacing-sm) var(--spacing-md);
-  }
-
-  .button-large {
-    padding: var(--spacing-md) var(--spacing-lg);
-  }
-
-  .button-full-width {
-    width: 100%;
-  }
-
-  .button-disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  /* 深色模式按钮样式 */
-  .dark-theme .button-secondary {
-    background-color: var(--neutral-300);
-    color: var(--text-primary);
-  }
-
-  .dark-theme .button-secondary:hover:not(.button-disabled) {
-    background-color: var(--neutral-400);
-  }
-
-  .dark-theme .button-outline {
-    border-color: var(--neutral-400);
-    color: var(--text-primary);
-  }
-
-  .dark-theme .button-outline:hover:not(.button-disabled) {
-    background-color: var(--neutral-300);
-    border-color: var(--neutral-500);
-  }
-
-  .dark-theme .button-text {
-    color: var(--primary-light);
-  }
-
-  .dark-theme .button-text:hover:not(.button-disabled) {
-    background-color: rgba(59, 130, 246, 0.15);
-  }
-
-  .dark-theme .button-disabled {
-    opacity: 0.5;
-  }
-`;
-
-// 将样式插入到文档中
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = styles;
-  document.head.appendChild(styleElement);
-}

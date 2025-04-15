@@ -1,47 +1,210 @@
-/* 图表通用样式 */
+/* 图表样式 */
+
+/* 图表容器 */
 .chart-container {
   width: 100%;
   height: 100%;
   min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+}
+
+/* 图表头部 */
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--neutral-200);
 }
 
 .chart-title {
   font-size: var(--font-size-lg);
-  margin-bottom: var(--spacing-md);
-  color: var(--text-primary);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-heading);
+  margin: 0;
 }
 
 .chart-subtitle {
-  font-size: var(--font-size-md);
-  margin-bottom: var(--spacing-sm);
   color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin: var(--spacing-xs) 0 0 0;
+}
+
+.chart-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* 图表主体 */
+.chart-body {
+  flex: 1;
+  padding: var(--spacing-md);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 图表底部 */
+.chart-footer {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--neutral-200);
 }
 
 .chart-legend {
   display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
-  justify-content: center;
 }
 
-.legend-item {
+.chart-legend-item {
   display: flex;
   align-items: center;
-  margin-right: var(--spacing-md);
-}
-
-.legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-right: var(--spacing-xs);
-}
-
-.legend-label {
+  gap: var(--spacing-xs);
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
+}
+
+.chart-legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* 图表加载和空状态 */
+.chart-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 1;
+}
+
+.chart-empty {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.chart-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+.chart-empty-text {
+  font-size: var(--font-size-md);
+}
+
+/* 图表工具提示 */
+.chart-tooltip {
+  background-color: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--tooltip-shadow);
+  pointer-events: none;
+  z-index: 10;
+  max-width: 300px;
+}
+
+.chart-tooltip-title {
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--neutral-200);
+  padding-bottom: var(--spacing-xs);
+}
+
+.chart-tooltip-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
+}
+
+.chart-tooltip-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.chart-tooltip-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.chart-tooltip-value {
+  font-weight: var(--font-weight-medium);
+}
+
+/* 响应式图表 */
+@media (max-width: 768px) {
+  .chart-container {
+    min-height: 250px;
+  }
+  
+  .chart-header {
+    padding: var(--spacing-sm) var(--spacing-md);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+  
+  .chart-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: var(--spacing-xs);
+  }
+  
+  .chart-body {
+    padding: var(--spacing-sm);
+  }
+  
+  .chart-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+}
+
+/* 深色模式适配 */
+.dark-theme .chart-container {
+  background-color: var(--card-bg);
+}
+
+.dark-theme .chart-header,
+.dark-theme .chart-footer {
+  border-color: var(--neutral-700);
+}
+
+.dark-theme .chart-loading {
+  background-color: rgba(18, 18, 18, 0.7);
+}
+
+.dark-theme .chart-tooltip {
+  background-color: var(--tooltip-bg);
+  color: var(--tooltip-text);
+}
+
+.dark-theme .chart-tooltip-title {
+  border-color: var(--neutral-700);
 }
 
 /* Recharts 组件重写样式 */

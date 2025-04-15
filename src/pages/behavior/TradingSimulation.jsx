@@ -79,41 +79,43 @@ const TradingSimulation = () => {
   return (
     <div className="trading-simulation-page">
       <div className="page-header">
-        <h1 className="page-title">模拟交易</h1>
-        <p className="page-description">
+        <h1 className="page-title dark-text-heading">模拟交易</h1>
+        <p className="page-description dark-text-description">
           通过模拟交易实践投资行为，分析市场数据，优化投资决策，并获得行为反馈。
         </p>
       </div>
 
       <div className="trading-simulation-layout">
         <div className="portfolio-trade-grid">
-          <Card className="market-overview-card">
-            <h2 className="section-title">市场概览</h2>
+          <Card className="market-overview-card dark-bg-card dark-shadow-sm">
+            <h2 className="section-title dark-text-heading">市场概览</h2>
             <MarketOverview data={marketData} />
           </Card>
 
-          <Card className="portfolio-card">
-            <h2 className="section-title">投资组合</h2>
+          <Card className="portfolio-card dark-bg-card dark-shadow-sm">
+            <h2 className="section-title dark-text-heading">投资组合</h2>
             <PortfolioSummary portfolio={portfolio} />
           </Card>
         </div>
 
-        <Card className="trade-card">
-          <h2 className="section-title">交易操作</h2>
+        <Card className="trade-card dark-bg-card dark-shadow-sm">
+          <h2 className="section-title dark-text-heading">交易操作</h2>
           <TradeForm 
             marketData={marketData} 
             portfolio={portfolio} 
             onSubmit={handleTradeSubmit} 
           />
+          <input type="text" className="dark-input dark-focus" />
+          <button className="submit-button">提交</button>
         </Card>
 
-        <Card className="trade-history-card">
-          <h2 className="section-title">交易历史</h2>
+        <Card className="trade-history-card dark-bg-card dark-shadow-sm">
+          <h2 className="section-title dark-text-heading">交易历史</h2>
           <TradingHistory trades={tradeHistory} />
         </Card>
 
-        <Card className="behavior-feedback-card">
-          <h2 className="section-title">行为反馈</h2>
+        <Card className="behavior-feedback-card dark-bg-card dark-shadow-sm">
+          <h2 className="section-title dark-text-heading">行为反馈</h2>
           <BehaviorFeedback feedback={behaviorFeedback} />
         </Card>
       </div>

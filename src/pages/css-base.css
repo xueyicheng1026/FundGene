@@ -1,10 +1,6 @@
 /* 页面基础样式 - 供所有页面扩展和使用 */
 
-/* 添加基础命名空间 */
-.css-base {
-  /* 空类，用作命名空间前缀 */
-}
-
+/* 利用CSS变量和全局定义，不再需要命名空间 */
 /* 基础页面容器 */
 .base-page {
   max-width: var(--page-container-width);
@@ -70,23 +66,6 @@
   color: var(--text-primary);
 }
 
-/* 添加CSS模块组合工具类 */
-.compose-base-page {
-  max-width: var(--page-container-width);
-  margin: 0 auto;
-  padding: var(--page-container-padding-y) var(--page-container-padding-x);
-  padding-top: var(--page-top-spacing);
-  width: 100%;
-}
-
-.compose-base-card {
-  background-color: var(--card-background);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--card-padding);
-  margin-bottom: var(--card-margin-bottom);
-}
-
 /* 基础网格布局 */
 .base-grid {
   display: grid;
@@ -127,4 +106,186 @@
 .dark-theme .base-subsection-title,
 .dark-theme .base-card-title {
   color: var(--text-heading);
+}
+
+/* 深色模式通用辅助类 */
+
+/* 背景色辅助类 */
+.dark-theme .dark-bg-card {
+  background-color: var(--card-background);
+}
+
+.dark-theme .dark-bg-primary {
+  background-color: var(--neutral-50);
+}
+
+.dark-theme .dark-bg-secondary {
+  background-color: var(--neutral-100);
+}
+
+.dark-theme .dark-bg-tertiary {
+  background-color: var(--neutral-200);
+}
+
+.dark-theme .dark-bg-input {
+  background-color: var(--input-bg);
+}
+
+.dark-theme .dark-bg-dropdown {
+  background-color: var(--dropdown-background);
+}
+
+.dark-theme .dark-bg-modal {
+  background-color: var(--modal-background);
+}
+
+.dark-theme .dark-bg-tooltip {
+  background-color: var(--tooltip-background);
+}
+
+/* 文本颜色辅助类 */
+.dark-theme .dark-text-heading {
+  color: var(--text-heading);
+}
+
+.dark-theme .dark-text-title {
+  color: var(--text-title);
+}
+
+.dark-theme .dark-text-primary {
+  color: var(--text-primary);
+}
+
+.dark-theme .dark-text-secondary {
+  color: var(--text-secondary);
+}
+
+.dark-theme .dark-text-tertiary {
+  color: var(--text-tertiary);
+}
+
+.dark-theme .dark-text-meta {
+  color: var(--text-meta);
+}
+
+.dark-theme .dark-text-hint {
+  color: var(--text-hint);
+}
+
+.dark-theme .dark-text-link {
+  color: var(--text-link);
+}
+
+.dark-theme .dark-text-description {
+  color: var(--text-description);
+}
+
+.dark-theme .dark-text-bold {
+  color: var(--text-bold);
+}
+
+/* 边框辅助类 */
+.dark-theme .dark-border {
+  border-color: var(--border-color);
+}
+
+.dark-theme .dark-border-light {
+  border-color: var(--neutral-200);
+}
+
+.dark-theme .dark-border-accent {
+  border-color: var(--primary-color);
+}
+
+.dark-theme .dark-border-input {
+  border-color: var(--input-border);
+}
+
+/* 功能性颜色辅助类 */
+.dark-theme .dark-success {
+  color: var(--success-color);
+}
+
+.dark-theme .dark-error {
+  color: var(--error-color);
+}
+
+.dark-theme .dark-warning {
+  color: var(--warning-color);
+}
+
+.dark-theme .dark-info {
+  color: var(--info-color);
+}
+
+/* 背景功能色辅助类 */
+.dark-theme .dark-bg-success {
+  background-color: rgba(45, 203, 146, 0.2);
+}
+
+.dark-theme .dark-bg-error {
+  background-color: rgba(244, 115, 115, 0.2);
+}
+
+.dark-theme .dark-bg-warning {
+  background-color: rgba(245, 186, 69, 0.2);
+}
+
+.dark-theme .dark-bg-info {
+  background-color: rgba(56, 209, 230, 0.2);
+}
+
+.dark-theme .dark-bg-accent {
+  background-color: rgba(178, 146, 250, 0.2);
+}
+
+.dark-theme .dark-bg-primary-light {
+  background-color: var(--primary-bg);
+}
+
+/* 交互状态辅助类 */
+.dark-theme .dark-hover:hover {
+  background-color: var(--neutral-200);
+}
+
+.dark-theme .dark-focus:focus {
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px rgba(66, 135, 245, 0.3);
+}
+
+.dark-theme .dark-active {
+  background-color: var(--primary-bg);
+}
+
+/* 阴影辅助类 */
+.dark-theme .dark-shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.dark-theme .dark-shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.dark-theme .dark-shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+/* 表格相关辅助类 */
+.dark-theme .dark-table-header {
+  background-color: var(--table-header-bg);
+}
+
+.dark-theme .dark-table-row-hover:hover {
+  background-color: var(--table-row-hover);
+}
+
+/* 表单元素辅助类 */
+.dark-theme .dark-input {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-text);
+}
+
+.dark-theme .dark-input:focus {
+  border-color: var(--input-focus-border);
 }

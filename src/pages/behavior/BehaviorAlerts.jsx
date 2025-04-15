@@ -81,7 +81,7 @@ const BehaviorAlerts = () => {
           <span className="filter-label">筛选: </span>
           <div className="filter-buttons">
             <button 
-              className={`filter-button ${filter === 'all' ? 'active' : ''}`}
+              className={`filter-button ${filter === 'all' ? 'active dark-bg-primary-light' : ''} dark-text-primary dark-hover`}
               onClick={() => setFilter('all')}
             >
               全部
