@@ -92,3 +92,75 @@
     font-size: var(--font-size-2xl);
   }
 }
+
+/* 原有样式保持不变 */
+
+/* 添加深色模式样式 */
+.dark-theme .page-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .page-description {
+  color: var(--text-secondary);
+}
+
+.dark-theme .help-text,
+.dark-theme .help-list {
+  color: var(--text-secondary);
+}
+
+.dark-theme .help-subtitle,
+.dark-theme .card-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .back-link {
+  color: var(--text-link);
+}
+
+.dark-theme .back-link:hover {
+  color: var(--text-link-hover);
+}
+
+/* 表格深色模式样式 */
+.dark-theme .allocation-table {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.dark-theme .allocation-table th {
+  background-color: var(--table-header-bg);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.dark-theme .allocation-table td {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark-theme .allocation-table tr:hover {
+  background-color: var(--table-row-hover);
+}
+
+.dark-theme .significant-diff {
+  color: var(--error-color);
+}
+
+/* 调整卡片组件在深色模式下的样式 */
+.dark-theme .rebalance-card,
+.dark-theme .rebalance-help-card {
+  background-color: var(--card-background);
+  color: var(--text-primary);
+}
+
+/* 确保加载和错误状态在深色模式下正确显示 */
+.dark-theme .loading,
+.dark-theme .error {
+  color: var(--text-secondary);
+}
+
+/* 空状态深色模式 */
+.dark-theme .empty-state {
+  color: var(--text-secondary);
+}

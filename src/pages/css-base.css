@@ -1,4 +1,55 @@
 /* 页面基础样式 - 供所有页面扩展和使用 */
+/* 在文件顶部添加 */
+:root {
+  /* 添加主题切换过渡效果 */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 在深色模式调整部分下方添加 */
+/* 全局深色模式过渡效果 */
+.dark-theme * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* 确保卡片背景色正确应用 */
+.dark-theme .base-card,
+.dark-theme .card {
+  background-color: var(--card-background);
+  color: var(--text-primary);
+}
+
+/* 确保所有文本颜色正确应用 */
+.dark-theme p, 
+.dark-theme span, 
+.dark-theme div, 
+.dark-theme li {
+  color: var(--text-primary);
+}
+
+/* 确保表格颜色正确应用 */
+.dark-theme table {
+  background-color: var(--card-background);
+  color: var(--text-primary);
+}
+
+.dark-theme th {
+  background-color: var(--table-header-bg);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.dark-theme td {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark-theme tr:hover {
+  background-color: var(--table-row-hover);
+}
 
 /* 利用CSS变量和全局定义，不再需要命名空间 */
 /* 基础页面容器 */
@@ -288,4 +339,20 @@
 
 .dark-theme .dark-input:focus {
   border-color: var(--input-focus-border);
+}
+
+/* 确保内容文本颜色正确应用 */
+.dark-theme .card,
+.dark-theme .base-card {
+  background-color: var(--card-background);
+}
+
+/* 确保卡片内的文本颜色正确 */
+.dark-theme .card p,
+.dark-theme .card span,
+.dark-theme .card div,
+.dark-theme .base-card p,
+.dark-theme .base-card span,
+.dark-theme .base-card div {
+  color: var(--text-primary);
 }

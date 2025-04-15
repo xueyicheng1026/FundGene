@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
+import { ThemeContext } from '../../contexts/ThemeContext';
 import './ChartStyles.css';
 
 /**
@@ -34,6 +35,9 @@ const ChartContainer = ({
   className,
   ...restProps
 }) => {
+  // 添加主题上下文，确保主题变化时组件重新渲染
+  const { theme } = useContext(ThemeContext);
+
   const renderEmptyState = () => (
     <div className="chart-empty">
       {emptyIcon && <div className="chart-empty-icon">{emptyIcon}</div>}
@@ -90,7 +94,16 @@ const ChartContainer = ({
   };
 
   return (
-    <div className={classNames('chart-container', className)} {...restProps}>
+    <div 
+      className={classNames(
+        'chart-container',
+        { 'chart-loading': loading, 'chart-empty': empty },
+        className,
+        // 添加数据属性以触发重新渲染
+        `theme-${theme}`
+      )}
+      {...restProps}
+    >
       {(title || actions) && (
         <div className="chart-header">
           <div>

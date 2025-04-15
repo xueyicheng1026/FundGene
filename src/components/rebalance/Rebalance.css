@@ -60,7 +60,7 @@
 
 .significant-diff {
   font-weight: var(--font-weight-bold);
-  color: var(--error-color);
+  color: var (--error-color);
 }
 
 .action-direction {
@@ -332,4 +332,75 @@
   .rebalance-actions {
     flex-direction: column;
   }
+}
+
+/* 在现有样式后添加深色模式样式 */
+
+/* 深色模式样式 */
+.dark-theme .subsection-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .rationale-text,
+.dark-theme .impact-text,
+.dark-theme .reason-text {
+  color: var(--text-secondary);
+}
+
+.dark-theme .recommendation-card {
+  background-color: var(--neutral-100);
+  border-color: var(--border-color);
+}
+
+.dark-theme .recommendation-card.increase {
+  border-left-color: var(--success-color);
+}
+
+.dark-theme .recommendation-card.reduce {
+  border-left-color: var(--error-color);
+}
+
+.dark-theme .recommendation-card.maintain {
+  border-left-color: var(--warning-color);
+}
+
+.dark-theme .fund-name,
+.dark-theme .impact-title {
+  color: var(--text-heading);
+}
+
+.dark-theme .fund-code,
+.dark-theme .value-label,
+.dark-theme .amount-label,
+.dark-theme .reason-label {
+  color: var(--text-tertiary);
+}
+
+.dark-theme .value-number,
+.dark-theme .amount-value {
+  color: var(--text-primary);
+}
+
+.dark-theme .action-button.primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.dark-theme .action-button.secondary {
+  background-color: transparent;
+  color: var(--text-link);
+  border-color: var(--border-color);
+}
+
+.dark-theme .action-button.primary:hover {
+  background-color: var(--primary-dark);
+}
+
+.dark-theme .action-button.secondary:hover {
+  background-color: var(--neutral-200);
+}
+
+/* 深色模式下调整图表容器样式 */
+.dark-theme .chart-container {
+  background-color: var(--card-background);
 }
