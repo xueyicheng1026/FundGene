@@ -26,13 +26,13 @@
 }
 
 .index-card.positive {
-  background-color: rgba(16, 185, 129, 0.1);
-  border-left: 3px solid var(--success-color);
+  background-color: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid var(--error-color);
 }
 
 .index-card.negative {
-  background-color: rgba(239, 68, 68, 0.1);
-  border-left: 3px solid var(--error-color);
+  background-color: rgba(16, 185, 129, 0.1);
+  border-left: 3px solid var(--success-color);
 }
 
 .index-name {
@@ -46,11 +46,11 @@
 }
 
 .index-card.positive .index-change {
-  color: var(--success-color);
+  color: var(--error-color);
 }
 
 .index-card.negative .index-change {
-  color: var(--error-color);
+  color: var(--success-color);
 }
 
 .change-value {
@@ -86,11 +86,11 @@
 }
 
 .positive {
-  color: var(--success-color);
+  color: var(--error-color);
 }
 
 .negative {
-  color: var(--error-color);
+  color: var(--success-color);
 }
 
 /* 投资组合概览样式 */
@@ -279,11 +279,11 @@
 }
 
 .trade-action.buy {
-  color: var(--success-color);
+  color: var(--error-color);
 }
 
 .trade-action.sell {
-  color: var(--error-color);
+  color: var(--success-color);
 }
 
 .trade-shares,
