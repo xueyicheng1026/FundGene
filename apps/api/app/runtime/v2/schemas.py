@@ -8,11 +8,12 @@ from app.schemas.assistant import AdvisorResponse
 
 
 Intent = Literal["learning", "portfolio", "behavior", "simulation", "news"]
-PolicyStatus = Literal["allow", "revise", "block_with_guidance"]
+PolicyStatus = Literal["allow", "revise", "block_with_guidance", "runtime_repair"]
 WorkerName = Literal[
     "LearningWorker",
     "PortfolioWorker",
     "BehaviorWorker",
+    "SimulationWorker",
     "NewsWorker",
     "SafetyPolicyWorker",
 ]
@@ -99,6 +100,10 @@ class WorkerFinding(BaseModel):
 class WorkerOutput(BaseModel):
     worker_name: str
     intent: Intent
+    skill_names: list[str] = Field(default_factory=list)
+    learning_outcome: str | None = None
+    skill_output_guidance: list[str] = Field(default_factory=list)
+    skill_forbidden_language: list[str] = Field(default_factory=list)
     findings: list[str]
     structured_findings: list[WorkerFinding] = Field(default_factory=list)
     evidence_refs: list[EvidenceRef] = Field(default_factory=list)
@@ -124,6 +129,18 @@ class ToolSelectionSignal(BaseModel):
     reason: str
 
 
+class SkillSelection(BaseModel):
+    skill_name: str
+    skill_version: str
+    score: float
+    matched_terms: list[str] = Field(default_factory=list)
+    required_tools: list[str] = Field(default_factory=list)
+    output_guidance: list[str] = Field(default_factory=list)
+    forbidden_language: list[str] = Field(default_factory=list)
+    learning_outcome: str
+    reason: str
+
+
 class PlanConstraint(BaseModel):
     name: str
     status: Literal["pass", "warn", "fail"]
@@ -135,6 +152,7 @@ class AgentPlan(BaseModel):
     primary_intent: Intent
     detected_intents: list[Intent]
     worker_names: list[WorkerName]
+    selected_skills: list[SkillSelection] = Field(default_factory=list)
     planned_tools: list[PlannedToolCall]
     tool_selection_signals: list[ToolSelectionSignal] = Field(default_factory=list)
     constraints: list[PlanConstraint] = Field(default_factory=list)
@@ -145,6 +163,10 @@ class AgentPlan(BaseModel):
     @property
     def tool_names(self) -> list[str]:
         return [tool.tool_name for tool in self.planned_tools]
+
+    @property
+    def skill_names(self) -> list[str]:
+        return [skill.skill_name for skill in self.selected_skills]
 
 
 class WorkerValidationResult(BaseModel):

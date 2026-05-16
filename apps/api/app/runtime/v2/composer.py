@@ -50,12 +50,12 @@ class ResponseComposer:
         input_policy: PolicyResult,
         deterministic_response: AdvisorResponse,
     ) -> ComposeResult:
-        if input_policy.status == "block_with_guidance":
+        if input_policy.status in {"block_with_guidance", "runtime_repair"}:
             return ComposeResult(
                 response=deterministic_response,
                 metadata={
                     "composer_mode": "deterministic",
-                    "reason": "input_policy_block",
+                    "reason": input_policy.status,
                     **self.model_info.metadata(),
                 },
             )

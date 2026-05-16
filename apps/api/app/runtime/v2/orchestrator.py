@@ -20,21 +20,32 @@ from app.runtime.v2.schemas import (
     FinalResponseValidationResult,
     OrchestratorRunResult,
     PlanConstraint,
+    PlannedToolCall,
     PolicyResult,
     RuntimeTraceEvent,
+    SkillSelection,
     ToolResult,
+    ToolSelectionSignal,
     WorkerValidationResult,
     WorkerFinding,
     WorkerOutput,
 )
 from app.runtime.v2.tools.registry import ToolRegistry
-from app.runtime.v2.workers import BehaviorWorker, LearningWorker, NewsWorker, PortfolioWorker
+from app.runtime.v2.workers import (
+    BehaviorWorker,
+    LearningWorker,
+    NewsWorker,
+    PortfolioWorker,
+    SimulationWorker,
+)
 from app.schemas.assistant import AdvisorResponse
 from app.services.evidence import EvidenceService
 
 
 ORCHESTRATOR_VERSION = "agent_runtime_v2"
-RISK_NOTICE = "FundGene 提供的是学习与决策支持，不是收益承诺、交易执行指令或自动下单系统。"
+RISK_NOTICE = (
+    "FundGene 提供的是学习与决策支持，不是收益承诺、交易执行指令或自动下单系统。"
+)
 
 
 class AdvisorOrchestrator:
@@ -71,6 +82,7 @@ class AdvisorOrchestrator:
             "learning": LearningWorker(),
             "portfolio": PortfolioWorker(),
             "behavior": BehaviorWorker(),
+            "simulation": SimulationWorker(),
             "news": NewsWorker(),
         }
 
@@ -85,6 +97,7 @@ class AdvisorOrchestrator:
     ) -> OrchestratorRunResult:
         run_started = perf_counter()
         input_policy = self.policy.check_input(message)
+        execution_policy = input_policy
         self._record_step(
             db,
             run_id=agent_run.id,
@@ -138,6 +151,24 @@ class AdvisorOrchestrator:
             plan,
             blocked=input_policy.status == "block_with_guidance",
         )
+        if any(constraint.status == "fail" for constraint in plan_validation):
+            plan = self._safe_plan_after_validation_failure(plan)
+            execution_policy = PolicyResult(
+                status="runtime_repair",
+                reason="agent plan validation failed before tool execution.",
+                blocked_terms=["plan_validation_failed"],
+            )
+            repair_validation = self._validate_plan(plan, blocked=True)
+            plan_validation = [
+                *plan_validation,
+                PlanConstraint(
+                    name="plan_repaired_after_validation_failure",
+                    status="warn",
+                    detail="计划校验失败后已降级到画像和安全边界工具，避免执行未知或越权工具。",
+                ),
+                *repair_validation,
+            ]
+            intent = plan.primary_intent
         plan.constraints = [*plan.constraints, *plan_validation]
         self._record_step(
             db,
@@ -147,8 +178,7 @@ class AdvisorOrchestrator:
             input_payload=plan.model_dump(mode="json"),
             output_payload={
                 "constraints": [
-                    constraint.model_dump(mode="json")
-                    for constraint in plan_validation
+                    constraint.model_dump(mode="json") for constraint in plan_validation
                 ],
                 "status": (
                     "fail"
@@ -164,10 +194,13 @@ class AdvisorOrchestrator:
             run_id=agent_run.id,
             sequence=6,
             step_name="select_tools",
-            input_payload={"intent": intent, "policy_status": input_policy.status},
+            input_payload={"intent": intent, "policy_status": execution_policy.status},
             output_payload={
                 "tools": selected_tools,
                 "worker_names": plan.worker_names,
+                "selected_skills": [
+                    skill.model_dump(mode="json") for skill in plan.selected_skills
+                ],
                 "tool_budget": {
                     "max_tool_calls": plan.max_tool_calls,
                     "planned_tool_calls": len(selected_tools),
@@ -218,6 +251,9 @@ class AdvisorOrchestrator:
                 "intent": intent,
                 "worker_names": plan.worker_names,
                 "tools": selected_tools,
+                "selected_skills": [
+                    skill.model_dump(mode="json") for skill in plan.selected_skills
+                ],
             },
             output_payload={"status": "running"},
             status="running",
@@ -227,12 +263,12 @@ class AdvisorOrchestrator:
             plan=plan,
             message=message,
             tool_results=tool_results,
-            input_policy=input_policy,
+            input_policy=execution_policy,
         )
         worker_output = self._aggregate_worker_outputs(
             plan=plan,
             worker_outputs=worker_outputs,
-            input_policy=input_policy,
+            input_policy=execution_policy,
         )
         self._persist_evidence_refs(
             db,
@@ -257,7 +293,7 @@ class AdvisorOrchestrator:
 
         worker_validation = self._validate_worker_output(
             worker_output=worker_output,
-            input_policy=input_policy,
+            input_policy=execution_policy,
         )
         self._record_step(
             db,
@@ -271,18 +307,18 @@ class AdvisorOrchestrator:
         deterministic_response = self._compose_deterministic_response(
             intent=intent,
             worker_output=worker_output,
-            input_policy=input_policy,
+            input_policy=execution_policy,
         )
         compose_result = await self.composer.compose(
             intent=intent,
             worker_output=worker_output,
-            input_policy=input_policy,
+            input_policy=execution_policy,
             deterministic_response=deterministic_response,
         )
         draft_response = compose_result.response
         output_policy = (
-            input_policy
-            if input_policy.status == "block_with_guidance"
+            execution_policy
+            if execution_policy.status in {"block_with_guidance", "runtime_repair"}
             else self.policy.check_output(draft_response.answer)
         )
         self._record_step(
@@ -297,10 +333,12 @@ class AdvisorOrchestrator:
             draft_response.answer = output_policy.revised_answer
 
         if self.capabilities.enabled("strict_final_validation"):
-            draft_response, final_validation = self._normalize_and_validate_final_response(
-                response=draft_response,
-                worker_output=worker_output,
-                policy_status=output_policy.status,
+            draft_response, final_validation = (
+                self._normalize_and_validate_final_response(
+                    response=draft_response,
+                    worker_output=worker_output,
+                    policy_status=output_policy.status,
+                )
             )
         else:
             final_validation = FinalResponseValidationResult(
@@ -341,6 +379,13 @@ class AdvisorOrchestrator:
                 "intent": intent,
                 "policy_status": output_policy.status,
                 "tools": selected_tools,
+                "skills": [
+                    skill.model_dump(mode="json") for skill in plan.selected_skills
+                ],
+                "selected_skill_versions": [
+                    f"{skill.skill_name}@{skill.skill_version}"
+                    for skill in plan.selected_skills
+                ],
                 "runtime_capabilities": self.capabilities.model_dump(mode="json"),
                 "agent_plan": plan.model_dump(mode="json"),
                 "worker": worker_output.worker_name,
@@ -369,17 +414,30 @@ class AdvisorOrchestrator:
         message: str,
         tool_results: list[ToolResult],
         input_policy: PolicyResult,
+        skills: list[SkillSelection] | None = None,
     ) -> WorkerOutput:
-        if input_policy.status == "block_with_guidance":
+        if input_policy.status in {"block_with_guidance", "runtime_repair"}:
             evidence_refs = [
                 evidence
                 for tool_result in tool_results
                 for evidence in tool_result.evidence_refs
             ]
-            finding = "用户请求触及交易执行、收益保证或账户连接边界，需要转为学习与风险理解。"
+            runtime_repair = input_policy.status == "runtime_repair"
+            finding = (
+                "内部计划校验没有通过，已退回到只读安全上下文；本次不会执行未注册、"
+                "越权或超预算工具。"
+                if runtime_repair
+                else "用户请求触及交易执行、收益保证或账户连接边界，需要转为学习与风险理解。"
+            )
+            safety_boundary = (
+                "Runtime guardrail blocks invalid plans before tool execution."
+                if runtime_repair
+                else "FundGene 不提供买卖、清仓、满仓、保本收益或自动交易指令。"
+            )
             return WorkerOutput(
                 worker_name="SafetyPolicyWorker",
                 intent="learning",
+                skill_names=[],
                 findings=[finding],
                 structured_findings=[
                     WorkerFinding(
@@ -387,20 +445,34 @@ class AdvisorOrchestrator:
                         explanation="输入 guard 命中产品边界后，只允许生成学习型引导。",
                         evidence_refs=self._evidence_keys(evidence_refs),
                         support_level="contextual",
-                        safety_boundary="FundGene 不提供买卖、清仓、满仓、保本收益或自动交易指令。",
+                        safety_boundary=safety_boundary,
                     )
                 ],
                 evidence_refs=evidence_refs,
                 risk_flags=[input_policy.reason],
                 recommended_actions=[
-                    "把问题改写成学习目标，例如“我该如何理解这个基金的风险”。",
-                    "回到 Portfolio 或 Learning，先检查风险暴露和基础概念。",
+                    (
+                        "稍后重试该问题；当前回答已限制在安全只读上下文。"
+                        if runtime_repair
+                        else "把问题改写成学习目标，例如“我该如何理解这个基金的风险”。"
+                    ),
+                    (
+                        "如果反复出现，请检查 Skill Registry 和 ToolRegistry 的工具预算。"
+                        if runtime_repair
+                        else "回到 Portfolio 或 Learning，先检查风险暴露和基础概念。"
+                    ),
                 ],
                 confidence=0.95,
-                limitations=["安全边界判断由规则 guard 完成。"],
+                limitations=[
+                    (
+                        "这是内部 runtime guardrail 触发，不代表用户请求本身越界。"
+                        if runtime_repair
+                        else "安全边界判断由规则 guard 完成。"
+                    )
+                ],
             )
-        worker = self.workers["behavior"] if intent == "simulation" else self.workers.get(intent, self.workers["learning"])
-        return worker.run(message=message, tool_results=tool_results)
+        worker = self.workers.get(intent, self.workers["learning"])
+        return worker.run(message=message, tool_results=tool_results, skills=skills)
 
     def _run_workers(
         self,
@@ -410,13 +482,14 @@ class AdvisorOrchestrator:
         tool_results: list[ToolResult],
         input_policy: PolicyResult,
     ) -> list[WorkerOutput]:
-        if input_policy.status == "block_with_guidance":
+        if input_policy.status in {"block_with_guidance", "runtime_repair"}:
             return [
                 self._run_worker(
                     intent="learning",
                     message=message,
                     tool_results=tool_results,
                     input_policy=input_policy,
+                    skills=[],
                 )
             ]
 
@@ -424,9 +497,8 @@ class AdvisorOrchestrator:
         worker_intents = {
             "LearningWorker": "learning",
             "PortfolioWorker": "portfolio",
-            "BehaviorWorker": (
-                "simulation" if "simulation" in plan.detected_intents else "behavior"
-            ),
+            "BehaviorWorker": "behavior",
+            "SimulationWorker": "simulation",
             "NewsWorker": "news",
         }
         for worker_name in plan.worker_names:
@@ -439,6 +511,7 @@ class AdvisorOrchestrator:
                     message=message,
                     tool_results=tool_results,
                     input_policy=input_policy,
+                    skills=self._skills_for_intent(plan.selected_skills, intent),
                 )
             )
         if not outputs:
@@ -448,6 +521,10 @@ class AdvisorOrchestrator:
                     message=message,
                     tool_results=tool_results,
                     input_policy=input_policy,
+                    skills=self._skills_for_intent(
+                        plan.selected_skills,
+                        plan.primary_intent,
+                    ),
                 )
             )
         return outputs
@@ -471,12 +548,38 @@ class AdvisorOrchestrator:
             for finding in output.structured_findings
         ]
         evidence_refs = [
-            evidence
-            for output in worker_outputs
-            for evidence in output.evidence_refs
+            evidence for output in worker_outputs for evidence in output.evidence_refs
         ]
         risk_flags = list(
-            dict.fromkeys(flag for output in worker_outputs for flag in output.risk_flags)
+            dict.fromkeys(
+                flag for output in worker_outputs for flag in output.risk_flags
+            )
+        )
+        skill_names = list(
+            dict.fromkeys(
+                skill_name
+                for output in worker_outputs
+                for skill_name in output.skill_names
+            )
+        )
+        learning_outcomes = [
+            output.learning_outcome
+            for output in worker_outputs
+            if output.learning_outcome
+        ]
+        skill_output_guidance = list(
+            dict.fromkeys(
+                guidance
+                for output in worker_outputs
+                for guidance in output.skill_output_guidance
+            )
+        )
+        skill_forbidden_language = list(
+            dict.fromkeys(
+                term
+                for output in worker_outputs
+                for term in output.skill_forbidden_language
+            )
         )
         recommended_actions = list(
             dict.fromkeys(
@@ -505,6 +608,10 @@ class AdvisorOrchestrator:
         return WorkerOutput(
             worker_name="AdvisorSynthesisWorker",
             intent=plan.primary_intent,
+            skill_names=skill_names,
+            learning_outcome="；".join(dict.fromkeys(learning_outcomes)) or None,
+            skill_output_guidance=skill_output_guidance,
+            skill_forbidden_language=skill_forbidden_language,
             findings=findings,
             structured_findings=structured_findings,
             evidence_refs=evidence_refs,
@@ -514,6 +621,63 @@ class AdvisorOrchestrator:
             confidence=confidence,
             limitations=limitations,
         )
+
+    def _safe_plan_after_validation_failure(self, plan: AgentPlan) -> AgentPlan:
+        return AgentPlan(
+            primary_intent="learning",
+            detected_intents=["learning"],
+            worker_names=["SafetyPolicyWorker"],
+            selected_skills=[],
+            planned_tools=[
+                PlannedToolCall(
+                    tool_name="profile.current",
+                    purpose="计划校验失败后读取画像以保持安全上下文。",
+                ),
+                PlannedToolCall(
+                    tool_name="safety.boundary_rules",
+                    purpose="计划校验失败后读取产品安全边界。",
+                ),
+            ],
+            tool_selection_signals=[
+                ToolSelectionSignal(
+                    tool_name="profile.current",
+                    score=100,
+                    source="required",
+                    reason="计划校验失败后的安全降级工具。",
+                ),
+                ToolSelectionSignal(
+                    tool_name="safety.boundary_rules",
+                    score=100,
+                    source="required",
+                    reason="计划校验失败后的产品边界工具。",
+                ),
+            ],
+            constraints=plan.constraints,
+            max_tool_calls=2,
+            requires_human_review=True,
+            rationale="原计划校验失败，已降级为安全边界回复。",
+        )
+
+    def _skills_for_intent(
+        self,
+        skills: list[SkillSelection],
+        intent: str,
+    ) -> list[SkillSelection]:
+        hints_by_intent = {
+            "learning": ("fund_basics",),
+            "portfolio": ("portfolio",),
+            "behavior": ("behavior",),
+            "simulation": ("simulation",),
+            "news": ("news",),
+        }
+        hints = hints_by_intent.get(intent, ())
+        scoped = [
+            skill
+            for skill in skills
+            if skill.skill_name == "cross_domain_synthesis_v1"
+            or any(hint in skill.skill_name for hint in hints)
+        ]
+        return scoped or skills
 
     def _validate_plan(
         self,
@@ -572,7 +736,9 @@ class AdvisorOrchestrator:
             definition = self.tools.definitions.get(tool)
             if definition is None or not definition.allowed_intents:
                 continue
-            if not any(intent in definition.allowed_intents for intent in plan.detected_intents):
+            if not any(
+                intent in definition.allowed_intents for intent in plan.detected_intents
+            ):
                 intent_mismatches.append(tool)
         constraints.append(
             PlanConstraint(
@@ -582,6 +748,26 @@ class AdvisorOrchestrator:
                     f"工具不匹配当前意图：{', '.join(intent_mismatches)}"
                     if intent_mismatches
                     else "所有工具均匹配至少一个 detected intent。"
+                ),
+            )
+        )
+
+        missing_skill_tools = sorted(
+            {
+                tool
+                for skill in plan.selected_skills
+                for tool in skill.required_tools
+                if tool not in plan.tool_names
+            }
+        )
+        constraints.append(
+            PlanConstraint(
+                name="skill_required_tools",
+                status="fail" if missing_skill_tools else "pass",
+                detail=(
+                    f"已选 skill 缺少 required tools：{', '.join(missing_skill_tools)}"
+                    if missing_skill_tools
+                    else "所有已选 skill 的 required tools 均包含在 planned tools 中。"
                 ),
             )
         )
@@ -624,9 +810,12 @@ class AdvisorOrchestrator:
         status = "pass"
         if unsupported:
             status = "warn"
-        if input_policy.status == "block_with_guidance" and worker_output.worker_name != "SafetyPolicyWorker":
+        if (
+            input_policy.status in {"block_with_guidance", "runtime_repair"}
+            and worker_output.worker_name != "SafetyPolicyWorker"
+        ):
             status = "fail"
-            issues.append("blocked_input_not_handled_by_safety_worker")
+            issues.append("guardrail_input_not_handled_by_safety_worker")
 
         return WorkerValidationResult(
             status=status,
@@ -675,21 +864,30 @@ class AdvisorOrchestrator:
             issues.append("unsupported_citations_removed")
         if removed_unsafe_actions:
             issues.append("unsafe_actions_removed")
+        final_text = " ".join(
+            [
+                normalized.answer,
+                *normalized.recommended_actions,
+                *normalized.follow_up_questions,
+            ]
+        )
+        skill_forbidden_terms = [
+            term
+            for term in worker_output.skill_forbidden_language
+            if term and term.lower() in final_text.lower()
+        ]
+        if skill_forbidden_terms:
+            issues.append(
+                "skill_forbidden_language:"
+                + ",".join(dict.fromkeys(skill_forbidden_terms))
+            )
         final_policy = (
             PolicyResult(
                 status="allow",
-                reason="安全拦截回复允许引用边界术语来说明拒答原因。",
+                reason="guardrail 回复允许引用边界术语来说明拒答或降级原因。",
             )
-            if policy_status == "block_with_guidance"
-            else self.policy.check_output(
-                " ".join(
-                    [
-                        normalized.answer,
-                        *normalized.recommended_actions,
-                        *normalized.follow_up_questions,
-                    ]
-                )
-            )
+            if policy_status in {"block_with_guidance", "runtime_repair"}
+            else self.policy.check_output(final_text)
         )
         if final_policy.status != "allow":
             issues.append("unsafe_final_text")
@@ -734,6 +932,25 @@ class AdvisorOrchestrator:
                         "scored"
                         if self.capabilities.enabled("scored_tool_discovery")
                         else "intent_fallback"
+                    ),
+                },
+            ),
+            RuntimeTraceEvent(
+                name="agent.skills",
+                kind="plan",
+                status="completed",
+                attributes={
+                    "skill_count": len(plan.selected_skills),
+                    "selected_skill_versions": [
+                        f"{skill.skill_name}@{skill.skill_version}"
+                        for skill in plan.selected_skills
+                    ],
+                    "required_tools": list(
+                        dict.fromkeys(
+                            tool
+                            for skill in plan.selected_skills
+                            for tool in skill.required_tools
+                        )
                     ),
                 },
             ),
@@ -814,11 +1031,17 @@ class AdvisorOrchestrator:
             for evidence in evidence_for_citations[:4]
         ]
         citations = list(dict.fromkeys(raw_citations))
-        if input_policy.status == "block_with_guidance":
+        if input_policy.status in {"block_with_guidance", "runtime_repair"}:
             answer = (
-                "这个问题已经越过 FundGene 的产品边界：我不能给出买卖、清仓、满仓、"
-                "保本收益或自动交易相关指令。可以继续帮你把它改成学习问题，先看风险、期限、"
-                "组合结构和行为冲动。"
+                "内部计划校验没有通过，所以这次先退回到安全的只读上下文；"
+                "我不会执行未注册、越权或超预算工具。请稍后重试，或先把问题聚焦到基金概念、"
+                "风险承受、组合结构或行为纪律。"
+                if input_policy.status == "runtime_repair"
+                else (
+                    "这个问题已经越过 FundGene 的产品边界：我不能给出买卖、清仓、满仓、"
+                    "保本收益或自动交易相关指令。可以继续帮你把它改成学习问题，先看风险、期限、"
+                    "组合结构和行为冲动。"
+                )
             )
             intent = "learning"
         else:
@@ -1001,12 +1224,31 @@ class AdvisorOrchestrator:
         normalized = message.lower()
         if any(
             keyword in normalized
-            for keyword in ("portfolio", "allocation", "holding", "holdings", "仓位", "持仓", "配置", "集中")
+            for keyword in (
+                "portfolio",
+                "allocation",
+                "holding",
+                "holdings",
+                "仓位",
+                "持仓",
+                "配置",
+                "集中",
+            )
         ):
             return "portfolio"
         if any(
             keyword in normalized
-            for keyword in ("behavior", "bias", "emotion", "panic", "追涨", "偏差", "情绪", "恐慌", "冲动")
+            for keyword in (
+                "behavior",
+                "bias",
+                "emotion",
+                "panic",
+                "追涨",
+                "偏差",
+                "情绪",
+                "恐慌",
+                "冲动",
+            )
         ):
             return "behavior"
         if any(
@@ -1023,14 +1265,26 @@ class AdvisorOrchestrator:
 
     def _follow_up_questions(self, intent: str) -> list[str]:
         if intent == "portfolio":
-            return ["你想先看集中度，还是先看风险桶分布？", "要不要我只讲再平衡原则，不给交易指令？"]
+            return [
+                "你想先看集中度，还是先看风险桶分布？",
+                "要不要我只讲再平衡原则，不给交易指令？",
+            ]
         if intent == "behavior":
-            return ["你想继续拆解追涨，还是先拆解恐慌卖出？", "要不要把这次情绪写成每周复盘模板？"]
+            return [
+                "你想继续拆解追涨，还是先拆解恐慌卖出？",
+                "要不要把这次情绪写成每周复盘模板？",
+            ]
         if intent == "simulation":
-            return ["你想继续做一次低风险情境训练吗？", "要不要把复盘结果转成下一次训练提示？"]
+            return [
+                "你想继续做一次低风险情境训练吗？",
+                "要不要把复盘结果转成下一次训练提示？",
+            ]
         if intent == "news":
             return ["你想要政策影响路径模板吗？", "要不要把这条新闻转成学习笔记？"]
-        return ["你想先理解风险等级，还是先理解回撤？", "要不要我用一个新手例子继续解释？"]
+        return [
+            "你想先理解风险等级，还是先理解回撤？",
+            "要不要我用一个新手例子继续解释？",
+        ]
 
     def _elapsed_ms(self, started: float) -> int:
         return max(0, round((perf_counter() - started) * 1000))

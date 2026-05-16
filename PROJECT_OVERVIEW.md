@@ -234,19 +234,22 @@ Initial workers:
 - `LearningWorker`: explains fund concepts and references learning materials.
 - `PortfolioWorker`: explains portfolio structure using the latest persisted portfolio report.
 - `BehaviorWorker`: identifies behavior bias using questionnaire, behavior profile, and simulation review evidence.
+- `SimulationWorker`: turns historical scenario sessions and reviews into decision-training guidance.
 - `NewsWorker`: interprets news and policy through facts, impact path, uncertainty, and safe next actions.
 - `SafetyPolicyWorker`: validates input, tool use, and output against product and financial safety rules.
 - `Composer`: produces the final beginner-facing answer.
-
-`SimulationWorker` should be deferred. Early simulation questions can be handled by `BehaviorWorker` using simulation review evidence.
 
 Worker rules:
 
 - Workers do not talk to each other.
 - Workers are selected by `AgentPlanner` and may run in bounded internal fan-out for cross-domain user questions.
 - Worker fan-out is capped and aggregated back into one public assistant response.
+- `AgentPlanner` also selects code-owned, versioned coaching skills before tool execution. Current skills are `fund_basics_explainer_v1`, `portfolio_concentration_review_v1`, `behavior_bias_reflection_v1`, `simulation_review_coach_v1`, `news_policy_impact_path_v1`, and `cross_domain_synthesis_v1`.
 - Runtime tools remain internal, read-only, schema-described, and checked against intent/tool-budget constraints before execution.
+- Skill-required tools must already exist in the internal read-only `ToolRegistry`. Invalid required tools are rejected at registry load, and plan-validation failure falls back to safety-boundary tools before execution.
 - Tool selection now produces scored `tool_selection_signals`, so traces can explain why a tool was selected without exposing internal tool names in the beginner-facing UI.
+- Skill selection is visible in developer/audit trace through `agent_plan_v1.selected_skills`, `tool_trace.selected_skill_versions`, and the `agent.skills` trace event. Beginner-facing coach UI should not expose these internal names.
+- Skill `outputGuidance` and `forbiddenLanguage` are carried into worker output so model composition and final validation can see the selected skill contract. Internal plan-repair failures use `runtime_repair`, not a user-safety violation, so trace analytics can distinguish planner faults from user boundary requests.
 - Final response validation removes unsupported citations and unsafe recommended actions before the assistant message is persisted.
 - Workers do not directly respond to the user.
 - Workers do not write canonical user state.
@@ -257,7 +260,9 @@ Worker output schema:
 ```ts
 type WorkerOutput = {
   workerName: string;
-  intent: "learning" | "portfolio" | "behavior" | "news";
+  intent: "learning" | "portfolio" | "behavior" | "simulation" | "news";
+  skillNames: string[];
+  learningOutcome?: string;
   findings: string[];
   evidenceRefs: EvidenceRef[];
   riskFlags: string[];

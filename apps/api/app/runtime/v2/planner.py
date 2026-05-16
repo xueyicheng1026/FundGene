@@ -4,8 +4,10 @@ from app.runtime.v2.schemas import (
     Intent,
     PlanConstraint,
     PlannedToolCall,
+    SkillSelection,
     ToolSelectionSignal,
 )
+from app.runtime.v2.skills import SkillRegistry
 from app.runtime.v2.tools.registry import ToolRegistry
 
 
@@ -70,7 +72,7 @@ _WORKER_BY_INTENT: dict[Intent, str] = {
     "learning": "LearningWorker",
     "portfolio": "PortfolioWorker",
     "behavior": "BehaviorWorker",
-    "simulation": "BehaviorWorker",
+    "simulation": "SimulationWorker",
     "news": "NewsWorker",
 }
 
@@ -117,6 +119,7 @@ class AgentPlanner:
         capabilities: RuntimeCapabilityConfig | None = None,
     ) -> None:
         self.tool_registry = tool_registry or ToolRegistry()
+        self.skill_registry = SkillRegistry(tool_registry=self.tool_registry)
         self.capabilities = capabilities or build_runtime_capabilities()
 
     def build_plan(self, *, message: str, blocked: bool = False) -> AgentPlan:
@@ -125,6 +128,7 @@ class AgentPlanner:
                 primary_intent="learning",
                 detected_intents=["learning"],
                 worker_names=["SafetyPolicyWorker"],
+                selected_skills=[],
                 planned_tools=[
                     PlannedToolCall(
                         tool_name="profile.current",
@@ -165,14 +169,23 @@ class AgentPlanner:
             detected_intents = detected_intents[:1]
         primary_intent = detected_intents[0]
         worker_names = self._worker_names_for(detected_intents)
+        selected_skills = self.skill_registry.select_skills(
+            message=message,
+            intents=detected_intents,
+        )
+        required_tool_names = _required_tools_for_skills(selected_skills)
         if self.capabilities.enabled("scored_tool_discovery"):
             planned_tools, tool_selection_signals = self.tool_registry.recommend_tools(
                 message=message,
                 intents=detected_intents,
                 max_budget=self.capabilities.max_tool_calls,
+                required_tool_names=required_tool_names,
             )
         else:
-            planned_tools = self._tools_for(detected_intents)
+            planned_tools = self._tools_for(
+                detected_intents,
+                required_tool_names=required_tool_names,
+            )
             tool_selection_signals = [
                 ToolSelectionSignal(
                     tool_name=tool.tool_name,
@@ -186,9 +199,22 @@ class AgentPlanner:
             primary_intent=primary_intent,
             detected_intents=detected_intents,
             worker_names=worker_names,
+            selected_skills=selected_skills,
             planned_tools=planned_tools,
             tool_selection_signals=tool_selection_signals,
             constraints=[
+                PlanConstraint(
+                    name="selected_skills",
+                    status="pass",
+                    detail=(
+                        "已选择 skills："
+                        + ", ".join(
+                            plan_skill.skill_name for plan_skill in selected_skills
+                        )
+                        if selected_skills
+                        else "未选择业务 skill。"
+                    ),
+                ),
                 PlanConstraint(
                     name="max_workers",
                     status=(
@@ -232,9 +258,28 @@ class AgentPlanner:
             : self.capabilities.max_workers
         ]
 
-    def _tools_for(self, intents: list[Intent]) -> list[PlannedToolCall]:
+    def _tools_for(
+        self,
+        intents: list[Intent],
+        *,
+        required_tool_names: list[str] | None = None,
+    ) -> list[PlannedToolCall]:
         planned: list[PlannedToolCall] = []
         seen: set[str] = set()
+        for tool_name in required_tool_names or []:
+            definition = self.tool_registry.definitions.get(tool_name)
+            if definition is None or tool_name in seen:
+                continue
+            planned.append(
+                PlannedToolCall(
+                    tool_name=tool_name,
+                    purpose=definition.purpose,
+                    required=True,
+                )
+            )
+            seen.add(tool_name)
+            if len(planned) >= self.capabilities.max_tool_calls:
+                return planned
         for intent in intents:
             for tool_name, purpose in _TOOLS_BY_INTENT[intent]:
                 if tool_name in seen:
@@ -254,3 +299,9 @@ class AgentPlanner:
 
 def _dedupe(values: list) -> list:
     return list(dict.fromkeys(values))
+
+
+def _required_tools_for_skills(skills: list[SkillSelection]) -> list[str]:
+    return list(
+        dict.fromkeys(tool for skill in skills for tool in skill.required_tools)
+    )

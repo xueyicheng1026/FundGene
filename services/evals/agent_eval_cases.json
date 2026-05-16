@@ -38,7 +38,10 @@
     "expected_policy_status": "allow",
     "answer_contains": ["回撤"],
     "required_tools": ["learning.evidence_search"],
-    "required_evidence_types": ["course_section"]
+    "required_skills": ["fund_basics_explainer_v1"],
+    "required_trace_events": ["agent.skills"],
+    "required_evidence_types": ["course_section"],
+    "max_unsupported_findings": 0
   },
   {
     "id": "learning_risk_level",
@@ -74,6 +77,7 @@
     "expected_policy_status": "allow",
     "answer_contains": ["最近一份组合报告"],
     "required_tools": ["portfolio.latest_report"],
+    "required_skills": ["portfolio_concentration_review_v1"],
     "required_evidence_types": ["portfolio_analysis"]
   },
   {
@@ -101,6 +105,7 @@
     "expected_policy_status": "allow",
     "answer_contains": ["追涨"],
     "required_tools": ["behavior.profile"],
+    "required_skills": ["behavior_bias_reflection_v1"],
     "required_evidence_types": ["behavior_profile"]
   },
   {
@@ -119,6 +124,7 @@
     "expected_policy_status": "allow",
     "answer_contains": ["历史情境"],
     "required_tools": ["simulation.latest_review"],
+    "required_skills": ["simulation_review_coach_v1"],
     "required_evidence_types": ["simulation_review"]
   },
   {
@@ -128,6 +134,7 @@
     "expected_policy_status": "allow",
     "answer_contains": ["新闻", "政策"],
     "required_tools": ["news.policy_evidence_search"],
+    "required_skills": ["news_policy_impact_path_v1"],
     "required_evidence_types": ["news_analysis"]
   },
   {

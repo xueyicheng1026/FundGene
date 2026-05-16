@@ -16,7 +16,13 @@ class ToolRegistry:
                 name="profile.current",
                 category="context",
                 purpose="Read current user profile and risk context.",
-                allowed_intents=["learning", "portfolio", "behavior", "simulation", "news"],
+                allowed_intents=[
+                    "learning",
+                    "portfolio",
+                    "behavior",
+                    "simulation",
+                    "news",
+                ],
                 search_terms=["profile", "context", "画像", "目标", "经验", "风险等级"],
                 evidence_required=True,
             ),
@@ -24,8 +30,22 @@ class ToolRegistry:
                 name="safety.boundary_rules",
                 category="guardrail",
                 purpose="Read FundGene product safety boundaries.",
-                allowed_intents=["learning", "portfolio", "behavior", "simulation", "news"],
-                search_terms=["safety", "boundary", "买入", "卖出", "收益", "保证", "交易"],
+                allowed_intents=[
+                    "learning",
+                    "portfolio",
+                    "behavior",
+                    "simulation",
+                    "news",
+                ],
+                search_terms=[
+                    "safety",
+                    "boundary",
+                    "买入",
+                    "卖出",
+                    "收益",
+                    "保证",
+                    "交易",
+                ],
                 evidence_required=True,
             ),
             "learning.path": ToolDefinition(
@@ -41,7 +61,15 @@ class ToolRegistry:
                 category="learning",
                 purpose="Read curated concept explanations for beginner fund education.",
                 allowed_intents=["learning"],
-                search_terms=["concept", "term", "基金", "概念", "术语", "回撤", "风险等级"],
+                search_terms=[
+                    "concept",
+                    "term",
+                    "基金",
+                    "概念",
+                    "术语",
+                    "回撤",
+                    "风险等级",
+                ],
                 evidence_required=True,
             ),
             "learning.evidence_search": ToolDefinition(
@@ -49,7 +77,15 @@ class ToolRegistry:
                 category="learning",
                 purpose="Search course-section evidence.",
                 allowed_intents=["learning"],
-                search_terms=["evidence", "course", "material", "证据", "课程", "材料", "解释"],
+                search_terms=[
+                    "evidence",
+                    "course",
+                    "material",
+                    "证据",
+                    "课程",
+                    "材料",
+                    "解释",
+                ],
                 evidence_required=True,
             ),
             "portfolio.latest_report": ToolDefinition(
@@ -57,7 +93,15 @@ class ToolRegistry:
                 category="portfolio",
                 purpose="Read latest persisted portfolio report.",
                 allowed_intents=["portfolio"],
-                search_terms=["portfolio", "report", "holding", "组合", "持仓", "报告", "配置"],
+                search_terms=[
+                    "portfolio",
+                    "report",
+                    "holding",
+                    "组合",
+                    "持仓",
+                    "报告",
+                    "配置",
+                ],
                 evidence_required=True,
             ),
             "portfolio.risk_lens": ToolDefinition(
@@ -65,7 +109,15 @@ class ToolRegistry:
                 category="portfolio",
                 purpose="Read portfolio risk-analysis lens and safe explanation constraints.",
                 allowed_intents=["portfolio"],
-                search_terms=["risk", "allocation", "concentration", "风险", "集中", "分散", "仓位"],
+                search_terms=[
+                    "risk",
+                    "allocation",
+                    "concentration",
+                    "风险",
+                    "集中",
+                    "分散",
+                    "仓位",
+                ],
                 evidence_required=True,
             ),
             "behavior.profile": ToolDefinition(
@@ -73,7 +125,16 @@ class ToolRegistry:
                 category="behavior",
                 purpose="Read behavior profile and bias tags.",
                 allowed_intents=["learning", "portfolio", "behavior", "simulation"],
-                search_terms=["behavior", "bias", "emotion", "行为", "偏差", "情绪", "追涨", "恐慌"],
+                search_terms=[
+                    "behavior",
+                    "bias",
+                    "emotion",
+                    "行为",
+                    "偏差",
+                    "情绪",
+                    "追涨",
+                    "恐慌",
+                ],
                 evidence_required=True,
             ),
             "behavior.training_plan": ToolDefinition(
@@ -81,7 +142,15 @@ class ToolRegistry:
                 category="behavior",
                 purpose="Read behavior training focus and recommended scenario.",
                 allowed_intents=["behavior", "simulation"],
-                search_terms=["training", "practice", "scenario", "训练", "练习", "情境", "冲动"],
+                search_terms=[
+                    "training",
+                    "practice",
+                    "scenario",
+                    "训练",
+                    "练习",
+                    "情境",
+                    "冲动",
+                ],
                 evidence_required=True,
             ),
             "simulation.latest_review": ToolDefinition(
@@ -89,7 +158,15 @@ class ToolRegistry:
                 category="simulation",
                 purpose="Read latest simulation review summary.",
                 allowed_intents=["behavior", "simulation"],
-                search_terms=["simulation", "review", "scenario", "模拟", "情境", "复盘", "演练"],
+                search_terms=[
+                    "simulation",
+                    "review",
+                    "scenario",
+                    "模拟",
+                    "情境",
+                    "复盘",
+                    "演练",
+                ],
                 evidence_required=True,
             ),
             "news.latest_analysis": ToolDefinition(
@@ -97,7 +174,15 @@ class ToolRegistry:
                 category="news",
                 purpose="Read latest persisted news or policy analysis.",
                 allowed_intents=["news"],
-                search_terms=["news", "policy", "analysis", "新闻", "政策", "解读", "宏观"],
+                search_terms=[
+                    "news",
+                    "policy",
+                    "analysis",
+                    "新闻",
+                    "政策",
+                    "解读",
+                    "宏观",
+                ],
                 evidence_required=True,
             ),
             "news.impact_lens": ToolDefinition(
@@ -105,7 +190,15 @@ class ToolRegistry:
                 category="news",
                 purpose="Read news impact-path explanation lens and uncertainty constraints.",
                 allowed_intents=["news"],
-                search_terms=["impact", "uncertainty", "path", "影响", "路径", "不确定", "标题"],
+                search_terms=[
+                    "impact",
+                    "uncertainty",
+                    "path",
+                    "影响",
+                    "路径",
+                    "不确定",
+                    "标题",
+                ],
                 evidence_required=True,
             ),
             "news.policy_evidence_search": ToolDefinition(
@@ -113,7 +206,15 @@ class ToolRegistry:
                 category="news",
                 purpose="Search persisted news and policy evidence.",
                 allowed_intents=["news"],
-                search_terms=["policy", "evidence", "source", "政策", "证据", "来源", "材料"],
+                search_terms=[
+                    "policy",
+                    "evidence",
+                    "source",
+                    "政策",
+                    "证据",
+                    "来源",
+                    "材料",
+                ],
                 evidence_required=True,
             ),
         }
@@ -124,6 +225,7 @@ class ToolRegistry:
         message: str,
         intents: list[str],
         max_budget: int,
+        required_tool_names: list[str] | None = None,
     ) -> tuple[list[PlannedToolCall], list[ToolSelectionSignal]]:
         planned: list[PlannedToolCall] = []
         signals: list[ToolSelectionSignal] = []
@@ -169,6 +271,13 @@ class ToolRegistry:
             score=100,
             reason="所有 advisor run 都需要当前用户画像作为上下文。",
         )
+        for tool_name in required_tool_names or []:
+            add_tool(
+                tool_name,
+                source="required",
+                score=95,
+                reason="已选 coaching skill 要求该只读工具作为证据来源。",
+            )
 
         candidates: list[tuple[float, str, list[str], str]] = []
         for tool_name, definition in self.definitions.items():
@@ -178,7 +287,9 @@ class ToolRegistry:
                 intent in definition.allowed_intents for intent in intents
             ):
                 continue
-            score, matched_terms = _score_tool(definition, message=message, intents=intents)
+            score, matched_terms = _score_tool(
+                definition, message=message, intents=intents
+            )
             if score <= 0:
                 continue
             candidates.append(
@@ -211,8 +322,17 @@ class ToolRegistry:
         if intent in {"behavior", "simulation"}:
             return ["profile.current", "behavior.profile", "simulation.latest_review"]
         if intent == "news":
-            return ["profile.current", "news.latest_analysis", "news.policy_evidence_search"]
-        return ["profile.current", "learning.path", "learning.evidence_search", "behavior.profile"]
+            return [
+                "profile.current",
+                "news.latest_analysis",
+                "news.policy_evidence_search",
+            ]
+        return [
+            "profile.current",
+            "learning.path",
+            "learning.evidence_search",
+            "behavior.profile",
+        ]
 
     def execute(
         self,
@@ -293,8 +413,7 @@ class ToolRegistry:
                         source_id=snapshot.learning_recommended_course_slug,
                         source_version=snapshot.schema_version,
                         quote_or_summary=(
-                            snapshot.learning_recommended_course_title
-                            or "暂无推荐课程"
+                            snapshot.learning_recommended_course_title or "暂无推荐课程"
                         ),
                         claim="学习建议基于当前学习进度和下一门推荐课程。",
                     )
@@ -303,7 +422,9 @@ class ToolRegistry:
 
         if tool_name == "learning.concept_map":
             concepts = _concepts_for_query(query)
-            summary = "；".join(f"{item['term']}：{item['definition']}" for item in concepts)
+            summary = "；".join(
+                f"{item['term']}：{item['definition']}" for item in concepts
+            )
             return ToolResult(
                 tool_name=tool_name,
                 output_payload={"concepts": concepts, "summary": summary},
@@ -366,8 +487,7 @@ class ToolRegistry:
                         ),
                         source_version=snapshot.schema_version,
                         quote_or_summary=(
-                            snapshot.portfolio_latest_summary
-                            or "当前用户尚无组合报告"
+                            snapshot.portfolio_latest_summary or "当前用户尚无组合报告"
                         ),
                         claim="组合解释优先引用最近一份持久化组合报告。",
                     )
@@ -419,7 +539,8 @@ class ToolRegistry:
                         source_type="behavior_profile",
                         source_id=snapshot.user_id,
                         source_version=snapshot.schema_version,
-                        quote_or_summary=", ".join(snapshot.bias_tags) or "暂无显著偏差标签",
+                        quote_or_summary=", ".join(snapshot.bias_tags)
+                        or "暂无显著偏差标签",
                         claim="行为建议基于风险问卷和行为画像。",
                     )
                 ],
@@ -427,7 +548,9 @@ class ToolRegistry:
 
         if tool_name == "behavior.training_plan":
             focus = snapshot.behavior_training_focus or "先记录投资动作前的触发情绪"
-            guidance = snapshot.behavior_training_guidance or "把情绪、证据和动作分开写下来。"
+            guidance = (
+                snapshot.behavior_training_guidance or "把情绪、证据和动作分开写下来。"
+            )
             scenario = snapshot.simulation_recommended_scenario_title or "回撤纪律训练"
             summary = f"训练焦点：{focus}；建议情境：{scenario}；练习方式：{guidance}"
             return ToolResult(

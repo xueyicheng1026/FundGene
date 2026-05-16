@@ -1,4 +1,9 @@
-from app.runtime.v2.schemas import EvidenceRef, ToolResult, WorkerFinding
+from app.runtime.v2.schemas import (
+    EvidenceRef,
+    SkillSelection,
+    ToolResult,
+    WorkerFinding,
+)
 
 
 def tool_payload(tool_results: list[ToolResult], tool_name: str) -> dict:
@@ -36,3 +41,36 @@ def finding_from_evidence(
         support_level="direct" if evidence_refs else "unsupported",
         safety_boundary=safety_boundary,
     )
+
+
+def skill_names(skills: list[SkillSelection] | None) -> list[str]:
+    return [skill.skill_name for skill in skills or []]
+
+
+def skill_output_guidance(skills: list[SkillSelection] | None) -> list[str]:
+    return list(
+        dict.fromkeys(
+            guidance for skill in skills or [] for guidance in skill.output_guidance
+        )
+    )
+
+
+def skill_forbidden_language(skills: list[SkillSelection] | None) -> list[str]:
+    return list(
+        dict.fromkeys(
+            term for skill in skills or [] for term in skill.forbidden_language
+        )
+    )
+
+
+def learning_outcome_for(
+    skills: list[SkillSelection] | None,
+    *,
+    intent: str,
+) -> str | None:
+    if not skills:
+        return None
+    for skill in skills:
+        if intent in skill.skill_name:
+            return skill.learning_outcome
+    return skills[0].learning_outcome

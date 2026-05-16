@@ -35,7 +35,11 @@ class SafetyPolicy:
         normalized = message.lower()
         blocked_terms = [
             term
-            for term in (*DIRECT_TRADING_TERMS, *RETURN_PROMISE_TERMS, *AUTOMATION_TERMS)
+            for term in (
+                *DIRECT_TRADING_TERMS,
+                *RETURN_PROMISE_TERMS,
+                *AUTOMATION_TERMS,
+            )
             if term.lower() in normalized
         ]
         if blocked_terms:
@@ -50,7 +54,11 @@ class SafetyPolicy:
         normalized = answer.lower()
         blocked_terms = [
             term
-            for term in (*DIRECT_TRADING_TERMS, *RETURN_PROMISE_TERMS, *AUTOMATION_TERMS)
+            for term in (
+                *DIRECT_TRADING_TERMS,
+                *RETURN_PROMISE_TERMS,
+                *AUTOMATION_TERMS,
+            )
             if term.lower() in normalized
         ]
         if blocked_terms:

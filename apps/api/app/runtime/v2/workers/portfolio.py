@@ -1,7 +1,11 @@
-from app.runtime.v2.schemas import ToolResult, WorkerOutput
+from app.runtime.v2.schemas import SkillSelection, ToolResult, WorkerOutput
 from app.runtime.v2.workers.common import (
     collect_evidence,
     finding_from_evidence,
+    learning_outcome_for,
+    skill_forbidden_language,
+    skill_names,
+    skill_output_guidance,
     tool_payload,
 )
 
@@ -10,7 +14,13 @@ class PortfolioWorker:
     name = "PortfolioWorker"
     intent = "portfolio"
 
-    def run(self, *, message: str, tool_results: list[ToolResult]) -> WorkerOutput:
+    def run(
+        self,
+        *,
+        message: str,
+        tool_results: list[ToolResult],
+        skills: list[SkillSelection] | None = None,
+    ) -> WorkerOutput:
         profile = tool_payload(tool_results, "profile.current")
         report = tool_payload(tool_results, "portfolio.latest_report")
         risk_lens = tool_payload(tool_results, "portfolio.risk_lens")
@@ -24,7 +34,9 @@ class PortfolioWorker:
                 f" 最近一份组合报告显示：{summary}"
             )
         else:
-            finding = "组合分析需要先录入持仓快照；没有原始持仓时，系统不会伪造组合结论。"
+            finding = (
+                "组合分析需要先录入持仓快照；没有原始持仓时，系统不会伪造组合结论。"
+            )
 
         if goal:
             finding += f" 当前解释应围绕“{goal}”这个目标。"
@@ -49,6 +61,10 @@ class PortfolioWorker:
         return WorkerOutput(
             worker_name=self.name,
             intent=self.intent,
+            skill_names=skill_names(skills),
+            learning_outcome=learning_outcome_for(skills, intent=self.intent),
+            skill_output_guidance=skill_output_guidance(skills),
+            skill_forbidden_language=skill_forbidden_language(skills),
             findings=[finding],
             structured_findings=[
                 finding_from_evidence(

@@ -54,7 +54,11 @@ def main() -> int:
         engine.dispose()
 
     failed = [result for result in results if not result["passed"]]
-    print(json.dumps({"total": len(results), "failed": failed}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {"total": len(results), "failed": failed}, ensure_ascii=False, indent=2
+        )
+    )
     return 1 if failed else 0
 
 
@@ -181,6 +185,28 @@ def _run_case(client: TestClient, case: dict[str, Any]) -> dict[str, Any]:
     for tool_name in case.get("required_tools", []):
         if tool_name not in tool_names:
             failures.append(f"missing_tool:{tool_name}")
+    for tool_name in case.get("forbidden_tools", []):
+        if tool_name in tool_names:
+            failures.append(f"forbidden_tool:{tool_name}")
+
+    tool_trace = trace["run"].get("tool_trace") or {}
+    agent_plan = tool_trace.get("agent_plan") or {}
+    skill_names = {item["skill_name"] for item in agent_plan.get("selected_skills", [])}
+    for skill_name in case.get("required_skills", []):
+        if skill_name not in skill_names:
+            failures.append(f"missing_skill:{skill_name}")
+
+    trace_events = {item["name"] for item in tool_trace.get("trace_events", [])}
+    for event_name in case.get("required_trace_events", []):
+        if event_name not in trace_events:
+            failures.append(f"missing_trace_event:{event_name}")
+
+    max_unsupported_findings = case.get("max_unsupported_findings")
+    if max_unsupported_findings is not None:
+        worker_validation = tool_trace.get("worker_validation") or {}
+        unsupported = int(worker_validation.get("unsupported_findings") or 0)
+        if unsupported > int(max_unsupported_findings):
+            failures.append(f"unsupported_findings:{unsupported}")
 
     evidence_types = {item["source_type"] for item in trace["evidence_refs"]}
     for source_type in case.get("required_evidence_types", []):
@@ -198,6 +224,8 @@ def _run_case(client: TestClient, case: dict[str, Any]) -> dict[str, Any]:
             "intent": advisor_response["intent"],
             "policy_status": trace["run"]["policy_status"],
             "tools": sorted(tool_names),
+            "skills": sorted(skill_names),
+            "trace_events": sorted(trace_events),
             "evidence_types": sorted(evidence_types),
         },
     }

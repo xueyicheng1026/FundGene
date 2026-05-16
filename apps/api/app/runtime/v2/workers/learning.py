@@ -1,7 +1,11 @@
-from app.runtime.v2.schemas import ToolResult, WorkerOutput
+from app.runtime.v2.schemas import SkillSelection, ToolResult, WorkerOutput
 from app.runtime.v2.workers.common import (
     collect_evidence,
     finding_from_evidence,
+    learning_outcome_for,
+    skill_forbidden_language,
+    skill_names,
+    skill_output_guidance,
     tool_payload,
 )
 
@@ -10,7 +14,13 @@ class LearningWorker:
     name = "LearningWorker"
     intent = "learning"
 
-    def run(self, *, message: str, tool_results: list[ToolResult]) -> WorkerOutput:
+    def run(
+        self,
+        *,
+        message: str,
+        tool_results: list[ToolResult],
+        skills: list[SkillSelection] | None = None,
+    ) -> WorkerOutput:
         learning_payload = tool_payload(tool_results, "learning.path")
         concept_payload = tool_payload(tool_results, "learning.concept_map")
         evidence_payload = tool_payload(tool_results, "learning.evidence_search")
@@ -28,9 +38,7 @@ class LearningWorker:
         elif risk_level == "conservative":
             prefix = "结合你目前偏稳健的风险承受度，"
 
-        finding = (
-            f"{prefix}基金学习先看三件事：基金买什么、波动来自哪里、费用如何影响长期结果。"
-        )
+        finding = f"{prefix}基金学习先看三件事：基金买什么、波动来自哪里、费用如何影响长期结果。"
         if "回撤" in message or "drawdown" in message.lower():
             finding = "回撤是从阶段高点回落的幅度，核心作用是帮助你判断自己能否承受账户短期下跌。"
         if concept_summary:
@@ -44,12 +52,18 @@ class LearningWorker:
             "把今天最关键的概念写成自己的话，确认你真的理解了。",
         ]
         if recommended_course:
-            actions[0] = f"进入 Learning，优先完成《{recommended_course}》的下一节内容。"
+            actions[0] = (
+                f"进入 Learning，优先完成《{recommended_course}》的下一节内容。"
+            )
 
         evidence_refs = collect_evidence(tool_results)
         return WorkerOutput(
             worker_name=self.name,
             intent=self.intent,
+            skill_names=skill_names(skills),
+            learning_outcome=learning_outcome_for(skills, intent=self.intent),
+            skill_output_guidance=skill_output_guidance(skills),
+            skill_forbidden_language=skill_forbidden_language(skills),
             findings=[finding],
             structured_findings=[
                 finding_from_evidence(
