@@ -35,7 +35,7 @@ async def main() -> int:
         citations=["smoke_fixture:fund_basics"],
         risk_notice=RISK_NOTICE,
         recommended_actions=["先记录自己能接受的最大回撤。"],
-        follow_up_questions=["你想用一个数字例子理解回撤吗？"],
+        follow_up_questions=["我想用一个数字例子理解回撤。"],
     )
     result = await composer.compose(
         intent="learning",

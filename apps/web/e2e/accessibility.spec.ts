@@ -3,7 +3,15 @@ import { expect, test } from "@playwright/test";
 
 import { mockFundGeneApi } from "./fixtures";
 
-const a11yRoutes = ["/", "/dashboard", "/coach", "/portfolio", "/news"];
+const a11yRoutes = [
+  "/",
+  "/today",
+  "/agent",
+  "/automations",
+  "/profile",
+  "/portfolio",
+  "/news",
+];
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(60_000);

@@ -1,4 +1,5 @@
 from app.runtime.toolchains.base import AdvisorUserContext, Toolchain
+from app.runtime.follow_up_prompts import build_user_follow_up_prompts
 
 
 class PortfolioToolchain(Toolchain):
@@ -34,8 +35,5 @@ class PortfolioToolchain(Toolchain):
             ),
             "citations": ["portfolio_principles_v1"],
             "recommended_actions": recommended_actions,
-            "follow_up_questions": [
-                "你想先看集中度检查清单吗？",
-                "要不要我只用原则解释再平衡，而不直接给交易指令？",
-            ],
+            "follow_up_questions": build_user_follow_up_prompts("portfolio", message),
         }

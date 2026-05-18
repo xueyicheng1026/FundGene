@@ -22,23 +22,23 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        "metric-card group relative overflow-hidden rounded-[30px] border-l-2 border-y border-r border-[color:var(--line-soft)] bg-[linear-gradient(180deg,rgba(36,53,47,0.92),rgba(18,29,25,0.84))] p-4 transition duration-200 hover:-translate-y-0.5 hover:border-[color:var(--line-strong)] hover:shadow-[0_22px_46px_rgba(0,0,0,0.24)]",
+        "metric-card group relative overflow-hidden rounded-[22px] border-l-2 border-y border-r border-[color:var(--line-soft)] bg-white/80 p-3.5 shadow-sm backdrop-blur-2xl transition duration-200 hover:-translate-y-0.5 hover:border-[color:var(--line-strong)] hover:shadow-[0_18px_34px_rgba(0,0,0,0.1)]",
         toneMap[accent],
       )}
     >
       <span className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--accent-teal),transparent)] opacity-45" />
-      <div className="relative flex h-full min-h-[6.8rem] flex-col justify-between gap-3">
+      <div className="relative flex h-full min-h-[5.4rem] flex-col justify-between gap-2.5">
         <div className="flex items-start justify-between gap-3">
           <StatusPill tone={accent === "gold" ? "warning" : "positive"}>
             {label}
           </StatusPill>
-          <span className="mt-1 size-2 rounded-full bg-[color:var(--accent-teal)] shadow-[0_0_18px_rgba(42,166,154,0.72)]" />
+          <span className="mt-1 size-2 rounded-full bg-[color:var(--accent-teal)] shadow-[0_0_18px_rgba(0,113,227,0.32)]" />
         </div>
         <div>
-          <p className="text-2xl font-black leading-tight tracking-normal text-[color:var(--ink-strong)] sm:text-3xl">
+          <p className="text-xl font-semibold leading-tight tracking-normal text-[color:var(--ink-strong)] sm:text-2xl">
             {value}
           </p>
-          <p className="mt-2 max-w-[22rem] text-xs leading-5 text-[color:var(--ink-soft)] sm:text-sm">
+          <p className="text-clamp-2 mt-1.5 max-w-[22rem] text-xs leading-5 text-[color:var(--ink-soft)]">
             {detail}
           </p>
         </div>

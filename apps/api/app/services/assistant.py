@@ -195,6 +195,19 @@ def _build_user_context_payload(
     }
 
 
+def _build_page_context_payload(
+    payload: AssistantMessageRequest,
+) -> dict[str, object] | None:
+    if payload.context is None:
+        return None
+    context_payload = payload.context.model_dump(mode="json")
+    return (
+        context_payload
+        if any(value for value in context_payload.values())
+        else None
+    )
+
+
 def get_current_conversation(
     db: Session, *, user: UserProfile
 ) -> AssistantConversationResponse:
@@ -218,6 +231,7 @@ async def send_message(
 ) -> AssistantConversationResponse:
     started_at = datetime.now(timezone.utc)
     user_context = build_advisor_user_context(db, user=user)
+    page_context = _build_page_context_payload(payload)
     session = _get_owned_session(db, user_id=user.id, session_id=payload.session_id)
 
     if session is None:
@@ -253,11 +267,12 @@ async def send_message(
             "message": payload.message,
             "session_id": session.id,
             "context_type": COACH_CONTEXT_TYPE,
+            "page_context": page_context,
             "user_message_id": user_message.id,
             "user_context": _build_user_context_payload(user_context),
         },
         output_payload={},
-        tool_trace={"user_message_id": user_message.id},
+        tool_trace={"user_message_id": user_message.id, "page_context": page_context},
         started_at=started_at,
         created_at=started_at,
     )
@@ -278,6 +293,7 @@ async def send_message(
         session_id=session.id,
         message=payload.message,
         user_context=user_context,
+        page_context=page_context,
     )
     completed_at = datetime.now(timezone.utc)
 
@@ -291,6 +307,7 @@ async def send_message(
     agent_run.tool_trace = {
         **(run_result.tool_trace or {}),
         "user_message_id": user_message.id,
+        "page_context": page_context,
     }
     agent_run.fallback_reason = run_result.fallback_reason
     agent_run.completed_at = completed_at

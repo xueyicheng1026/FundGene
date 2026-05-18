@@ -216,6 +216,18 @@ def _run_case(client: TestClient, case: dict[str, Any]) -> dict[str, Any]:
     if case.get("require_citations") and not advisor_response["citations"]:
         failures.append("missing_citations")
 
+    allowed_targets = set(case.get("allowed_action_targets", []))
+    action_targets = advisor_response.get("recommended_action_targets") or []
+    if case.get("require_action_targets") and not action_targets:
+        failures.append("missing_action_targets")
+    for target in action_targets:
+        href = target.get("href")
+        if not isinstance(href, str) or not href.startswith("/"):
+            failures.append(f"unsafe_action_target:{href}")
+        href_path = href.split("?", 1)[0] if isinstance(href, str) else href
+        if allowed_targets and href_path not in allowed_targets:
+            failures.append(f"unexpected_action_target:{href}")
+
     return {
         "id": case["id"],
         "passed": not failures,
@@ -227,6 +239,7 @@ def _run_case(client: TestClient, case: dict[str, Any]) -> dict[str, Any]:
             "skills": sorted(skill_names),
             "trace_events": sorted(trace_events),
             "evidence_types": sorted(evidence_types),
+            "action_targets": [target.get("href") for target in action_targets],
         },
     }
 

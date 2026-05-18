@@ -1,4 +1,5 @@
 from app.runtime.toolchains.base import AdvisorUserContext, Toolchain
+from app.runtime.follow_up_prompts import build_user_follow_up_prompts
 
 
 class NewsToolchain(Toolchain):
@@ -37,8 +38,5 @@ class NewsToolchain(Toolchain):
             ),
             "citations": citations,
             "recommended_actions": recommended_actions,
-            "follow_up_questions": [
-                "你想要一个政策影响分析模板吗？",
-                "要不要把这条新闻转成一条学习笔记？",
-            ],
+            "follow_up_questions": build_user_follow_up_prompts("news", message),
         }

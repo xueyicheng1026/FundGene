@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { startTransition, useState } from "react";
+import { startTransition, useMemo, useState } from "react";
 
 import {
   submitRiskQuestionnaire,
@@ -89,8 +89,49 @@ const INITIAL_PROFILE: OnboardingProfileInput = {
 
 type QuestionnaireState = Record<string, number>;
 
+const PROFILE_STEPS = [
+  {
+    title: "怎么称呼你？",
+    hint: "用于工作台和 Agent 回答里的称呼。",
+  },
+  {
+    title: "你现在的基金经验更接近哪一档？",
+    hint: "这会影响解释的细度，不影响任何账户操作。",
+  },
+  {
+    title: "你每月大概能投入多少？",
+    hint: "只用于理解节奏和风险承受，不会生成买卖指令。",
+  },
+  {
+    title: "你现在最想解决的目标是什么？",
+    hint: "写一句真实目标就够了，之后可以在资料页改。",
+  },
+] as const;
+
+const TOTAL_STEPS = PROFILE_STEPS.length + QUESTION_SET.length;
+
 function clampProgress(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function normalizeProfile(profile: OnboardingProfileInput): OnboardingProfileInput {
+  return {
+    ...profile,
+    displayName: profile.displayName.trim(),
+    primaryGoal: profile.primaryGoal.trim(),
+  };
+}
+
+function validateProfileStep(profile: OnboardingProfileInput, stepIndex: number): string | null {
+  if (stepIndex === 0 && profile.displayName.trim().length < 2) {
+    return "请填写至少 2 个字符的称呼。";
+  }
+
+  if (stepIndex === 3 && profile.primaryGoal.trim().length < 8) {
+    return "请把目标写得再具体一点，至少 8 个字符。";
+  }
+
+  return null;
 }
 
 export function OnboardingWorkflow() {
@@ -98,21 +139,19 @@ export function OnboardingWorkflow() {
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState(INITIAL_PROFILE);
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireState>({});
+  const [activeStep, setActiveStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
-
-  const profileMutation = useMutation({
-    mutationFn: (input: OnboardingProfileInput) => upsertOnboardingProfile(input),
-    onSuccess: async () => {
-      setProfileSaved(true);
-      await queryClient.invalidateQueries({ queryKey: ["session-user"] });
-    },
-  });
 
   const questionnaireMutation = useMutation({
-    mutationFn: async (answers: QuestionnaireState) => {
-      await upsertOnboardingProfile(profile);
+    mutationFn: async ({
+      answers,
+      profile: profileInput,
+    }: {
+      answers: QuestionnaireState;
+      profile: OnboardingProfileInput;
+    }) => {
+      await upsertOnboardingProfile(profileInput);
       return submitRiskQuestionnaire({ answers });
     },
     onSuccess: async () => {
@@ -124,328 +163,303 @@ export function OnboardingWorkflow() {
       ]);
       setIsCompleted(true);
       startTransition(() => {
-        router.push("/dashboard");
+        router.push("/today");
       });
+    },
+    onError: (error) => {
+      setSubmitError(error instanceof Error ? error.message : "提交失败，请稍后重试。");
     },
   });
 
-  function handleProfileSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const profileStep = activeStep < PROFILE_STEPS.length ? PROFILE_STEPS[activeStep] : null;
+  const questionIndex = activeStep - PROFILE_STEPS.length;
+  const currentQuestion = questionIndex >= 0 ? QUESTION_SET[questionIndex] : null;
+  const answeredCount = Object.keys(questionnaire).length;
+  const progress = clampProgress(((activeStep + 1) / TOTAL_STEPS) * 100);
+  const stepLabel = `第 ${activeStep + 1} / ${TOTAL_STEPS} 步`;
+  const canGoBack = activeStep > 0 && !questionnaireMutation.isPending;
+
+  const completedMarkers = useMemo(
+    () =>
+      Array.from({ length: TOTAL_STEPS }, (_item, index) => {
+        if (index < PROFILE_STEPS.length) {
+          return index < activeStep;
+        }
+        const question = QUESTION_SET[index - PROFILE_STEPS.length];
+        return questionnaire[question.id] !== undefined;
+      }),
+    [activeStep, questionnaire],
+  );
+
+  function goNext() {
     setSubmitError(null);
 
-    const trimmedName = profile.displayName.trim();
-    if (trimmedName.length < 2) {
-      setSubmitError("请填写至少 2 个字符的称呼，用于工作台个性化提示。");
+    if (profileStep) {
+      const error = validateProfileStep(profile, activeStep);
+      if (error) {
+        setSubmitError(error);
+        return;
+      }
+      setActiveStep((step) => Math.min(step + 1, TOTAL_STEPS - 1));
       return;
     }
 
-    profileMutation.mutate({
-      ...profile,
-      displayName: trimmedName,
-      primaryGoal: profile.primaryGoal.trim(),
+    if (!currentQuestion) {
+      return;
+    }
+
+    if (questionnaire[currentQuestion.id] === undefined) {
+      setSubmitError("先选择一个最接近你的答案，再继续。");
+      return;
+    }
+
+    if (activeStep < TOTAL_STEPS - 1) {
+      setActiveStep((step) => step + 1);
+      return;
+    }
+
+    const missingQuestion = QUESTION_SET.find(
+      (question) => questionnaire[question.id] === undefined,
+    );
+    if (missingQuestion) {
+      setSubmitError(`还差一题：${missingQuestion.title}`);
+      setActiveStep(PROFILE_STEPS.length + QUESTION_SET.indexOf(missingQuestion));
+      return;
+    }
+
+    const normalizedProfile = normalizeProfile(profile);
+    const nameError = validateProfileStep(normalizedProfile, 0);
+    const goalError = validateProfileStep(normalizedProfile, 3);
+    if (nameError || goalError) {
+      setSubmitError(nameError ?? goalError);
+      setActiveStep(nameError ? 0 : 3);
+      return;
+    }
+
+    questionnaireMutation.mutate({
+      answers: questionnaire,
+      profile: normalizedProfile,
     });
   }
 
-  function handleQuestionnaireSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitError(null);
-
-    const answeredCount = Object.keys(questionnaire).length;
-    if (answeredCount !== QUESTION_SET.length) {
-      setSubmitError("请先完成全部问卷题目，再提交画像。");
-      return;
+  function renderProfileControl() {
+    if (activeStep === 0) {
+      return (
+        <label className="block space-y-3">
+          <span className="text-sm font-semibold text-[color:var(--ink-strong)]">称呼</span>
+          <input
+            className="field-input text-lg"
+            value={profile.displayName}
+            onChange={(event) =>
+              setProfile((current) => ({ ...current, displayName: event.target.value }))
+            }
+            placeholder="例如：小陈"
+            autoFocus
+          />
+        </label>
+      );
     }
 
-    questionnaireMutation.mutate(questionnaire);
-  }
-
-  const isSubmitting = profileMutation.isPending || questionnaireMutation.isPending;
-  const answeredCount = Object.keys(questionnaire).length;
-  const profileChecks = [
-    profile.displayName.trim().length >= 2,
-    profile.investingExperience.trim().length > 0,
-    profile.monthlyContributionBand.trim().length > 0,
-    profile.primaryGoal.trim().length >= 8,
-  ];
-  const profileCompletionCount = profileChecks.filter(Boolean).length;
-  const totalProgressUnits = profileChecks.length + QUESTION_SET.length;
-  const completedProgressUnits =
-    (profileSaved ? profileChecks.length : profileCompletionCount) + answeredCount;
-  const overallProgress = clampProgress(
-    (completedProgressUnits / totalProgressUnits) * 100,
-  );
-  const currentStage = profileSaved
-    ? answeredCount === QUESTION_SET.length
-      ? "准备提交画像"
-      : "继续完成风险与行为问卷"
-    : "先保存基础画像";
-
-  return (
-    <div className="space-y-5">
-      <div className="agent-hero overflow-hidden p-4 sm:p-5">
-        <div className="relative grid gap-4 xl:grid-cols-[0.7fr_1.3fr]">
-          <div>
-            <p className="section-kicker">建档进度</p>
-            <h3 className="mt-2 text-3xl font-black leading-tight">
-              {overallProgress}%
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-white/68">
-              {currentStage}
-            </p>
-          </div>
-          <div className="space-y-4">
-            <div className="h-3 overflow-hidden rounded-full bg-white/65">
-              <div
-                className="h-full rounded-full bg-[linear-gradient(90deg,var(--accent-moss),var(--accent-gold))] transition-all duration-300"
-                style={{ width: `${overallProgress}%` }}
+    if (activeStep === 1) {
+      return (
+        <div className="grid gap-2">
+          {[
+            ["beginner", "刚开始了解基金"],
+            ["starter", "已经定投，但还没形成稳定策略"],
+            ["intermediate", "有一些配置经验，想把方法做稳"],
+          ].map(([value, label]) => (
+            <label
+              key={value}
+              className={`choice-item ${profile.investingExperience === value ? "choice-item-active" : ""}`}
+            >
+              <input
+                type="radio"
+                name="investingExperience"
+                value={value}
+                checked={profile.investingExperience === value}
+                onChange={() =>
+                  setProfile((current) => ({ ...current, investingExperience: value }))
+                }
               />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/64 px-4 py-3">
-                <p className="section-kicker">基础画像</p>
-                <p className="mt-2 text-sm font-semibold">
-                  {profileSaved
-                    ? "已保存"
-                    : `${profileCompletionCount}/${profileChecks.length} 项就绪`}
-                </p>
-              </div>
-              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/64 px-4 py-3">
-                <p className="section-kicker">风险问卷</p>
-                <p className="mt-2 text-sm font-semibold">
-                  {answeredCount}/{QUESTION_SET.length} 题完成
-                </p>
-              </div>
-              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/64 px-4 py-3">
-                <p className="section-kicker">写回状态</p>
-                <p className="mt-2 text-sm font-semibold">
-                  {isCompleted ? "已进入工作台" : "等待提交"}
-                </p>
-              </div>
-            </div>
-            <p className="text-sm leading-7 text-white/68">
-              你当前已在登录会话内。基础画像和问卷会影响工作台与后续教练解释。
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <form
-        className="paper-panel-strong p-4 sm:p-5"
-        onSubmit={handleProfileSubmit}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="section-kicker">第 1 步</p>
-            <h3 className="mt-2 font-serif text-2xl">建立基础画像</h3>
-          </div>
-          <span className="rounded-full border border-[color:var(--line-soft)] bg-white/72 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
-            {profileSaved ? "已保存" : `${profileCompletionCount}/4 项就绪`}
-          </span>
-        </div>
-        <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-          这一步会写入基础用户信息，作为工作台和后续推荐的上下文。
-        </p>
-
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">称呼</span>
-            <input
-              className="field-input"
-              value={profile.displayName}
-              onChange={(event) =>
-                setProfile((current) => ({
-                  ...current,
-                  displayName: event.target.value,
-                }))
-              }
-              placeholder="例如：小陈"
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">投资经验</span>
-            <select
-              className="field-input"
-              value={profile.investingExperience}
-              onChange={(event) =>
-                setProfile((current) => ({
-                  ...current,
-                  investingExperience: event.target.value,
-                }))
-              }
-            >
-              <option value="beginner">刚开始了解基金</option>
-              <option value="starter">已经定投，但还没形成稳定策略</option>
-              <option value="intermediate">有一些配置经验，想把方法做稳</option>
-            </select>
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">每月可投入金额</span>
-            <select
-              className="field-input"
-              value={profile.monthlyContributionBand}
-              onChange={(event) =>
-                setProfile((current) => ({
-                  ...current,
-                  monthlyContributionBand: event.target.value,
-                }))
-              }
-            >
-              <option value="under_3000">3000 元以内</option>
-              <option value="3000_10000">3000 - 10000 元</option>
-              <option value="above_10000">10000 元以上</option>
-            </select>
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">当前最重要的目标</span>
-            <textarea
-              className="field-input"
-              rows={4}
-              value={profile.primaryGoal}
-              onChange={(event) =>
-                setProfile((current) => ({
-                  ...current,
-                  primaryGoal: event.target.value,
-                }))
-              }
-              placeholder="例如：建立长期定投习惯，先把风险控制和基金配置逻辑学明白。"
-            />
-          </label>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button
-            type="submit"
-            className="action-button"
-            disabled={isSubmitting}
-          >
-            {profileMutation.isPending ? "保存中..." : "保存基础画像"}
-          </button>
-          <Link href="/dashboard" className="action-button-secondary">
-            先看工作台
-          </Link>
-        </div>
-
-        {profileSaved ? (
-          <p className="mt-4 text-sm text-[color:var(--accent-moss)]">
-            基础画像已保存，下一步可以继续完成风险问卷。
-          </p>
-        ) : null}
-      </form>
-
-      <form
-        className="paper-panel-strong p-4 sm:p-5"
-        onSubmit={handleQuestionnaireSubmit}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="section-kicker">第 2 步</p>
-            <h3 className="mt-2 font-serif text-2xl">风险与行为问卷</h3>
-          </div>
-          <span className="rounded-full border border-[color:var(--line-soft)] bg-white/72 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
-            {answeredCount}/{QUESTION_SET.length} 题完成
-          </span>
-        </div>
-        <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-          问卷完成后，工作台会展示风险等级、行为偏差提示和下一步动作。
-        </p>
-
-        <div className="mt-5 rounded-lg border border-[color:var(--line-soft)] bg-white/62 px-4 py-4">
-          <div className="flex flex-wrap gap-2">
-            {QUESTION_SET.map((question, index) => {
-              const answered = questionnaire[question.id] !== undefined;
-              return (
-                <span
-                  key={question.id}
-                  className={`rounded-full border px-3 py-1 text-xs ${
-                    answered
-                      ? "border-[rgba(48,88,68,0.22)] bg-[rgba(48,88,68,0.1)] text-[color:var(--accent-moss)]"
-                      : "border-[color:var(--line-soft)] bg-white/70 text-[color:var(--ink-soft)]"
-                  }`}
-                >
-                  Q{index + 1} {answered ? "已答" : "待答"}
-                </span>
-              );
-            })}
-          </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/75">
-            <div
-              className="h-full rounded-full bg-[color:var(--accent-moss)] transition-all duration-300"
-              style={{
-                width: `${clampProgress((answeredCount / QUESTION_SET.length) * 100)}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="mt-5 space-y-5">
-          {QUESTION_SET.map((question, index) => (
-            <fieldset key={question.id} className="space-y-3">
-              <legend className="text-sm font-semibold leading-7">
-                Q{index + 1}. {question.title}
-              </legend>
-              <div className="grid gap-2">
-                {question.choices.map((choice) => {
-                  const checked = questionnaire[question.id] === choice.score;
-                  return (
-                    <label
-                      key={`${question.id}-${choice.score}`}
-                      className={`choice-item ${checked ? "choice-item-active" : ""}`}
-                    >
-                      <input
-                        type="radio"
-                        name={question.id}
-                        value={choice.score}
-                        checked={checked}
-                        onChange={() =>
-                          setQuestionnaire((current) => ({
-                            ...current,
-                            [question.id]: choice.score,
-                          }))
-                        }
-                      />
-                      <span>{choice.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
+              <span>{label}</span>
+            </label>
           ))}
         </div>
+      );
+    }
 
-        <div className="mt-5 flex flex-wrap gap-3">
+    if (activeStep === 2) {
+      return (
+        <div className="grid gap-2">
+          {[
+            ["under_3000", "3000 元以内"],
+            ["3000_10000", "3000 - 10000 元"],
+            ["above_10000", "10000 元以上"],
+          ].map(([value, label]) => (
+            <label
+              key={value}
+              className={`choice-item ${profile.monthlyContributionBand === value ? "choice-item-active" : ""}`}
+            >
+              <input
+                type="radio"
+                name="monthlyContributionBand"
+                value={value}
+                checked={profile.monthlyContributionBand === value}
+                onChange={() =>
+                  setProfile((current) => ({ ...current, monthlyContributionBand: value }))
+                }
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <label className="block space-y-3">
+        <span className="text-sm font-semibold text-[color:var(--ink-strong)]">当前目标</span>
+        <textarea
+          className="field-input min-h-[8.5rem] text-base leading-7"
+          value={profile.primaryGoal}
+          onChange={(event) =>
+            setProfile((current) => ({ ...current, primaryGoal: event.target.value }))
+          }
+          placeholder="例如：建立长期定投习惯，先把风险控制和基金配置逻辑学明白。"
+        />
+      </label>
+    );
+  }
+
+  return (
+    <div className="mx-auto grid max-w-4xl gap-5">
+      <section className="agent-hero overflow-hidden p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="section-kicker">开始建档</p>
+            <h2 className="mt-2 text-3xl font-semibold leading-tight text-[color:var(--ink-strong)]">
+              一次只回答一个问题
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--ink-soft)]">
+              先完成基础画像，再回答 6 个风险与行为问题。完成后进入 Today，看到第一条个人化判断。
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[color:var(--line-soft)] bg-white/72 px-4 py-3 text-sm">
+            <p className="font-semibold text-[color:var(--ink-strong)]">{stepLabel}</p>
+            <p className="mt-1 text-[color:var(--ink-muted)]">
+              风险问卷已答 {answeredCount}/{QUESTION_SET.length} 题
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/72">
+          <div
+            className="h-full rounded-full bg-[linear-gradient(90deg,var(--accent-teal),var(--accent-cyan))] transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1" aria-label="建档步骤">
+          {completedMarkers.map((completed, index) => (
+            <span
+              key={index}
+              className={
+                index === activeStep
+                  ? "h-2.5 w-8 shrink-0 rounded-full bg-[color:var(--accent-teal)]"
+                  : completed
+                    ? "h-2.5 w-4 shrink-0 rounded-full bg-[rgba(0,113,227,0.32)]"
+                    : "h-2.5 w-4 shrink-0 rounded-full bg-[rgba(118,118,128,0.18)]"
+              }
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="paper-panel-strong p-5 sm:p-7">
+        <div className="max-w-2xl">
+          <p className="section-kicker">
+            {profileStep ? "基础画像" : "风险与行为问卷"}
+          </p>
+          <h3 className="mt-2 text-2xl font-semibold leading-tight text-[color:var(--ink-strong)]">
+            {profileStep?.title ?? currentQuestion?.title}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+            {profileStep?.hint ?? "选最接近你的真实反应，不需要选择“正确答案”。"}
+          </p>
+        </div>
+
+        <div className="mt-7">
+          {profileStep ? (
+            renderProfileControl()
+          ) : currentQuestion ? (
+            <fieldset className="grid gap-2">
+              <legend className="sr-only">{currentQuestion.title}</legend>
+              {currentQuestion.choices.map((choice) => {
+                const checked = questionnaire[currentQuestion.id] === choice.score;
+                return (
+                  <label
+                    key={`${currentQuestion.id}-${choice.score}`}
+                    className={`choice-item ${checked ? "choice-item-active" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name={currentQuestion.id}
+                      value={choice.score}
+                      checked={checked}
+                      onChange={() => {
+                        setQuestionnaire((current) => ({
+                          ...current,
+                          [currentQuestion.id]: choice.score,
+                        }));
+                        setSubmitError(null);
+                      }}
+                    />
+                    <span>{choice.label}</span>
+                  </label>
+                );
+              })}
+            </fieldset>
+          ) : null}
+        </div>
+
+        {submitError ? (
+          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submitError}
+          </div>
+        ) : null}
+
+        {isCompleted ? (
+          <div className="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            已完成建档，正在跳转到 Today...
+          </div>
+        ) : null}
+
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
-            type="submit"
-            className="action-button"
-            disabled={isSubmitting}
+            type="button"
+            className="action-button-secondary justify-center sm:justify-start"
+            onClick={() => setActiveStep((step) => Math.max(step - 1, 0))}
+            disabled={!canGoBack}
           >
-            {questionnaireMutation.isPending
-              ? "提交中..."
-              : "提交问卷并进入工作台"}
+            上一步
           </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Link href="/start" className="action-button-secondary justify-center">
+              回到入口
+            </Link>
+            <button
+              type="button"
+              className="action-button justify-center"
+              onClick={goNext}
+              disabled={questionnaireMutation.isPending}
+            >
+              {questionnaireMutation.isPending
+                ? "提交中..."
+                : activeStep === TOTAL_STEPS - 1
+                  ? "完成建档，进入 Today"
+                  : "继续"}
+            </button>
+          </div>
         </div>
-      </form>
-
-      {submitError ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {submitError}
-        </div>
-      ) : null}
-
-      {profileMutation.error || questionnaireMutation.error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {(profileMutation.error ?? questionnaireMutation.error)?.message ??
-            "提交失败，请稍后重试。"}
-        </div>
-      ) : null}
-
-      {isCompleted ? (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          已完成建档，正在跳转到工作台...
-        </div>
-      ) : null}
+      </section>
     </div>
   );
 }

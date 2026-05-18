@@ -1,6 +1,8 @@
 from app.runtime.v2.schemas import SkillSelection, ToolResult, WorkerOutput
 from app.runtime.v2.workers.common import (
+    asks_for_list_or_status,
     collect_evidence,
+    display_bias_tags,
     finding_from_evidence,
     learning_outcome_for,
     skill_forbidden_language,
@@ -25,23 +27,35 @@ class SimulationWorker:
         training_plan = tool_payload(tool_results, "behavior.training_plan")
         simulation = tool_payload(tool_results, "simulation.latest_review")
         latest_review = simulation.get("latest_review_summary")
+        completed_sessions = simulation.get("completed_sessions_count")
         scenario_title = (
             simulation.get("recommended_scenario_title")
             or training_plan.get("recommended_scenario_title")
             or "回撤纪律训练"
         )
         bias_tags = behavior.get("bias_tags") or []
+        display_tags = display_bias_tags(bias_tags)
 
-        finding = (
-            "历史情境训练不是预测涨跌，而是把当时能看到的信息、你的选择、"
-            "事后复盘分开记录。"
-        )
-        if latest_review:
-            finding += f" 最近一次复盘提示：{latest_review}"
+        if asks_for_list_or_status(message):
+            completed_text = (
+                f"已完成 {completed_sessions} 次情境训练"
+                if completed_sessions is not None
+                else "当前还没有完成训练记录"
+            )
+            finding = f"直接回答：{completed_text}；推荐从“{scenario_title}”开始。"
+            if latest_review:
+                finding += f" 最近一次复盘提示：{latest_review}"
         else:
+            finding = (
+                "历史情境训练不是预测涨跌，而是把当时能看到的信息、你的选择、"
+                "事后复盘分开记录。"
+            )
+        if latest_review and not asks_for_list_or_status(message):
+            finding += f" 最近一次复盘提示：{latest_review}"
+        elif not latest_review and not asks_for_list_or_status(message):
             finding += f" 当前更适合从“{scenario_title}”开始练习。"
-        if bias_tags:
-            finding += f" 训练时重点观察“{bias_tags[0]}”是否影响了动作。"
+        if display_tags:
+            finding += f" 训练时重点观察“{display_tags[0]}”是否影响了动作。"
 
         evidence_refs = collect_evidence(tool_results)
         return WorkerOutput(

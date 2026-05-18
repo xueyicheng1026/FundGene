@@ -52,6 +52,14 @@ class NewsAnalysis(Base):
     related_learning_topics: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     recommended_next_actions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     risk_notice: Mapped[str] = mapped_column(Text, nullable=False)
+    model_status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="legacy",
+    )
+    model_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    fallback_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         index=True,

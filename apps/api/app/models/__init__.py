@@ -6,6 +6,9 @@ from app.models.agent_state_update_proposal import AgentStateUpdateProposal
 from app.models.agent_step import AgentStep
 from app.models.agent_tool_call import AgentToolCall
 from app.models.agent_citation import AgentCitation
+from app.models.automation_run import AutomationRun
+from app.models.automation_notification import AutomationNotification
+from app.models.automation_setting import AutomationSetting
 from app.models.auth_session import AuthSession
 from app.models.auth_user import AuthUser
 from app.models.behavior_profile import BehaviorProfile
@@ -13,6 +16,7 @@ from app.models.chat_message import ChatMessage
 from app.models.chat_session import ChatSession
 from app.models.course import Course
 from app.models.course_section import CourseSection
+from app.models.daily_brief_preference import DailyBriefPreference
 from app.models.learning_path import LearningPath
 from app.models.news_analysis import NewsAnalysis
 from app.models.news_item import NewsItem
@@ -36,6 +40,9 @@ __all__ = [
     "AgentStep",
     "AgentToolCall",
     "AgentCitation",
+    "AutomationRun",
+    "AutomationNotification",
+    "AutomationSetting",
     "AuthSession",
     "AuthUser",
     "BehaviorProfile",
@@ -43,6 +50,7 @@ __all__ = [
     "ChatSession",
     "Course",
     "CourseSection",
+    "DailyBriefPreference",
     "LearningPath",
     "NewsAnalysis",
     "NewsItem",

@@ -8,6 +8,7 @@ import {
   ApiError,
   getBehaviorProfile,
   getSessionUser,
+  getSimulationSession,
   getSimulationReview,
   getSimulationScenarios,
   startSimulationSession,
@@ -18,6 +19,7 @@ import {
   type SimulationSession,
   type SimulationSessionActionChoice,
 } from "@/lib/api";
+import { formatBiasTag, formatBiasTags, formatProductCopy } from "@/lib/display-labels";
 import { MetricCard } from "./metric-card";
 import { SectionBlock } from "./section-block";
 
@@ -88,7 +90,7 @@ function formatDuration(value: number | null): string {
     return "待定";
   }
 
-  return `${value} min`;
+  return `${value} 分钟`;
 }
 
 function isSessionCompleted(session: SimulationSession | null): boolean {
@@ -124,6 +126,40 @@ function buildScenarioBadge(scenario: SimulationScenario): string {
   return "历史训练";
 }
 
+function getTrainingBiasLabels(
+  scenario: SimulationScenario | null,
+  behavior: BehaviorProfile,
+): string[] {
+  const focus =
+    scenario?.biasFocus && scenario.biasFocus.length > 0
+      ? scenario.biasFocus
+      : behavior.biasTags;
+  const labels = formatBiasTags(focus).filter(Boolean);
+  return labels.length > 0 ? labels.slice(0, 3) : ["情绪反应", "风险纪律"];
+}
+
+function buildRecommendationReason(
+  scenario: SimulationScenario | null,
+  behavior: BehaviorProfile,
+): string {
+  if (!scenario) {
+    return "场景同步完成后，会优先把训练和你的行为画像、风险等级对齐。";
+  }
+
+  const matchedBias = scenario.biasFocus.find((item) =>
+    behavior.biasTags.includes(item),
+  );
+  if (matchedBias) {
+    return `它命中了你当前画像里的「${formatBiasTag(matchedBias)}」，适合先练波动中如何停下来写理由。`;
+  }
+
+  if (scenario.recommended) {
+    return "这是系统推荐的下一段训练，用来把工作台里的行为提醒转成一次可记录的决策练习。";
+  }
+
+  return "这个场景适合用历史节点练习“先解释、再行动、最后复盘”的决策顺序。";
+}
+
 function DeskMetric({
   label,
   value,
@@ -136,14 +172,14 @@ function DeskMetric({
   tone: "moss" | "gold" | "clay" | "ink";
 }) {
   const toneMap = {
-    moss: "from-[rgba(70,208,172,0.16)] via-[rgba(238,248,239,0.06)] to-transparent",
-    gold: "from-[rgba(212,170,85,0.16)] via-[rgba(238,248,239,0.06)] to-transparent",
-    clay: "from-[rgba(214,123,104,0.16)] via-[rgba(238,248,239,0.06)] to-transparent",
-    ink: "from-[rgba(238,248,239,0.08)] via-[rgba(238,248,239,0.04)] to-transparent",
+    moss: "from-[rgba(0,113,227,0.12)] via-[rgba(255,255,255,0.06)] to-transparent",
+    gold: "from-[rgba(255,159,10,0.12)] via-[rgba(255,255,255,0.06)] to-transparent",
+    clay: "from-[rgba(255,59,48,0.1)] via-[rgba(255,255,255,0.06)] to-transparent",
+    ink: "from-[rgba(118,118,128,0.1)] via-[rgba(255,255,255,0.05)] to-transparent",
   } as const;
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-[color:var(--line-soft)] bg-[linear-gradient(180deg,rgba(24,39,35,0.9),rgba(12,20,18,0.78))] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.2)]">
+    <div className="relative overflow-hidden rounded-lg border border-[color:var(--line-soft)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,247,251,0.86))] p-4 shadow-[0_16px_38px_rgba(29,29,31,0.065)] backdrop-blur-2xl">
       <div
         className={joinClasses(
           "pointer-events-none absolute inset-0 bg-gradient-to-br",
@@ -152,7 +188,7 @@ function DeskMetric({
       />
       <div className="relative">
         <p className="section-kicker">{label}</p>
-        <p className="mt-2 font-serif text-2xl">{value}</p>
+        <p className="mt-2 text-2xl font-semibold text-[color:var(--ink-strong)]">{value}</p>
         <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">{detail}</p>
       </div>
     </div>
@@ -193,20 +229,20 @@ function ChoiceCard({
       className={joinClasses(
         "group w-full rounded-lg border px-4 py-3 text-left transition duration-200",
         active
-          ? "border-[rgba(48,88,68,0.34)] bg-[linear-gradient(135deg,rgba(48,88,68,0.15),rgba(255,255,255,0.94))] shadow-[0_16px_32px_rgba(48,88,68,0.09)]"
-          : "border-[color:var(--line-soft)] bg-white/78 hover:-translate-y-0.5 hover:border-[rgba(48,88,68,0.18)]",
+          ? "border-[rgba(0,113,227,0.28)] bg-[linear-gradient(135deg,rgba(0,113,227,0.09),rgba(255,255,255,0.94))] shadow-[0_16px_32px_rgba(0,113,227,0.1)]"
+          : "border-[color:var(--line-soft)] bg-white/78 hover:-translate-y-0.5 hover:border-[rgba(0,113,227,0.18)]",
       )}
       onClick={() => onSelect(choice.id)}
       aria-pressed={active}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="section-kicker">Action</p>
+          <p className="section-kicker">可选动作</p>
           <h3 className="mt-2 text-base font-semibold">{choice.label}</h3>
         </div>
         {choice.biasSignal ? (
-          <span className="rounded-full border border-[rgba(48,88,68,0.15)] bg-[rgba(48,88,68,0.08)] px-3 py-1 text-[11px] text-[color:var(--accent-moss)]">
-            {choice.biasSignal}
+          <span className="rounded-full border border-[rgba(0,113,227,0.16)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-[11px] text-[color:var(--accent-teal)]">
+            {formatBiasTag(choice.biasSignal)}
           </span>
         ) : null}
       </div>
@@ -226,6 +262,8 @@ export function SimulationWorkspace() {
   const [latestFeedback, setLatestFeedback] = useState<SimulationFeedback | null>(null);
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [draftRationale, setDraftRationale] = useState("");
+  const [draftWorry, setDraftWorry] = useState("");
+  const [draftImpulsePlan, setDraftImpulsePlan] = useState("");
   const [startError, setStartError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [reviewRequested, setReviewRequested] = useState(false);
@@ -259,6 +297,7 @@ export function SimulationWorkspace() {
       : scenariosQuery.data?.recommendedScenarioId ?? scenarios[0]?.id ?? null;
   const selectedScenario =
     scenarios.find((item) => item.id === resolvedScenarioId) ?? null;
+  const pendingActiveSessionId = scenariosQuery.data?.activeSessionId ?? null;
 
   const reviewQuery = useQuery({
     queryKey: ["simulation-review", activeSession?.id],
@@ -275,6 +314,8 @@ export function SimulationWorkspace() {
       setLatestFeedback(null);
       setSelectedActionId(null);
       setDraftRationale("");
+      setDraftWorry("");
+      setDraftImpulsePlan("");
       setReviewRequested(false);
       setStartError(null);
       if (nextSession.scenarioId) {
@@ -284,6 +325,26 @@ export function SimulationWorkspace() {
     },
     onError: (error) => {
       setStartError(error instanceof Error ? error.message : "无法启动情境，请稍后重试。");
+    },
+  });
+
+  const resumeMutation = useMutation({
+    mutationFn: (sessionId: string) => getSimulationSession(sessionId),
+    onSuccess: (session) => {
+      setActiveSession(session);
+      setLatestFeedback(null);
+      setSelectedActionId(null);
+      setDraftRationale("");
+      setDraftWorry("");
+      setDraftImpulsePlan("");
+      setReviewRequested(isSessionCompleted(session));
+      setStartError(null);
+      if (session.scenarioId) {
+        setSelectedScenarioId(session.scenarioId);
+      }
+    },
+    onError: (error) => {
+      setStartError(error instanceof Error ? error.message : "无法恢复上次训练，请稍后重试。");
     },
   });
 
@@ -297,11 +358,18 @@ export function SimulationWorkspace() {
         throw new Error("请先选择本轮要执行的动作。");
       }
 
+      const trimmedRationale = draftRationale.trim();
+      if (!trimmedRationale) {
+        throw new Error("请至少写一句判断理由；如果不确定，可以写“我暂不确定，想先观察风险”。");
+      }
+
       return submitSimulationAction({
         sessionId: activeSession.id,
         eventId: activeSession.activeEvent?.id ?? null,
         actionId: selectedActionId,
-        rationale: draftRationale,
+        rationale: trimmedRationale,
+        worry: draftWorry.trim(),
+        impulseControlPlan: draftImpulsePlan.trim(),
       });
     },
     onSuccess: async (result) => {
@@ -310,6 +378,8 @@ export function SimulationWorkspace() {
       setLatestFeedback(result.feedback);
       setSelectedActionId(null);
       setDraftRationale("");
+      setDraftWorry("");
+      setDraftImpulsePlan("");
       setReviewRequested(result.reviewReady);
       await queryClient.invalidateQueries({ queryKey: ["simulation-scenarios"] });
       if (result.reviewReady) {
@@ -383,11 +453,11 @@ export function SimulationWorkspace() {
             detail="先保存基础画像与问卷，再开始历史情境。"
             accent="gold"
           />
-          <MetricCard
-            label="训练方式"
-            value="Explain first"
-            detail="每一步都要求写下理由，再进入动作反馈和最终复盘。"
-            accent="clay"
+            <MetricCard
+              label="训练方式"
+              value="先解释"
+              detail="每一步都要求写下理由，再进入动作反馈和最终复盘。"
+              accent="clay"
           />
         </div>
         <div className="flex flex-wrap gap-3">
@@ -428,6 +498,25 @@ export function SimulationWorkspace() {
       scenariosQuery.error.status === 405 ||
       scenariosQuery.error.status === 501);
   const progressValue = getProgressValue(activeSession);
+  const trainingBiasLabels = getTrainingBiasLabels(selectedScenario, behavior);
+  const recommendationReason = buildRecommendationReason(selectedScenario, behavior);
+  const assignmentWritebacks = [
+    {
+      label: "动作日志",
+      value: "每一步选择 + 理由",
+      detail: "提交后保存在训练会话里，结尾复盘会回看这条链路。",
+    },
+    {
+      label: "行为线索",
+      value: "只生成候选证据",
+      detail: "单次训练不会直接改写画像，会先形成待确认观察。",
+    },
+    {
+      label: "工作台",
+      value: "刷新安全下一步",
+      detail: "完成复盘后，工作台会读取新的训练状态与建议动作。",
+    },
+  ];
 
   function handleStartScenario() {
     if (!selectedScenario) {
@@ -438,6 +527,17 @@ export function SimulationWorkspace() {
     setStartError(null);
     setActionError(null);
     startMutation.mutate(selectedScenario.id);
+  }
+
+  function handleResumeSession() {
+    const sessionId = scenariosQuery.data?.activeSessionId;
+    if (!sessionId) {
+      setStartError("当前没有可恢复的训练。");
+      return;
+    }
+
+    setStartError(null);
+    resumeMutation.mutate(sessionId);
   }
 
   function handleSubmitAction(event: React.FormEvent<HTMLFormElement>) {
@@ -457,83 +557,100 @@ export function SimulationWorkspace() {
   return (
     <div className="space-y-6">
       <section className="agent-hero overflow-hidden px-5 py-6 sm:px-6">
-        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[40%] border-l border-white/10 bg-white/[0.04] xl:block" />
-        <div className="relative grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[42%] border-l border-[color:var(--line-soft)] bg-white/42 xl:block" />
+        <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1.02fr)_minmax(340px,0.98fr)]">
           <div className="space-y-4">
             <div className="space-y-2">
               <p className="section-kicker">历史情境训练</p>
-              <h1 className="max-w-4xl text-3xl font-black leading-tight sm:text-4xl">
-                把“市场一震就想动手”的瞬间，变成一份可追溯的决策日志。
+              <h1 className="max-w-4xl text-3xl font-semibold leading-tight text-[color:var(--ink-strong)] sm:text-4xl">
+                {selectedScenario
+                  ? `今天训练：${selectedScenario.title}`
+                  : "今天训练：把一次市场波动写成可复盘的决策作业。"}
               </h1>
-              <p className="max-w-3xl text-sm leading-7 text-white/68">
-                挑选历史场景，在关键节点写下动作和理由，再用结构化复盘看清自己的纪律与偏差。
-                这里不模拟交易执行，只训练判断过程。
+              <p className="max-w-3xl text-sm leading-7 text-[color:var(--ink-soft)]">
+                首屏先明确训练目标：练什么偏差、为什么推荐、训练后会保存什么。
+                这里不模拟交易执行，只把你的判断过程保存成可回看的训练记录。
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3 text-sm text-[color:var(--ink-soft)]">
-              <span className="rounded-full border border-[rgba(48,88,68,0.16)] bg-white/62 px-4 py-2">
+              <span className="rounded-full border border-[rgba(0,113,227,0.14)] bg-white/62 px-4 py-2">
                 风险等级：{formatRiskLevel(behavior.riskLevel)}
               </span>
-              <span className="rounded-full border border-[rgba(48,88,68,0.16)] bg-white/62 px-4 py-2">
-                当前偏差焦点：{behavior.biasTags[0] ?? "待继续观察"}
+              <span className="rounded-full border border-[rgba(0,113,227,0.14)] bg-white/62 px-4 py-2">
+                训练偏差：{trainingBiasLabels.join(" / ")}
               </span>
-              <span className="rounded-full border border-[rgba(48,88,68,0.16)] bg-white/62 px-4 py-2">
+              <span className="rounded-full border border-[rgba(0,113,227,0.14)] bg-white/62 px-4 py-2">
                 {scenariosQuery.isSuccess
                   ? `可选场景 ${scenarios.length} 个`
                   : "场景同步中"}
               </span>
             </div>
+
+            <div className="flex flex-wrap gap-3">
+              <a href="#simulation-scenario-list" className="action-button">
+                选择场景
+              </a>
+              {activeSession ? (
+                <a href="#simulation-decision-room" className="action-button-secondary">
+                  继续训练
+                </a>
+              ) : null}
+            </div>
           </div>
 
-          <div className="grid gap-2.5 self-start xl:pl-4">
-            {[
-              {
-                label: "01",
-                title: "挑选场景",
-                detail: "先理解背景，不让训练变成无上下文点按钮。",
-              },
-              {
-                label: "02",
-                title: "写下理由",
-                detail: "动作之前先写判断依据，留下以后能复盘的证据。",
-              },
-              {
-                label: "03",
-                title: "接收反馈",
-                detail: "每一步读取反馈，不把行为偏差藏在结果后面。",
-              },
-              {
-                label: "04",
-                title: "生成复盘",
-                detail: "最后回看强项、盲点和下周训练动作。",
-              },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-lg border border-white/38 bg-white/42 px-3.5 py-3"
-              >
-                <div className="flex items-start gap-4">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(48,88,68,0.18)] bg-white/70 font-serif text-sm">
-                    {item.label}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">{item.title}</p>
-                    <p className="mt-2 text-sm leading-7 text-[color:var(--ink-soft)]">
-                      {item.detail}
-                    </p>
-                  </div>
+          <div className="space-y-3 self-start rounded-lg border border-white/42 bg-white/56 p-4 shadow-[0_18px_44px_rgba(29,29,31,0.08)] backdrop-blur-2xl">
+            <div>
+              <p className="section-kicker">训练任务单</p>
+              <h2 className="mt-2 text-xl font-semibold text-[color:var(--ink-strong)]">
+                {selectedScenario?.headline ?? selectedScenario?.title ?? "等待场景同步"}
+              </h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-4 py-3">
+                <p className="section-kicker">训练什么偏差</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {trainingBiasLabels.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-[rgba(0,113,227,0.16)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-xs text-[color:var(--accent-teal)]"
+                    >
+                      {item}
+                    </span>
+                  ))}
                 </div>
               </div>
-            ))}
+              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-4 py-3">
+                <p className="section-kicker">为什么推荐</p>
+                <p className="mt-3 text-sm leading-6 text-[color:var(--ink-soft)]">
+                  {recommendationReason}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-4 py-3">
+                <p className="section-kicker">训练后会保存什么</p>
+                <div className="mt-3 space-y-2">
+                  {assignmentWritebacks.map((item) => (
+                    <div key={item.label} className="text-sm leading-6">
+                      <span className="font-semibold text-[color:var(--ink-strong)]">
+                        {item.label}：
+                      </span>
+                      <span className="text-[color:var(--ink-soft)]">{item.value}</span>
+                      <p className="text-xs leading-5 text-[color:var(--ink-muted)]">
+                        {item.detail}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-3 xl:grid-cols-4">
+      <div className="hidden gap-3 sm:grid sm:grid-cols-2 xl:grid-cols-4">
         <DeskMetric
           label="行为焦点"
-          value={behavior.biasTags[0] ?? "待观察"}
+          value={formatBiasTag(behavior.biasTags[0])}
           detail="训练优先围绕你最容易被情绪推着走的那一类场景展开。"
           tone="moss"
         />
@@ -628,13 +745,50 @@ export function SimulationWorkspace() {
         </SectionBlock>
       ) : (
         <>
-          <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+          <div
+            id="simulation-scenario-list"
+            className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]"
+          >
+            <div className="xl:hidden rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-4 shadow-sm backdrop-blur-2xl">
+              <p className="section-kicker">情境档案</p>
+              <h2 className="mt-2 text-lg font-semibold text-[color:var(--ink-strong)]">
+                {selectedScenario?.title ?? "选择一个情境"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+                {selectedScenario?.synopsis ?? "先选场景，再进入训练。"}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="action-button"
+                  onClick={handleStartScenario}
+                  disabled={startMutation.isPending || Boolean(pendingActiveSessionId && !activeSession)}
+                >
+                  {startMutation.isPending
+                    ? "启动中..."
+                    : pendingActiveSessionId && !activeSession
+                      ? "先继续上次训练"
+                      : "开始训练"}
+                </button>
+                {pendingActiveSessionId && !activeSession ? (
+                  <button
+                    type="button"
+                    className="action-button-secondary"
+                    onClick={handleResumeSession}
+                    disabled={resumeMutation.isPending}
+                  >
+                    {resumeMutation.isPending ? "恢复中..." : "继续上次"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
             <SectionBlock
               eyebrow="场景目录"
               title="先从场景池里挑一个值得练的历史节点。"
               description="左侧是可用情境；选择后，右侧会展开背景、训练目标和时间线预览。"
             >
-              <div className="grid gap-4">
+              <div className="grid max-h-[36rem] gap-4 overflow-y-auto pr-1 xl:max-h-none xl:overflow-visible xl:pr-0">
                 {scenarios.map((scenario) => {
                   const active = scenario.id === selectedScenario?.id;
                   return (
@@ -644,22 +798,23 @@ export function SimulationWorkspace() {
                       className={joinClasses(
                         "group rounded-lg border p-4 text-left transition duration-200",
                         active
-                          ? "border-[rgba(48,88,68,0.34)] bg-[linear-gradient(135deg,rgba(48,88,68,0.12),rgba(255,255,255,0.98))] shadow-[0_18px_42px_rgba(48,88,68,0.09)]"
-                          : "border-[color:var(--line-soft)] bg-white/72 hover:-translate-y-0.5 hover:border-[rgba(48,88,68,0.18)]",
+                          ? "border-[rgba(0,113,227,0.28)] bg-[linear-gradient(135deg,rgba(0,113,227,0.09),rgba(255,255,255,0.98))] shadow-[0_18px_42px_rgba(0,113,227,0.1)]"
+                          : "border-[color:var(--line-soft)] bg-white/72 hover:-translate-y-0.5 hover:border-[rgba(0,113,227,0.18)]",
                       )}
                       onClick={() => setSelectedScenarioId(scenario.id)}
+                      aria-pressed={active}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="section-kicker">{buildScenarioBadge(scenario)}</span>
                             {scenario.recommended ? (
-                              <span className="rounded-full border border-[rgba(184,131,47,0.2)] bg-[rgba(184,131,47,0.1)] px-3 py-1 text-[11px] text-[color:var(--accent-gold)]">
+                              <span className="rounded-full border border-[rgba(255,159,10,0.22)] bg-[rgba(255,159,10,0.1)] px-3 py-1 text-[11px] text-[color:var(--accent-gold)]">
                                 推荐
                               </span>
                             ) : null}
                             {scenario.completed ? (
-                              <span className="rounded-full border border-[rgba(48,88,68,0.18)] bg-[rgba(48,88,68,0.1)] px-3 py-1 text-[11px] text-[color:var(--accent-moss)]">
+                              <span className="rounded-full border border-[rgba(0,113,227,0.18)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-[11px] text-[color:var(--accent-teal)]">
                                 已完成
                               </span>
                             ) : null}
@@ -682,7 +837,7 @@ export function SimulationWorkspace() {
                             {tag}
                           </span>
                         ))}
-                        {scenario.biasFocus.slice(0, 2).map((tag) => (
+                            {formatBiasTags(scenario.biasFocus).slice(0, 2).map((tag) => (
                           <span
                             key={tag}
                             className="rounded-full border border-[rgba(154,93,58,0.16)] bg-[rgba(154,93,58,0.08)] px-3 py-1 text-[color:var(--accent-clay)]"
@@ -718,13 +873,13 @@ export function SimulationWorkspace() {
             </SectionBlock>
 
             <SectionBlock
-              eyebrow="Scenario dossier"
+              eyebrow="情境档案"
               title={selectedScenario?.headline ?? selectedScenario?.title ?? "选择一个情境"}
               description={
                 selectedScenario?.description ??
                 "选择场景后，这里会展示背景、目标、时间线与启动入口。"
               }
-              className="xl:sticky xl:top-6"
+              className="hidden xl:block xl:sticky xl:top-6"
             >
               {selectedScenario ? (
                 <div className="space-y-4">
@@ -745,19 +900,19 @@ export function SimulationWorkspace() {
                     </p>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 px-4 py-4">
-                        <p className="section-kicker">Training objective</p>
+                        <p className="section-kicker">训练目标</p>
                         <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
                           {selectedScenario.objective ??
                             "在波动背景里记录你的判断顺序，而不是只看最后对错。"}
                         </p>
                       </div>
                       <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 px-4 py-4">
-                        <p className="section-kicker">Bias focus</p>
+                        <p className="section-kicker">行为焦点</p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {(selectedScenario.biasFocus.length > 0
                             ? selectedScenario.biasFocus
                             : ["情绪反应", "风险纪律"]
-                          ).map((item) => (
+                          ).map((item) => formatBiasTag(item)).map((item) => (
                             <span
                               key={item}
                               className="rounded-full border border-[rgba(154,93,58,0.16)] bg-[rgba(154,93,58,0.08)] px-3 py-1 text-xs text-[color:var(--accent-clay)]"
@@ -771,7 +926,7 @@ export function SimulationWorkspace() {
                   </div>
 
                   <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                    <p className="section-kicker">Timeline preview</p>
+                    <p className="section-kicker">时间线预览</p>
                     <div className="mt-4 space-y-4">
                       {(selectedScenario.timelinePreview.length > 0
                         ? selectedScenario.timelinePreview
@@ -779,7 +934,7 @@ export function SimulationWorkspace() {
                       ).map((item, index) => (
                         <div key={`${item}-${index}`} className="flex gap-4">
                           <div className="flex w-8 flex-none flex-col items-center">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(48,88,68,0.18)] bg-white/80 text-xs font-semibold">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(0,113,227,0.16)] bg-white/80 text-xs font-semibold text-[color:var(--accent-teal)]">
                               {index + 1}
                             </span>
                             {index < selectedScenario.timelinePreview.length - 1 ? (
@@ -794,9 +949,21 @@ export function SimulationWorkspace() {
                     </div>
                   </div>
 
-                  {scenariosQuery.data?.activeSessionId ? (
+                  {pendingActiveSessionId && !activeSession ? (
                     <div className="rounded-lg border border-[rgba(184,131,47,0.18)] bg-[rgba(184,131,47,0.08)] px-4 py-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                      当前账号存在一个活跃训练，但此版本暂不支持恢复中途会话。请重新开始一个情境。
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <span>
+                          当前账号存在一段未完成训练。先继续上次节点，避免重复开同一类训练。
+                        </span>
+                        <button
+                          type="button"
+                          className="action-button-secondary"
+                          onClick={handleResumeSession}
+                          disabled={resumeMutation.isPending}
+                        >
+                          {resumeMutation.isPending ? "正在恢复..." : "继续上次训练"}
+                        </button>
+                      </div>
                     </div>
                   ) : null}
 
@@ -805,9 +972,13 @@ export function SimulationWorkspace() {
                       type="button"
                       className="action-button"
                       onClick={handleStartScenario}
-                      disabled={startMutation.isPending}
+                      disabled={startMutation.isPending || Boolean(pendingActiveSessionId && !activeSession)}
                     >
-                      {startMutation.isPending ? "正在启动情境..." : "开始这个情境"}
+                      {startMutation.isPending
+                        ? "正在启动情境..."
+                        : pendingActiveSessionId && !activeSession
+                          ? "先继续上次训练"
+                          : "开始这个情境"}
                     </button>
                     <Link href="/coach" className="action-button-secondary">
                       先去教练预热
@@ -815,7 +986,10 @@ export function SimulationWorkspace() {
                   </div>
 
                   {startError ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <div
+                      className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                      role="alert"
+                    >
                       {startError}
                     </div>
                   ) : null}
@@ -829,7 +1003,7 @@ export function SimulationWorkspace() {
           </div>
 
           <SectionBlock
-            eyebrow="Decision room"
+            eyebrow="本轮判断"
             title={
               activeSession
                 ? activeSessionCompleted
@@ -842,10 +1016,13 @@ export function SimulationWorkspace() {
                 ? activeSessionCompleted
                   ? "动作已经提交完毕。接下来可以读取最终复盘，把这次训练回流到行为画像和工作台。"
                   : "当前事件、动作选项和即时反馈都来自同一条训练会话。"
-                : "先从上方卡片选择一个场景并启动 session，再进入关键节点判断。"
+                : "先从上方卡片选择一个场景并启动训练，再进入关键节点判断。"
             }
           >
-            <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+            <div
+              id="simulation-decision-room"
+              className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]"
+            >
               <div className="space-y-4">
                 {activeSession && !activeSessionCompleted && activeEvent ? (
                   <>
@@ -871,7 +1048,7 @@ export function SimulationWorkspace() {
                       ) : null}
                       {activeEvent.prompt ? (
                         <div className="mt-5 rounded-lg border border-[color:var(--line-soft)] bg-white/72 px-4 py-4">
-                          <p className="section-kicker">Decision prompt</p>
+                          <p className="section-kicker">判断问题</p>
                           <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
                             {activeEvent.prompt}
                           </p>
@@ -879,10 +1056,10 @@ export function SimulationWorkspace() {
                       ) : null}
                       {activeEvent.decisionFocus.length > 0 ? (
                         <div className="mt-4 flex flex-wrap gap-2">
-                          {activeEvent.decisionFocus.map((item) => (
+                          {formatBiasTags(activeEvent.decisionFocus).map((item) => (
                             <span
                               key={item}
-                              className="rounded-full border border-[rgba(48,88,68,0.16)] bg-[rgba(48,88,68,0.08)] px-3 py-1 text-xs text-[color:var(--accent-moss)]"
+                              className="rounded-full border border-[rgba(0,113,227,0.16)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-xs text-[color:var(--accent-teal)]"
                             >
                               {item}
                             </span>
@@ -895,7 +1072,7 @@ export function SimulationWorkspace() {
                       className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5"
                       onSubmit={handleSubmitAction}
                     >
-                      <p className="section-kicker">Choose an action</p>
+                      <p className="section-kicker">选择本轮动作</p>
                       <div className="mt-4 grid gap-3">
                         {activeEvent.availableActions.length > 0 ? (
                           activeEvent.availableActions.map((choice) => (
@@ -914,22 +1091,50 @@ export function SimulationWorkspace() {
                       </div>
 
                       <label className="mt-5 block space-y-2 text-sm">
-                        <span className="font-medium">判断理由（推荐填写）</span>
+                        <span className="font-medium">我的判断（至少一句）</span>
                         <textarea
                           className="field-input min-h-[130px]"
                           value={draftRationale}
                           onChange={(event) => setDraftRationale(event.target.value)}
                           placeholder={
                             activeSession.reflectionPrompt ??
-                            "例如：我为什么倾向先观望、加仓或减仓？这个判断是基于风险控制还是情绪反应？"
+                            "例如：我为什么倾向先暂停动作、继续观察或回到计划检查？这个判断是基于证据还是情绪反应？"
                           }
                         />
+                        <button
+                          type="button"
+                          className="text-left text-xs font-semibold text-[color:var(--accent-teal)]"
+                          onClick={() => setDraftRationale("我暂不确定，想先观察风险，再决定下一步。")}
+                        >
+                          不确定时填入一句保守理由
+                        </button>
                       </label>
 
-                      <div className="mt-5 flex flex-wrap gap-3">
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <label className="block space-y-2 text-sm">
+                          <span className="font-medium">我担心什么</span>
+                          <textarea
+                            className="field-input min-h-[104px]"
+                            value={draftWorry}
+                            onChange={(event) => setDraftWorry(event.target.value)}
+                            placeholder="例如：我担心继续下跌，或者担心错过反弹。"
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="font-medium">我如何控制冲动</span>
+                          <textarea
+                            className="field-input min-h-[104px]"
+                            value={draftImpulsePlan}
+                            onChange={(event) => setDraftImpulsePlan(event.target.value)}
+                            placeholder="例如：先核对期限、现金需求和原计划，再决定是否需要进一步学习。"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="sticky bottom-3 z-20 mt-5 flex flex-wrap gap-3 rounded-2xl border border-[color:var(--line-soft)] bg-white/88 p-2 shadow-[0_14px_34px_rgba(29,29,31,0.12)] backdrop-blur-2xl md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
                         <button
                           type="submit"
-                          className="action-button"
+                          className="action-button flex-1 justify-center md:flex-none"
                           disabled={
                             actionMutation.isPending ||
                             activeEvent.availableActions.length === 0
@@ -939,10 +1144,12 @@ export function SimulationWorkspace() {
                         </button>
                         <button
                           type="button"
-                          className="action-button-secondary"
+                          className="action-button-secondary flex-1 justify-center md:flex-none"
                           onClick={() => {
                             setSelectedActionId(null);
                             setDraftRationale("");
+                            setDraftWorry("");
+                            setDraftImpulsePlan("");
                             setActionError(null);
                           }}
                           disabled={actionMutation.isPending}
@@ -952,7 +1159,10 @@ export function SimulationWorkspace() {
                       </div>
 
                       {actionError ? (
-                        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div
+                          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                          role="alert"
+                        >
                           {actionError}
                         </div>
                       ) : null}
@@ -961,41 +1171,48 @@ export function SimulationWorkspace() {
                 ) : (
                   <div className="rounded-lg border border-[color:var(--line-soft)] bg-[linear-gradient(145deg,rgba(255,255,255,0.84),rgba(245,236,220,0.94))] px-5 py-6 text-sm leading-7 text-[color:var(--ink-soft)]">
                     {activeSessionCompleted
-                      ? "当前 session 已经没有新的动作节点。直接去右侧读取结构化复盘即可。"
-                      : "还没有启动中的 session。先从上面的场景档案中点“开始这个情境”，这里才会展开真正的决策节点。"}
+                      ? "当前训练已经没有新的动作节点。直接去右侧读取结构化复盘即可。"
+                      : "还没有启动中的训练。先从上面的情境档案中点“开始这个情境”，这里才会展开真正的决策节点。"}
                   </div>
                 )}
               </div>
 
               <div className="space-y-4">
-                <div className="rounded-lg border border-[color:var(--line-soft)] bg-[#213127] p-5 text-[#f6eddc] shadow-[0_18px_48px_rgba(29,37,31,0.18)]">
+                <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/82 p-5 text-[color:var(--ink-strong)] shadow-[0_16px_38px_rgba(29,29,31,0.065)] backdrop-blur-2xl">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[11px] uppercase tracking-normal text-[#cfb06c]">
+                      <p className="text-[11px] font-bold uppercase tracking-normal text-[color:var(--accent-teal)]">
                         训练看板
                       </p>
-                      <h2 className="mt-3 font-serif text-3xl">
+                      <h2 className="mt-3 text-3xl font-semibold">
                         {activeSession?.stageLabel ??
                           (activeSessionCompleted
-                            ? "Review checkpoint"
+                            ? "复盘节点"
                             : activeSession
                               ? "实时训练"
-                              : "Waiting")}
+                              : "等待开始")}
                       </h2>
                     </div>
                     {activeSession ? (
-                      <span className="rounded-full border border-white/15 px-3 py-1 text-xs text-[#e8ddc8]">
+                      <span className="rounded-full border border-[color:var(--line-soft)] bg-white/70 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
                         {activeSessionCompleted ? "已完成" : "进行中"}
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="mt-5 overflow-hidden rounded-full bg-[rgba(118,118,128,0.16)]"
+                    role="progressbar"
+                    aria-label="训练进度"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progressValue}
+                  >
                     <div
-                      className="h-2 rounded-full bg-[linear-gradient(90deg,#cfb06c,#7fb08d)] transition-all duration-300"
+                      className="h-2 rounded-full bg-[linear-gradient(90deg,var(--accent-teal),var(--accent-cyan))] transition-all duration-300"
                       style={{ width: `${progressValue}%` }}
                     />
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-3 text-xs text-[#dccfb7]">
+                  <div className="mt-4 flex flex-wrap gap-3 text-xs text-[color:var(--ink-soft)]">
                     <span>进度 {progressValue}%</span>
                     {activeSession?.totalSteps ? (
                       <span>
@@ -1006,14 +1223,14 @@ export function SimulationWorkspace() {
                       <span>开始于 {formatTimestamp(activeSession.startedAt)}</span>
                     ) : null}
                   </div>
-                  <p className="mt-5 text-sm leading-7 text-[#eadfcf]">
+                  <p className="mt-5 text-sm leading-7 text-[color:var(--ink-soft)]">
                     {activeSession?.openingBrief ??
                       "会话启动后，这里会显示摘要与阶段说明。"}
                   </p>
                 </div>
 
                 <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                  <p className="section-kicker">Instant feedback</p>
+                  <p className="section-kicker">即时反馈</p>
                   {latestFeedback ? (
                     <div className="mt-4 space-y-4">
                       <p className="text-sm leading-7 text-[color:var(--ink-soft)]">
@@ -1026,10 +1243,10 @@ export function SimulationWorkspace() {
                       ) : null}
                       {latestFeedback.disciplineSignals.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                          {latestFeedback.disciplineSignals.map((item) => (
+                          {formatBiasTags(latestFeedback.disciplineSignals).map((item) => (
                             <span
                               key={item}
-                              className="rounded-full border border-[rgba(48,88,68,0.16)] bg-[rgba(48,88,68,0.08)] px-3 py-1 text-xs text-[color:var(--accent-moss)]"
+                              className="rounded-full border border-[rgba(0,113,227,0.18)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-xs text-[color:var(--accent-teal)]"
                             >
                               {item}
                             </span>
@@ -1050,7 +1267,7 @@ export function SimulationWorkspace() {
                 </div>
 
                 <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                  <p className="section-kicker">After this session</p>
+                  <p className="section-kicker">训练结束后</p>
                   <div className="mt-4 space-y-3 text-sm leading-7 text-[color:var(--ink-soft)]">
                     <div>1. 读取最终复盘，确认这次训练暴露了哪些行为偏差。</div>
                     <div>2. 回到工作台，看下一步训练动作是否被刷新。</div>
@@ -1076,7 +1293,7 @@ export function SimulationWorkspace() {
 
           {(reviewRequested || review || reviewQuery.isError) && activeSession ? (
             <SectionBlock
-              eyebrow="Final review"
+              eyebrow="最终复盘"
               title="把一次动作链，收束成一份可以回看的行为复盘。"
               description="最终复盘不只说你做得对不对，而是把这次训练里的纪律、盲点和下一步动作重新组织出来。"
             >
@@ -1114,13 +1331,13 @@ export function SimulationWorkspace() {
                     {review.outcomeSummary || review.finalDisposition ? (
                       <div className="mt-5 grid gap-4 lg:grid-cols-2">
                         <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 px-4 py-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                          <p className="section-kicker">Outcome summary</p>
+                          <p className="section-kicker">结果摘要</p>
                           <p className="mt-3">
                             {review.outcomeSummary ?? "本次训练已形成结构化结果。"}
                           </p>
                         </div>
                         <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 px-4 py-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                          <p className="section-kicker">Behavior readout</p>
+                          <p className="section-kicker">行为观察</p>
                           <p className="mt-3">
                             {review.finalDisposition ??
                               "系统会把这次训练转成下一步的行为观察重点。"}
@@ -1131,7 +1348,7 @@ export function SimulationWorkspace() {
 
                     {review.biasSignals.length > 0 ? (
                       <div className="mt-5 flex flex-wrap gap-2">
-                        {review.biasSignals.map((item) => (
+                        {formatBiasTags(review.biasSignals).map((item) => (
                           <span
                             key={item}
                             className="rounded-full border border-[rgba(154,93,58,0.16)] bg-[rgba(154,93,58,0.08)] px-3 py-1 text-xs text-[color:var(--accent-clay)]"
@@ -1145,28 +1362,48 @@ export function SimulationWorkspace() {
 
                   <div className="grid gap-4 xl:grid-cols-3">
                     <ReviewColumn
-                      title="What went well"
+                      title="做得好的地方"
                       items={review.strengths}
                       emptyText="暂无优势清单。"
                     />
                     <ReviewColumn
-                      title="Watch next time"
+                      title="下次重点观察"
                       items={review.improvementAreas}
                       emptyText="暂无待改进项。"
                     />
                     <ReviewColumn
                       title="下一步动作"
-                      items={review.recommendedNextActions}
+                      items={review.recommendedNextActions.map((item) => formatProductCopy(item))}
                       emptyText="暂无下一步动作。"
                     />
                   </div>
 
+                  <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
+                    <p className="section-kicker">行为证据候选</p>
+                    <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
+                      单次训练只会形成待确认线索，不会直接改写你的行为画像。
+                      {review.pendingStateProposal ? ` ${review.pendingStateProposal}` : ""}
+                    </p>
+                    <div className="mt-4 space-y-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+                      {review.behaviorEvidenceCandidates.length > 0
+                        ? review.behaviorEvidenceCandidates.map((item) => (
+                            <div
+                              key={item}
+                              className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-4 py-3"
+                            >
+                              {item}
+                            </div>
+                          ))
+                        : "这次暂未形成明确行为证据候选；可以把复盘问题带回 Coach 继续拆解。"}
+                    </div>
+                  </div>
+
                   <div className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
-                    <div className="rounded-lg border border-[color:var(--line-soft)] bg-[#213127] p-5 text-[#f6eddc]">
-                      <p className="text-[11px] uppercase tracking-normal text-[#cfb06c]">
-                        Reflection prompts
+                    <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/82 p-5 text-[color:var(--ink-strong)] shadow-[0_16px_38px_rgba(29,29,31,0.065)] backdrop-blur-2xl">
+                      <p className="text-[11px] font-bold uppercase tracking-normal text-[color:var(--accent-teal)]">
+                        复盘问题
                       </p>
-                      <div className="mt-4 space-y-3 text-sm leading-7 text-[#eadfcf]">
+                      <div className="mt-4 space-y-3 text-sm leading-7 text-[color:var(--ink-soft)]">
                         {review.reflectionQuestions.length > 0
                           ? review.reflectionQuestions.map((item) => (
                               <div key={item}>{item}</div>
@@ -1175,7 +1412,7 @@ export function SimulationWorkspace() {
                       </div>
                     </div>
                     <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                      <p className="section-kicker">Continue the loop</p>
+                      <p className="section-kicker">继续回流</p>
                       <p className="mt-4 text-sm leading-7 text-[color:var(--ink-soft)]">
                         这份复盘的价值，在于把“我当时为什么那样选”重新转回可讨论、可学习、可安排下一步训练的产品主线。
                       </p>
@@ -1194,6 +1431,8 @@ export function SimulationWorkspace() {
                             setLatestFeedback(null);
                             setSelectedActionId(null);
                             setDraftRationale("");
+                            setDraftWorry("");
+                            setDraftImpulsePlan("");
                             setReviewRequested(false);
                           }}
                         >
@@ -1205,7 +1444,7 @@ export function SimulationWorkspace() {
                 </div>
               ) : (
                 <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/72 px-5 py-5 text-sm text-[color:var(--ink-soft)]">
-                  当前 session 已完成，但复盘结果尚未可用。
+                  当前训练已完成，但复盘结果尚未可用。
                 </div>
               )}
             </SectionBlock>

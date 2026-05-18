@@ -1,17 +1,18 @@
 # FundGene 数据模型
 
-状态说明：这是当前数据模型基线。auth / onboarding / questionnaire / behavior / coach / learning / portfolio / simulation / news 的最小持久化表现在已经真实存在于主干。
+状态说明：这是当前数据模型基线。auth / onboarding / questionnaire / behavior / coach / learning / portfolio / simulation / news 的最小持久化表现在已经真实存在于主干。下一阶段数据模型方向是 Agent Command Center：Daily Brief、Agent Workspace run、自动任务、授权与待确认写回。
 
-更新日期：2026-04-29
+更新日期：2026-05-17
 
 ## 1. 数据设计目标
 
-数据模型要同时服务 4 条主线：
+数据模型要服务 Agent Command Center 主线：
 
-- 学习与成长
-- 行为画像
-- 组合分析
-- 情境模拟
+- Today / Daily Brief
+- Agent Workspace task runs
+- L2 自动任务
+- Profile authorization and pending writeback
+- 学习、行为、组合、情境模拟、资讯作为 agent 工具和详情来源
 
 设计原则：
 
@@ -19,6 +20,7 @@
 - 区分“原始输入”和“系统结论”
 - Agent 输出必须可追溯
 - 报告类结果要保留历史版本
+- 高影响状态变化必须先进入 pending confirmation，不从模型输出直接写 canonical state
 
 ## 2. 核心实体
 
@@ -86,6 +88,13 @@
 - `news_analyses`
 - `agent_citations`
 
+当前接入说明：
+
+- `GET /api/news?refresh=true` 会从配置的 RSS/Atom feeds 抓取真实条目并 upsert 到 `news_items` / `policy_items`。
+- `/news` 前端默认触发真实 feed refresh，并提供手动“同步真实资讯”按钮。
+- `news_watch` 自动任务运行前会同步 feeds，再生成通知和待确认 Safe Next Action。
+- RSS/Atom 全局条目 `news_items.user_id` 为空；用户手动粘贴内容仍是当前用户私有条目。
+
 ### 2.6 Agent 运行域
 
 当前已实现：
@@ -121,6 +130,38 @@ Agent Runtime v2 第一条 deterministic advisor spine 已落地，`20260429_000
 
 - `agent_context_snapshots`
 - `recommendation_records`
+
+### 2.7 Agent Command Center 域
+
+目标新增或重命名：
+
+- `daily_briefs`
+- `daily_brief_preferences`
+- `agent_workspace_runs`
+- `agent_workspace_steps`
+- `command_actions`
+- `automation_settings`
+- `automation_runs`
+- `automation_notifications`
+- `pending_user_confirmations`
+- `profile_authorizations`
+
+说明：
+
+- 当前 `GET /api/dashboard.daily_brief` 和 `agent_runs` 可作为过渡实现资产。
+- `daily_briefs` 应沉淀 Agent 自动生成的 Today 主判断、证据、行动和安全边界。
+- `agent_workspace_runs` 应表达用户布置的任务，而不只是 chat message。
+- `agent_workspace_steps` 应保存用户可读步骤，同时可关联底层 `agent_steps`。
+- `command_actions` 应统一 Daily Brief 主动作、assistant recommended action、自动任务结果和详情页动作。
+- `automation_settings`、`automation_runs` 和 `daily_brief_preferences` 已在 `20260517_0010` 落地，保存用户授权、频率、读取范围、运行结果和安全边界；`20260517_0011` 继续加入 `automation_notifications`、scheduled/manual trigger metadata、失败错误记录、到期扫描索引，以及后台 worker/CLI 调度路径。
+- `automation_notifications` 是用户可见的自动任务完成记录和确认入口，不是外部推送系统；当前通知仍在产品内展示。
+- `pending_user_confirmations` 的当前过渡实现复用 `agent_state_update_proposals`，并新增 `user_decision_status`、`decision_note`、`decided_at`、`applied_at`；用户归属通过 `agent_runs.user_id` 校验，只有 allow-listed `behavior_profile_note` 会在用户确认后写入行为证据。
+- `profile_authorizations` 应记录 Agent 可读取哪些上下文，以及哪些动作需要确认。
+
+禁止：
+
+- 不建模任何真实交易执行、券商连接、自动买卖或调仓落库能力。
+- `trade_records` 类概念如果存在，只能表示用户手动报告的历史行为或模拟动作，不得表示 live execution。
 
 ## 3. 当前关键表说明
 

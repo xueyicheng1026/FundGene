@@ -89,7 +89,7 @@ def test_simulation_session_review_and_behavior_training_flow(
     assert duplicate_session_response.json()["session_id"] == session_id
 
     recommended_choices = {
-        1: "pause_and_review",
+        1: "panic_redeem",
         2: "continue_plan_small",
         3: "review_journal",
     }
@@ -105,7 +105,9 @@ def test_simulation_session_review_and_behavior_training_flow(
                 "session_id": session_id,
                 "event_id": active_event["event_id"],
                 "choice_key": recommended_choices[step_index],
-                "reflection": f"step-{step_index} reflection",
+                "rationale": f"step-{step_index} rationale",
+                "worry": "担心账户继续回撤",
+                "impulse_control_plan": "先核对期限、现金需求和原计划",
             },
         )
         assert action_response.status_code == 200
@@ -121,7 +123,10 @@ def test_simulation_session_review_and_behavior_training_flow(
     assert review_payload["session_id"] == session_id
     assert review_payload["scenario_slug"] == "covid-volatility-discipline"
     assert len(review_payload["actions"]) == 3
-    assert "情绪和动作拆开" in review_payload["decision_summary"]
+    assert "1/3 个关键节点" in review_payload["decision_summary"]
+    assert review_payload["behavior_evidence_candidates"]
+    assert review_payload["behavior_evidence_candidates"][0]["bias_type"] == "panic_selling_risk"
+    assert review_payload["pending_state_proposal"]["status"] == "pending"
 
     dashboard_response = client.get("/api/dashboard")
     assert dashboard_response.status_code == 200
@@ -152,7 +157,27 @@ def test_simulation_session_review_and_behavior_training_flow(
 
         behavior_profile = session.scalar(select(BehaviorProfile).limit(1))
         assert behavior_profile is not None
-        assert any(
-            "showed stable discipline" in evidence
-            for evidence in behavior_profile.evidence
-        )
+        assert not any("Simulation" in evidence for evidence in behavior_profile.evidence)
+
+
+def test_simulation_action_requires_rationale(client: TestClient) -> None:
+    _complete_onboarding(client)
+
+    session_response = client.post(
+        "/api/simulations/sessions",
+        json={"scenario_slug": "covid-volatility-discipline"},
+    )
+    assert session_response.status_code == 200
+    session_payload = session_response.json()
+    active_event = session_payload["active_event"]
+    assert active_event is not None
+
+    action_response = client.post(
+        "/api/simulations/actions",
+        json={
+            "session_id": session_payload["session_id"],
+            "event_id": active_event["event_id"],
+            "choice_key": "pause_and_review",
+        },
+    )
+    assert action_response.status_code == 422

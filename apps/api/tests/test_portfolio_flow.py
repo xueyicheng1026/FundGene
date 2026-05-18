@@ -98,6 +98,14 @@ def test_portfolio_snapshot_persists_report_history_and_coach_context(
     assert dashboard_response.status_code == 200
     dashboard_payload = dashboard_response.json()
     assert dashboard_payload["portfolio_status"]["has_report"] is True
+    assert dashboard_payload["daily_brief"]["source_coverage"]["portfolio"] is True
+    assert any(
+        evidence["source_type"] == "portfolio"
+        for evidence in dashboard_payload["daily_brief"]["evidence"]
+    )
+    assert len(dashboard_payload["daily_brief"]["evidence"]) <= 3
+    assert "买入" not in str(dashboard_payload["daily_brief"])
+    assert "卖出" not in str(dashboard_payload["daily_brief"])
     assert any(
         card["label"] == "组合体检" and card["value"] == "已有报告"
         for card in dashboard_payload["summary_cards"]
@@ -112,7 +120,8 @@ def test_portfolio_snapshot_persists_report_history_and_coach_context(
     assert coach_response.status_code == 200
     coach_payload = coach_response.json()
     assert coach_payload["messages"][1]["advisor_response"]["intent"] == "portfolio"
-    assert "最近一份组合报告显示" in coach_payload["messages"][1]["advisor_response"]["answer"]
+    assert "直接回答：" in coach_payload["messages"][1]["advisor_response"]["answer"]
+    assert "当前已有最近组合报告" in coach_payload["messages"][1]["advisor_response"]["answer"]
 
     with session_factory() as session:
         assert session.scalar(select(func.count()).select_from(PortfolioSnapshot)) == 1

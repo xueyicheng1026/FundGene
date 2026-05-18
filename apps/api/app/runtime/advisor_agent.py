@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 
+from app.runtime.follow_up_prompts import build_user_follow_up_prompts
+from app.runtime.action_targets import build_recommended_action_targets
 from app.runtime.toolchains import (
     BehaviorToolchain,
     LearningToolchain,
@@ -72,7 +74,9 @@ class AdvisorAgentRuntime:
                 },
             )
         except Exception as exc:  # pragma: no cover - defensive fallback
-            response = self._build_fallback_response(message=message, user_context=user_context)
+            response = self._build_fallback_response(
+                message=message, user_context=user_context
+            )
             return AdvisorRunResult(
                 response=response,
                 intent=intent,
@@ -87,14 +91,17 @@ class AdvisorAgentRuntime:
             )
 
     def _build_response(self, *, intent: str, tool_result: dict) -> AdvisorResponse:
+        recommended_actions = tool_result["recommended_actions"]
         return AdvisorResponse(
             answer=tool_result["answer"],
             intent=intent,
             citations=tool_result["citations"],
-            risk_notice=(
-                "FundGene 提供的是学习与决策支持，不是收益承诺或交易执行指令。"
+            risk_notice="这次回答用于帮你理解风险和整理下一步，不代表收益承诺，也不会替你买卖或下单。",
+            recommended_actions=recommended_actions,
+            recommended_action_targets=build_recommended_action_targets(
+                intent=intent,
+                actions=recommended_actions,
             ),
-            recommended_actions=tool_result["recommended_actions"],
             follow_up_questions=tool_result["follow_up_questions"],
         )
 
@@ -108,21 +115,23 @@ class AdvisorAgentRuntime:
         if user_context is not None:
             prefix = f"{user_context.display_name}，先别急着下结论。"
 
+        recommended_actions = [
+            "先回到 dashboard，确认当前风险等级和下一步动作。",
+            "把你的问题换成一个更具体的场景，再继续提问。",
+        ]
         return AdvisorResponse(
             answer=(
                 f"{prefix} 这个问题建议先拆成“基金在解释什么风险”“这个风险和你的承受能力是否匹配”两步来看。"
             ).strip(),
             intent="learning",
             citations=["fallback_coach_v1"],
-            risk_notice="FundGene 提供的是学习与决策支持，不是收益承诺或交易执行指令。",
-            recommended_actions=[
-                "先回到 dashboard，确认当前风险等级和下一步动作。",
-                "把你的问题换成一个更具体的场景，再继续提问。",
-            ],
-            follow_up_questions=[
-                "你想先理解风险等级，还是先理解回撤？",
-                "你希望我用一个更具体的基金例子来解释吗？",
-            ],
+            risk_notice="这次回答用于帮你理解风险和整理下一步，不代表收益承诺，也不会替你买卖或下单。",
+            recommended_actions=recommended_actions,
+            recommended_action_targets=build_recommended_action_targets(
+                intent="learning",
+                actions=recommended_actions,
+            ),
+            follow_up_questions=build_user_follow_up_prompts("learning", message),
         )
 
     def _serialize_user_context(

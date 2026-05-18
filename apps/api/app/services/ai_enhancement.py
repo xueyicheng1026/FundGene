@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import get_settings
 from app.runtime.model_factory import (
+    ModelRuntimeInfo,
+    get_model_runtime_info,
     model_credentials_available,
     run_structured_model,
 )
@@ -102,6 +104,7 @@ T = TypeVar("T", bound=BaseModel)
 class EnhancementResult:
     status: str
     fallback_reason: str | None = None
+    model_info: ModelRuntimeInfo | None = None
 
 
 @dataclass(slots=True)
@@ -123,10 +126,13 @@ def enhance_news_analysis_payload(
     item_context: dict[str, Any],
     rule_payload: dict[str, Any],
 ) -> NewsEnhancementResult:
+    settings = get_settings()
+    model_info = get_model_runtime_info(settings.advisor_model, settings=settings)
     if not _model_enhancement_enabled():
         return NewsEnhancementResult(
             status="skipped",
             fallback_reason="model_not_configured_or_disabled",
+            model_info=model_info,
             payload=rule_payload,
         )
 
@@ -145,7 +151,7 @@ def enhance_news_analysis_payload(
         ensure_ascii=False,
     )
     try:
-        enhanced = _run_model_enhancement(
+        model_result = _run_model_enhancement(
             output_type=NewsAnalysisEnhancement,
             prompt=prompt,
             instructions=(
@@ -154,10 +160,15 @@ def enhance_news_analysis_payload(
                 "trading instructions, return promises, or automation capability."
             ),
         )
+        if isinstance(model_result, tuple):
+            enhanced, model_info = model_result
+        else:
+            enhanced = model_result
     except Exception as exc:
         return NewsEnhancementResult(
             status="fallback",
             fallback_reason=exc.__class__.__name__,
+            model_info=model_info,
             payload=rule_payload,
         )
 
@@ -185,10 +196,11 @@ def enhance_news_analysis_payload(
         return NewsEnhancementResult(
             status="fallback",
             fallback_reason="unsafe_model_output",
+            model_info=model_info,
             payload=rule_payload,
         )
 
-    return NewsEnhancementResult(status="enhanced", payload=payload)
+    return NewsEnhancementResult(status="enhanced", model_info=model_info, payload=payload)
 
 
 def enhance_portfolio_analysis_text(
@@ -200,10 +212,13 @@ def enhance_portfolio_analysis_text(
     allocation_balance: list[str],
     recommended_next_actions: list[str],
 ) -> PortfolioEnhancementResult:
+    settings = get_settings()
+    model_info = get_model_runtime_info(settings.advisor_model, settings=settings)
     if not _model_enhancement_enabled():
         return PortfolioEnhancementResult(
             status="skipped",
             fallback_reason="model_not_configured_or_disabled",
+            model_info=model_info,
             summary=summary,
             risk_exposure=risk_exposure,
             concentration_flags=concentration_flags,
@@ -233,7 +248,7 @@ def enhance_portfolio_analysis_text(
         ensure_ascii=False,
     )
     try:
-        enhanced = _run_model_enhancement(
+        model_result = _run_model_enhancement(
             output_type=PortfolioAnalysisEnhancement,
             prompt=prompt,
             instructions=(
@@ -242,10 +257,15 @@ def enhance_portfolio_analysis_text(
                 "change weights, promise returns, or give direct buy/sell/clear/full-position instructions."
             ),
         )
+        if isinstance(model_result, tuple):
+            enhanced, model_info = model_result
+        else:
+            enhanced = model_result
     except Exception as exc:
         return PortfolioEnhancementResult(
             status="fallback",
             fallback_reason=exc.__class__.__name__,
+            model_info=model_info,
             summary=summary,
             risk_exposure=risk_exposure,
             concentration_flags=concentration_flags,
@@ -258,6 +278,7 @@ def enhance_portfolio_analysis_text(
         return PortfolioEnhancementResult(
             status="fallback",
             fallback_reason="unsafe_model_output",
+            model_info=model_info,
             summary=summary,
             risk_exposure=risk_exposure,
             concentration_flags=concentration_flags,
@@ -267,6 +288,7 @@ def enhance_portfolio_analysis_text(
 
     return PortfolioEnhancementResult(
         status="enhanced",
+        model_info=model_info,
         summary=enhanced.summary,
         risk_exposure=_use_if_long_enough(
             enhanced.risk_exposure,
@@ -303,11 +325,11 @@ def _run_model_enhancement(
     output_type: type[T],
     prompt: str,
     instructions: str,
-) -> T:
+) -> tuple[T, ModelRuntimeInfo]:
     settings = get_settings()
 
-    async def run() -> T:
-        output, _info = await run_structured_model(
+    async def run() -> tuple[T, ModelRuntimeInfo]:
+        output, info = await run_structured_model(
             configured_model_name=settings.advisor_model,
             output_type=output_type,
             instructions=instructions,
@@ -315,7 +337,7 @@ def _run_model_enhancement(
             timeout_ms=settings.agent_model_timeout_ms,
             settings=settings,
         )
-        return output
+        return output, info
 
     try:
         asyncio.get_running_loop()

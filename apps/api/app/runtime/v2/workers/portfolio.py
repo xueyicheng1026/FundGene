@@ -1,5 +1,6 @@
 from app.runtime.v2.schemas import SkillSelection, ToolResult, WorkerOutput
 from app.runtime.v2.workers.common import (
+    asks_for_list_or_status,
     collect_evidence,
     finding_from_evidence,
     learning_outcome_for,
@@ -28,7 +29,14 @@ class PortfolioWorker:
 
         goal = profile.get("primary_goal")
         summary = report.get("summary")
-        if summary:
+        snapshot_date = report.get("snapshot_date")
+        if asks_for_list_or_status(message):
+            if summary:
+                date_text = f"（快照日期 {snapshot_date}）" if snapshot_date else ""
+                finding = f"直接回答：当前已有最近组合报告{date_text}：{summary}"
+            else:
+                finding = "直接回答：当前还没有可用的组合报告；需要先录入一份持仓快照，系统才能判断集中度、风险桶和配置结构。"
+        elif summary:
             finding = (
                 "组合分析先看集中度、重复风险和整体风险是否匹配目标。"
                 f" 最近一份组合报告显示：{summary}"
@@ -41,7 +49,10 @@ class PortfolioWorker:
         if goal:
             finding += f" 当前解释应围绕“{goal}”这个目标。"
         if risk_lens.get("summary"):
-            finding += f" 运行时风险约束：{risk_lens['summary']}"
+            finding += (
+                " 接下来更适合先看四件事：集中度、资产类型是否分散、"
+                "和目标是否匹配，以及遇到波动时会不会被情绪推着操作。"
+            )
 
         risk_flags = ["组合解释不是交易指令，只能作为风险结构和配置原则的学习支持。"]
         if behavior.get("bias_tags"):

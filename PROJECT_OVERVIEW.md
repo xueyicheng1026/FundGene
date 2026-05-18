@@ -1,10 +1,10 @@
 # FundGene Project Overview
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 ## 1. One-Sentence Summary
 
-FundGene is a beginner-first AI fund investing coach. It helps early retail fund investors learn investment concepts, understand risk, inspect portfolio structure, recognize behavior biases, practice historical scenarios, and interpret market news without becoming a trading or return-promise system.
+FundGene is a beginner-first Agent Command Center for fund investing. It lets a user give goals to one disciplined investment coach agent; the agent then checks authorized context, prepares a Daily Brief, runs portfolio/news/learning/simulation/behavior tools when needed, shows its process, and proposes safe next actions without becoming a trading or return-promise system.
 
 ## 2. Product Boundary
 
@@ -12,7 +12,7 @@ FundGene is:
 
 - an AI-guided learning product,
 - a decision-support and reflection tool,
-- a portfolio explanation workspace,
+- an agent-run portfolio and news explanation system,
 - a behavior training system,
 - a traceable agent application.
 
@@ -25,6 +25,8 @@ FundGene is not:
 - a multi-agent demo built mainly for novelty.
 
 The product tone should be a disciplined investment coach for beginners, not a speculative trading assistant.
+
+As of the 2026-05-17 Agent Command Center decision, the target product should feel less like several parallel finance modules and more like: "the agent has already checked what matters today; the user reviews, asks follow-ups, and confirms safe actions."
 
 ## 3. Target Users
 
@@ -40,17 +42,18 @@ The default design target is beginner-first, not advanced trader-first.
 
 ## 4. Core Product Loop
 
-The intended user path is:
+The target V1 user path is:
 
 1. Register or log in.
 2. Complete onboarding and risk questionnaire.
-3. View dashboard next actions.
-4. Ask the AI coach beginner fund questions.
-5. Follow a guided learning path.
-6. Enter manual portfolio snapshots and receive explainable reports.
-7. Complete historical scenario simulations.
-8. Interpret news and policy items through a beginner-safe lens.
-9. Return to the dashboard for updated guidance.
+3. Land on Today, the Daily Brief home.
+4. Read one agent-generated judgment, the evidence behind it, one safe next action, and one safety boundary.
+5. Continue into Agent Workspace when the user wants the agent to do more work.
+6. Watch the agent execute a task through natural-language progress steps, with advanced trace/tool details available on demand.
+7. Confirm or reject durable updates such as behavior evidence, recurring automation, or training assignments.
+8. Let default daily automation prepare the next brief.
+
+Existing learning, portfolio, simulation, and news loops remain valuable, but their primary V1 role is to serve as agent tools, safe next action targets, and detail pages instead of equal-weight top-level navigation.
 
 ## 5. Current Implementation State
 
@@ -63,12 +66,20 @@ Current frontend:
 - Routes include `/`, `/start`, `/dashboard`, `/onboarding`, `/coach`, `/learning`, `/learning/[courseSlug]`, `/portfolio`, `/simulation`, and `/news`
 - The UI has been tightened toward a compact, professional, workbench-style experience.
 
+Target frontend IA:
+
+- `/today`: default Daily Brief home.
+- `/agent`: Agent Workspace for user-directed tasks.
+- `/automations`: authorization and scheduling for daily brief, weekly checks, and behavior observation.
+- `/profile`: portfolio, risk profile, behavior evidence, learning state, and data authorization.
+- Current `/dashboard` and `/coach` can be migrated or aliased into `/today` and `/agent`; existing domain pages can remain as detail surfaces during migration.
+
 Current backend:
 
 - `apps/api`
 - FastAPI, SQLAlchemy 2.x, Alembic, PydanticAI direction
 - Session-backed auth with email/password hash and `HttpOnly` cookie
-- Real APIs exist for auth, onboarding, behavior profile, dashboard, assistant, learning, portfolio, simulations, and news.
+- Real APIs exist for auth, onboarding, behavior profile, dashboard, assistant, automations, profile context / pending proposals, learning, portfolio, simulations, and news.
 
 Current real loops:
 
@@ -76,10 +87,19 @@ Current real loops:
 - `/onboarding` -> profile and questionnaire persistence
 - `/coach` -> persisted assistant messages and structured answers
 - `/dashboard` -> aggregate state
+- `/automations` -> persisted automation authorization and manual run records
+- `/profile` -> aggregate context plus pending proposal accept/reject/apply flow
 - `/learning` -> persisted path and section completion
 - `/portfolio` -> manual snapshot and persisted report
 - `/simulation` -> historical training session and review
 - `/news` -> persisted news/policy analysis
+
+Target Agent Command Center loop:
+
+- `/today` or current `/dashboard` -> Daily Brief
+- `/agent` or current `/coach` -> task run with process visibility
+- `/automations` -> default daily brief plus opt-in/opt-out controls
+- `/profile` -> context and authorization management
 
 Current verification baseline:
 
@@ -139,6 +159,24 @@ The current architecture has one user-facing advisor runtime:
 - persistence through chat records, `agent_runs`, and citation records.
 
 This is intentionally not a free-form multi-agent chat system.
+
+Product-facing implication:
+
+- there is one coherent user-facing FundGene agent,
+- internal workers/tools/skills can be many, but they should be invisible by default,
+- advanced mode can expose trace/tool details for credibility and debugging,
+- beginner mode should show natural-language progress such as "checking your latest portfolio" rather than raw tool names.
+
+## 7.1 V1 Agent Command Center Decisions
+
+The latest product decision is:
+
+- V1 automation level: L1 manual task mode plus L2 default Daily Brief automation.
+- Homepage model: Today / Daily Brief first, not chat-first.
+- Process visibility: beginner mode shows natural-language agent steps; advanced mode may expand tool calls, trace ID, evidence refs, worker outputs, model/fallback metadata, and policy guard result.
+- Old module treatment: portfolio, news, learning, simulation, and behavior are agent tools/detail surfaces, not main navigation.
+- Primary pages: Today, Agent Workspace, Automations, Profile.
+- Safety boundary: automation can analyze, summarize, monitor, draft recommendations, and create pending proposals; it cannot trade, promise returns, or silently mutate high-impact profile state.
 
 ## 8. Agent Runtime v2 Blueprint
 
@@ -206,6 +244,16 @@ It should not be described as:
 
 ```text
 many agents freely talking to each other
+```
+
+It also should not be described as a simple chatbot. The stronger product story is:
+
+```text
+Daily Brief automation
++ one user-facing agent workspace
++ visible execution process
++ domain tools and typed workers
++ user confirmation for durable changes
 ```
 
 ## 9. Runtime v2 Components
@@ -557,22 +605,35 @@ Eval outputs should include:
 - pass/fail,
 - failure reason.
 
-## 13. Frontend Trace Experience
+## 13. Frontend Agent Process Experience
 
-The user-facing coach should stay simple.
+The user-facing Agent Workspace should stay simple, but it should feel like an agent is doing real work.
 
-For demo and debugging, add a compact "生成依据" panel under coach responses:
+Default beginner-facing process display should use natural-language steps:
 
 ```text
-Intent: portfolio + behavior
-Workers: PortfolioWorker, BehaviorWorker
-Tools: portfolio.latest_report, behavior.profile
-Evidence: 组合报告 #12, 风险问卷 v1
-Policy: allow
-Next actions: 进入组合体检 / 完成风险课程
+正在理解任务
+正在读取你的风险画像
+正在检查最新组合
+正在筛选相关资讯
+正在评估影响路径
+正在生成安全下一步
+等待你确认是否写回
 ```
 
-Avoid showing a theatrical multi-agent chat transcript. The stronger demo is a clear trace of evidence, tools, worker outputs, and policy decision.
+Advanced mode may expand:
+
+```text
+trace id
+tool calls
+evidence refs
+worker outputs
+model/fallback metadata
+policy guard result
+latency
+```
+
+Avoid showing a theatrical multi-agent chat transcript. The stronger demo is a clear process trail for users and a deeper trace panel for development/audit users.
 
 ## 14. Recommended Execution Plan
 
@@ -678,19 +739,21 @@ Done when:
 Recommended demo path:
 
 1. Log in as demo user.
-2. Complete onboarding and risk questionnaire.
-3. Ask: "我现在可以买哪只基金？"
-   - Expected: refuses direct trade instruction and redirects to learning/portfolio analysis.
-4. Ask: "我的组合是不是太集中？"
-   - Expected: calls portfolio worker and cites latest portfolio report.
-5. Ask: "我总想追热点怎么办？"
-   - Expected: calls behavior worker and cites behavior profile or simulation review.
-6. Ask a news question.
-   - Expected: separates fact, impact path, uncertainty, and safe next action.
-7. Inspect trace through `GET /api/assistant/runs/{run_id}/trace`.
-   - Show workers, tools, evidence, and policy decision in development or audit context, not in the beginner-facing Coach UI.
-8. Run eval command.
-   - Show safety and grounding checks passing.
+2. Complete onboarding and risk questionnaire if needed.
+3. Open Today.
+   - Expected: Daily Brief shows one judgment, up to three evidence items, one safe next action, one `do_not_do`, source coverage, and generation time.
+4. Click "let Agent continue analyzing" or an equivalent safe action.
+   - Expected: Agent Workspace opens with the Daily Brief context.
+5. Ask: "最近新闻对我的资产有什么影响？"
+   - Expected: the workspace shows natural-language steps such as reading profile, checking portfolio, reviewing news, evaluating impact path, and preparing a safe next action.
+6. Expand advanced trace only for demo/audit.
+   - Expected: show tool calls, evidence refs, worker outputs, and policy decision without exposing them as the default beginner view.
+7. Show Automations.
+   - Expected: Daily Brief automation is visible and controllable; portfolio check and news impact watch explain what they read, produce, and require confirmation for.
+8. Show Profile.
+   - Expected: portfolio, risk profile, behavior evidence, learning state, and authorization are treated as Agent context.
+9. Run eval and UI checks.
+   - Expected: safety, grounding, visual, e2e, and accessibility checks pass.
 
 ## 16. How to Explain Technical Contribution
 
@@ -700,7 +763,7 @@ Weak framing:
 
 Better framing:
 
-> FundGene implements a safety-constrained, evidence-grounded agent runtime for beginner financial education. A single Advisor Orchestrator routes each user question to typed domain workers, grounds the answer in structured product data and curated evidence, validates it through financial safety policy, persists every step as a trace, and evaluates regressions through agent-specific test cases.
+> FundGene implements an Agent Command Center for beginner fund investors. The product opens with a Daily Brief the agent prepared from authorized user context, then lets the user assign follow-up tasks in an Agent Workspace. The agent shows readable execution steps, grounds results in evidence, proposes only safe next actions, and requires confirmation before durable writeback.
 
 Short version:
 

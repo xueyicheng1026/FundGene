@@ -8,7 +8,7 @@ export function BrandMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "gene-mark relative inline-grid place-items-center overflow-hidden rounded-lg border border-white/14 bg-white/10 shadow-lg shadow-black/20",
+        "gene-mark relative inline-grid place-items-center overflow-hidden rounded-lg",
         className,
       )}
       aria-hidden="true"

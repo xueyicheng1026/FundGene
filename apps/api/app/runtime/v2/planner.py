@@ -32,6 +32,8 @@ _INTENT_KEYWORDS: dict[Intent, tuple[str, ...]] = {
         "emotion",
         "panic",
         "chase",
+        "画像",
+        "标签",
         "追涨",
         "偏差",
         "情绪",

@@ -6,11 +6,15 @@ from app.models.chat_session import ChatSession
 from app.models.user import UserProfile
 from app.schemas.dashboard import (
     DashboardCoachActivity,
+    DashboardDailyBrief,
+    DashboardEvidence,
     DashboardLearningStatus,
+    DashboardNewsStatus,
     DashboardPortfolioStatus,
     DashboardResponse,
     DashboardSimulationStatus,
     DashboardSummaryCard,
+    SafeNextAction,
 )
 from app.services.behavior import (
     get_behavior_profile,
@@ -28,6 +32,373 @@ def _truncate(text: str, *, limit: int = 96) -> str:
     if len(normalized) <= limit:
         return normalized
     return f"{normalized[:limit].rstrip()}..."
+
+
+def _safe_action(
+    *,
+    action_id: str,
+    action_type: str,
+    label: str,
+    reason: str,
+    target_route: str,
+    expected_writeback: str,
+    safety_note: str,
+    target_params: dict[str, str] | None = None,
+) -> SafeNextAction:
+    return SafeNextAction(
+        id=action_id,
+        type=action_type,  # type: ignore[arg-type]
+        label=label,
+        reason=reason,
+        target_route=target_route,
+        target_params=target_params or {},
+        expected_writeback=expected_writeback,
+        safety_note=safety_note,
+    )
+
+
+def _base_source_coverage() -> dict[str, bool]:
+    return {
+        "profile": False,
+        "portfolio": False,
+        "news_policy": False,
+        "learning": False,
+        "simulation": False,
+        "behavior": False,
+        "coach_history": False,
+    }
+
+
+def _first_action_by_route(route: str, *, actions: list[SafeNextAction]) -> SafeNextAction:
+    for action in actions:
+        if action.target_route == route:
+            return action
+    return actions[0]
+
+
+def _prioritize_evidence(
+    evidence: list[DashboardEvidence],
+    *,
+    primary_source: str,
+) -> list[DashboardEvidence]:
+    source_order = {
+        primary_source: 0,
+        "portfolio": 1,
+        "news_policy": 2,
+        "profile": 3,
+        "behavior": 4,
+        "learning": 5,
+        "simulation": 6,
+        "coach_history": 7,
+    }
+    return sorted(
+        evidence,
+        key=lambda item: (
+            source_order.get(item.source_type, 99),
+            evidence.index(item),
+        ),
+    )[:3]
+
+
+def build_daily_brief(
+    *,
+    user: UserProfile,
+    risk_level: str | None,
+    bias_tags: list[str],
+    latest_questionnaire,
+    learning_overview: DashboardLearningStatus,
+    portfolio_overview: DashboardPortfolioStatus,
+    simulation_overview: DashboardSimulationStatus,
+    news_overview: DashboardNewsStatus | None,
+    latest_coach_activity: DashboardCoachActivity | None,
+) -> DashboardDailyBrief:
+    coverage = _base_source_coverage()
+    evidence: list[DashboardEvidence] = []
+    actions = [
+        _safe_action(
+            action_id="learn-risk-basics",
+            action_type="learn",
+            label="先补一节风险基础",
+            reason="先把回撤、波动和风险承受说清楚，后续判断会更稳。",
+            target_route="/learning",
+            target_params={"from": "dashboard", "focus": "risk-basics"},
+            expected_writeback="user_course_progress",
+            safety_note="学习动作只帮助理解风险，不代表任何账户操作指令。",
+        ),
+        _safe_action(
+            action_id="inspect-portfolio-concentration",
+            action_type="inspect_portfolio",
+            label="检查组合集中度",
+            reason="组合结构会决定新闻和波动与你的关系，先看风险来源。",
+            target_route="/portfolio",
+            target_params={"from": "dashboard", "focus": "concentration"},
+            expected_writeback="portfolio_snapshots/portfolio_analyses",
+            safety_note="组合体检用于解释风险来源，不输出账户操作指令。",
+        ),
+        _safe_action(
+            action_id="run-drawdown-simulation",
+            action_type="run_simulation",
+            label="做一次回撤纪律训练",
+            reason="历史情境能观察你在波动前的判断顺序，而不是只看结果。",
+            target_route="/simulation",
+            target_params={"from": "dashboard", "focus": "drawdown-discipline"},
+            expected_writeback="simulation_sessions/simulation_reviews",
+            safety_note="情境训练是练习，不是对未来市场的预测。",
+        ),
+        _safe_action(
+            action_id="ask-coach-brief",
+            action_type="ask_coach",
+            label="追问教练当前判断",
+            reason="如果证据还不清楚，先让教练用你的上下文解释。",
+            target_route="/coach",
+            target_params={"from": "dashboard", "focus": "daily-brief"},
+            expected_writeback="chat_messages/agent_runs",
+            safety_note="追问用于理解证据和边界，不会触发账户操作。",
+        ),
+    ]
+
+    if not user.onboarding_completed or latest_questionnaire is None:
+        profile_action = _safe_action(
+            action_id="complete-profile-baseline",
+            action_type="record_behavior",
+            label="先建立画像",
+            reason="没有画像时，教练不能安全判断新闻、组合和行为证据与你的关系。",
+            target_route="/onboarding",
+            target_params={"from": "dashboard", "focus": "profile-baseline"},
+            expected_writeback="user_profiles/risk_questionnaires/behavior_profiles",
+            safety_note="建档只建立解释上下文，不会生成账户操作建议。",
+        )
+        return DashboardDailyBrief(
+            brief_id=f"daily-brief:{user.id}:profile-missing",
+            as_of=user.updated_at,
+            status="missing_profile",
+            priority_level="learning",
+            headline="先建立画像，教练才判断什么与你有关。",
+            beginner_explanation=(
+                "当前缺少风险承受、投资经验和行为问卷。FundGene 不会在缺少这些"
+                "上下文时伪造个性化判断。"
+            ),
+            evidence=[
+                DashboardEvidence(
+                    id="evidence:profile-missing",
+                    source_type="profile",
+                    source_id=user.id,
+                    claim="基础画像和问卷尚未完成。",
+                    beginner_translation="我还不知道你能承受怎样的波动，也不知道解释应从哪里开始。",
+                    support_level="strong",
+                    freshness_label="当前会话",
+                    risk_boundary="不能据此判断你的组合或新闻影响。",
+                )
+            ],
+            primary_action=profile_action,
+            secondary_actions=[],
+            do_not_do="不要把通用资讯或课程内容当成你的个人判断。",
+            source_coverage={**coverage, "profile": False},
+            trace_id=None,
+        )
+
+    coverage["profile"] = True
+    if risk_level is not None:
+        evidence.append(
+            DashboardEvidence(
+                id="evidence:profile-risk",
+                source_type="profile",
+                source_id=user.id,
+                claim=f"风险画像已建立，当前风险等级为 {risk_level}。",
+                beginner_translation="这会影响教练解释波动时的语气、深度和下一步优先级。",
+                support_level="strong",
+                freshness_label="最新问卷",
+                risk_boundary="风险等级不能推出任何账户操作。",
+            )
+        )
+
+    if bias_tags:
+        coverage["behavior"] = True
+        evidence.append(
+            DashboardEvidence(
+                id="evidence:behavior-bias",
+                source_type="behavior",
+                source_id=user.id,
+                claim=f"当前可观察行为焦点包括：{'、'.join(bias_tags[:2])}。",
+                beginner_translation="教练会优先帮你识别容易被波动或热点带偏的判断环节。",
+                support_level="medium",
+                freshness_label="最新行为画像",
+                risk_boundary="单个标签只是训练线索，不是对你的固定定性。",
+            )
+        )
+
+    if portfolio_overview.has_report:
+        coverage["portfolio"] = True
+        evidence.append(
+            DashboardEvidence(
+                id="evidence:portfolio-latest",
+                source_type="portfolio",
+                source_id=portfolio_overview.latest_snapshot_id,
+                claim=_truncate(portfolio_overview.summary or "最近组合报告已生成。"),
+                beginner_translation="组合结构会决定市场信息更容易影响哪类风险和情绪。",
+                support_level="strong",
+                freshness_label=(
+                    f"{portfolio_overview.latest_snapshot_date} 快照"
+                    if portfolio_overview.latest_snapshot_date
+                    else "最近组合快照"
+                ),
+                risk_boundary="组合报告不能推出任何直接账户操作。",
+            )
+        )
+
+    if learning_overview.total_courses > 0:
+        coverage["learning"] = True
+        learning_claim = (
+            f"学习进度为 {learning_overview.overall_progress_percentage}%，"
+            f"推荐继续《{learning_overview.recommended_course_title}》。"
+            if learning_overview.recommended_course_title
+            else f"学习进度为 {learning_overview.overall_progress_percentage}%。"
+        )
+        evidence.append(
+            DashboardEvidence(
+                id="evidence:learning-progress",
+                source_type="learning",
+                source_id=learning_overview.recommended_course_slug,
+                claim=learning_claim,
+                beginner_translation="知识缺口会影响你理解组合波动和新闻影响路径的速度。",
+                support_level="medium",
+                freshness_label="当前学习进度",
+                risk_boundary="课程推荐只是训练顺序，不是投资结论。",
+            )
+        )
+
+    if simulation_overview.completed_sessions_count > 0:
+        coverage["simulation"] = True
+        evidence.append(
+            DashboardEvidence(
+                id="evidence:simulation-latest",
+                source_type="simulation",
+                source_id=simulation_overview.latest_session_id,
+                claim=_truncate(
+                    simulation_overview.latest_review_summary
+                    or "最近一次情境训练已完成。"
+                ),
+                beginner_translation="训练复盘能帮助教练判断你在压力情境下先看什么。",
+                support_level="medium",
+                freshness_label="最近情境复盘",
+                risk_boundary="一次训练不能直接固化为行为标签。",
+            )
+        )
+
+    if news_overview is not None and news_overview.has_analysis:
+        coverage["news_policy"] = True
+        news_summary = news_overview.latest_summary or "原始摘要暂不可用。"
+        news_agent_read = (
+            news_overview.beginner_translation
+            or "先判断它通过什么路径影响组合和行为，再决定是否需要追问。"
+        )
+        evidence.append(
+            DashboardEvidence(
+                id="evidence:news-latest",
+                source_type="news_policy",
+                source_id=news_overview.latest_analysis_id,
+                claim=_truncate(
+                    news_overview.latest_title or "最近新闻/政策解读已生成。"
+                ),
+                beginner_translation=_truncate(
+                    f"新闻概括：{news_summary} Agent 解读：{news_agent_read}",
+                    limit=220,
+                ),
+                support_level="medium",
+                freshness_label="最近新闻/政策分析",
+                risk_boundary="新闻相关性不是账户操作信号。",
+            )
+        )
+
+    if latest_coach_activity is not None:
+        coverage["coach_history"] = True
+        evidence.append(
+            DashboardEvidence(
+                id="evidence:coach-latest",
+                source_type="coach_history",
+                source_id=latest_coach_activity.session_id,
+                claim=_truncate(latest_coach_activity.answer_focus),
+                beginner_translation="最近问答会影响今天先解释哪个概念或风险边界。",
+                support_level="weak",
+                freshness_label="最近 Coach 问答",
+                risk_boundary="一次问答不能替代完整组合和行为证据。",
+            )
+        )
+
+    source_count = sum(1 for covered in coverage.values() if covered)
+    primary_source = "learning"
+
+    if not portfolio_overview.has_report:
+        status = "missing_portfolio"
+        priority = "attention"
+        primary_source = "portfolio"
+        headline = "今天先录入组合快照，再判断波动来自哪里。"
+        explanation = (
+            "画像已经建立，但还缺少组合结构。没有持仓快照时，教练只能给学习"
+            "和训练建议，不能解释新闻或风险与你的真实关系。"
+        )
+        primary_action = _first_action_by_route("/portfolio", actions=actions)
+    elif news_overview is not None and news_overview.has_analysis:
+        status = "ready"
+        priority = "attention"
+        primary_source = "news_policy"
+        headline = "今天先看新闻如何触达你的组合，不急着做账户动作。"
+        explanation = (
+            "已有画像、组合和新闻/政策分析。今天的重点是把新闻影响路径翻译成"
+            "你能理解的风险来源，而不是把单条信息当成操作理由。"
+        )
+        primary_action = _safe_action(
+            action_id="read-news-impact-path",
+            action_type="read_news_context",
+            label="查看新闻影响路径",
+            reason="最近已有新闻/政策分析，先看它和你的组合及行为风险的关系。",
+            target_route="/news",
+            target_params={
+                "from": "dashboard",
+                "focus": "impact-path",
+                "source_id": news_overview.latest_analysis_id or "",
+            },
+            expected_writeback="news_analyses/agent_citations",
+            safety_note="新闻解读用于理解影响路径，不构成账户操作指令。",
+        )
+    elif simulation_overview.completed_sessions_count == 0:
+        status = "starter" if source_count < 3 else "ready"
+        priority = "learning"
+        primary_source = "simulation"
+        headline = "今天先做一次历史情境训练，验证你的判断顺序。"
+        explanation = (
+            "组合和画像已经能提供基本上下文，但行为证据还比较少。先用历史"
+            "情境观察自己面对波动时会先看证据还是先被情绪带走。"
+        )
+        primary_action = _first_action_by_route("/simulation", actions=actions)
+    else:
+        status = "ready"
+        priority = "stable"
+        primary_source = "learning"
+        headline = "今天先巩固一个风险概念，再回看组合和训练证据。"
+        explanation = (
+            "当前已有多类来源，今天不需要追逐更多信息。把一个概念学清楚，"
+            "再用它解释组合和训练记录，会更适合新手形成稳定判断。"
+        )
+        primary_action = _first_action_by_route("/learning", actions=actions)
+
+    secondary_actions = [action for action in actions if action.id != primary_action.id][:2]
+    visible_evidence = _prioritize_evidence(evidence, primary_source=primary_source)
+
+    return DashboardDailyBrief(
+        brief_id=f"daily-brief:{user.id}:{status}",
+        as_of=user.updated_at,
+        status=status,
+        priority_level=priority,
+        headline=headline,
+        beginner_explanation=explanation,
+        evidence=visible_evidence,
+        primary_action=primary_action,
+        secondary_actions=secondary_actions,
+        do_not_do="不要把今日简报理解成直接操作账户的指令；先完成理解、检查或训练。",
+        source_coverage=coverage,  # type: ignore[arg-type]
+        trace_id=None,
+    )
 
 
 def get_latest_coach_activity(
@@ -247,6 +618,17 @@ def build_dashboard_state(db: Session, *, user: UserProfile) -> DashboardRespons
             ),
         ),
     ]
+    daily_brief = build_daily_brief(
+        user=user,
+        risk_level=risk_level,
+        bias_tags=bias_tags,
+        latest_questionnaire=latest_questionnaire,
+        learning_overview=learning_overview,
+        portfolio_overview=portfolio_overview,
+        simulation_overview=simulation_overview,
+        news_overview=news_overview,
+        latest_coach_activity=latest_coach_activity,
+    )
 
     return DashboardResponse(
         user_id=user.id,
@@ -256,6 +638,7 @@ def build_dashboard_state(db: Session, *, user: UserProfile) -> DashboardRespons
         latest_risk_score=(
             latest_questionnaire.risk_score if latest_questionnaire else None
         ),
+        daily_brief=daily_brief,
         next_actions=next_actions,
         summary_cards=summary_cards,
         learning_status=learning_overview,

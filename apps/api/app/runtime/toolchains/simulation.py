@@ -1,4 +1,5 @@
 from app.runtime.toolchains.base import AdvisorUserContext, Toolchain
+from app.runtime.follow_up_prompts import build_user_follow_up_prompts
 
 
 class SimulationToolchain(Toolchain):
@@ -32,8 +33,5 @@ class SimulationToolchain(Toolchain):
                 ),
                 "每完成一步，都把当时的判断理由写下来，便于复盘。",
             ],
-            "follow_up_questions": [
-                "你想先做一个低波动情境吗？",
-                "要不要在演练后评估你的风险纪律？",
-            ],
+            "follow_up_questions": build_user_follow_up_prompts("simulation", message),
         }

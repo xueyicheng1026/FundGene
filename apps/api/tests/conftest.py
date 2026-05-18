@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 os.environ["FUNDGENE_AGENT_MODE"] = "deterministic"
+os.environ["FUNDGENE_AUTOMATION_WORKER_ENABLED"] = "false"
 os.environ.pop("FUNDGENE_DEEPSEEK_API_KEY", None)
 os.environ.pop("DEEPSEEK_API_KEY", None)
 

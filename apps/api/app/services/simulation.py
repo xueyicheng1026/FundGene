@@ -15,6 +15,7 @@ from app.models.user import UserProfile
 from app.schemas.dashboard import DashboardSimulationStatus
 from app.schemas.simulation import (
     ActiveScenarioEvent,
+    BehaviorEvidenceCandidate,
     ScenarioCatalogResponse,
     ScenarioChoice,
     ScenarioSummary,
@@ -361,6 +362,36 @@ def _serialize_review(
 ) -> SimulationReviewResponse:
     scenario = db.get(Scenario, session.scenario_id)
     actions = _list_session_actions(db, session_id=session.id)
+    recommended_count = sum(1 for action in actions if action.is_recommended)
+    all_recommended = bool(actions) and recommended_count == len(actions)
+    strengths = list(review.bias_observations) if all_recommended else []
+    improvement_areas = [] if all_recommended else list(review.bias_observations)
+    reflection_questions = (
+        [
+            "这次哪一个检查动作最能帮你稳住情绪？",
+            "下次遇到类似波动或热点刺激时，你准备先对自己说哪一句提醒？",
+        ]
+        if all_recommended
+        else [
+            "这次哪个节点最容易让你被情绪或热点牵着走？",
+            "下次行动前，你需要先检查哪一条计划边界？",
+        ]
+    )
+    behavior_candidates = _build_behavior_evidence_candidates(
+        db,
+        session=session,
+        actions=actions,
+        scenario=scenario,
+    )
+    pending_state_proposal = (
+        {
+            "status": "pending",
+            "target_type": "behavior_profile",
+            "reason": "单次情境训练只能作为行为证据候选，需要后续训练或用户确认后再更新画像。",
+        }
+        if behavior_candidates
+        else None
+    )
     return SimulationReviewResponse(
         session_id=session.id,
         scenario_slug=scenario.slug if scenario else "unknown-scenario",
@@ -368,11 +399,57 @@ def _serialize_review(
         bias_focus=scenario.bias_focus if scenario else "general_discipline",
         decision_summary=review.decision_summary,
         bias_observations=list(review.bias_observations),
+        strengths=strengths,
+        improvement_areas=improvement_areas,
         coach_feedback=review.coach_feedback,
         recommended_next_actions=list(review.recommended_next_actions),
+        reflection_questions=reflection_questions,
+        behavior_evidence_candidates=behavior_candidates,
+        pending_state_proposal=pending_state_proposal,
         generated_at=review.generated_at,
         actions=[_serialize_action(action) for action in actions],
     )
+
+
+def _build_behavior_evidence_candidates(
+    db: Session,
+    *,
+    session: SimulationSession,
+    actions: list[SimulationAction],
+    scenario: Scenario | None,
+) -> list[BehaviorEvidenceCandidate]:
+    candidates: list[BehaviorEvidenceCandidate] = []
+    seen: set[str] = set()
+    scenario_title = scenario.title if scenario else "Unknown scenario"
+
+    for action in actions:
+        event = db.get(ScenarioEvent, action.event_id)
+        if event is None:
+            continue
+        choice = _choice_payload(event, choice_key=action.choice_key)
+        for raw_signal in choice.get("signals", []):
+            signal = str(raw_signal)
+            if signal not in BEHAVIOR_FOCUS_COPY and signal != "reflection_gap":
+                continue
+            if signal in seen:
+                continue
+            seen.add(signal)
+            candidates.append(
+                BehaviorEvidenceCandidate(
+                    behavior_evidence_id=(
+                        f"behavior-evidence:{session.id}:{action.event_id}:{signal}"
+                    ),
+                    bias_type=signal,
+                    observed_signal=(
+                        f"在“{event.title}”节点选择了“{action.choice_label}”。"
+                    ),
+                    source_event=f"{scenario_title} / step {event.step_index}",
+                    confidence="medium" if signal != "reflection_gap" else "low",
+                    pending_state_proposal_id=None,
+                )
+            )
+
+    return candidates[:3]
 
 
 def _serialize_session(
@@ -398,6 +475,7 @@ def _serialize_session(
         status="completed" if session.status == "completed" else "in_progress",
         current_step=session.current_step,
         total_steps=len(events),
+        started_at=session.started_at,
         active_event=_serialize_active_event(active_event),
         actions=[_serialize_action(action) for action in actions],
         completed_at=session.completed_at,
@@ -417,45 +495,6 @@ def _choice_payload(event: ScenarioEvent, *, choice_key: str) -> dict:
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="Submitted simulation choice does not exist for this event.",
     )
-
-
-def _apply_review_to_behavior_profile(
-    db: Session,
-    *,
-    user_id: str,
-    scenario_title: str,
-    risky_signals: list[str],
-    recommended_count: int,
-    total_steps: int,
-) -> None:
-    behavior_profile = db.scalar(
-        select(BehaviorProfile).where(BehaviorProfile.user_id == user_id)
-    )
-    if behavior_profile is None:
-        return
-
-    updated_tags = list(behavior_profile.bias_tags)
-    updated_evidence = list(behavior_profile.evidence)
-
-    if risky_signals:
-        for signal in risky_signals:
-            if signal not in updated_tags:
-                updated_tags.append(signal)
-        for signal in sorted(set(risky_signals)):
-            evidence = f"Simulation '{scenario_title}' surfaced {signal} under scenario pressure."
-            if evidence not in updated_evidence:
-                updated_evidence.append(evidence)
-    else:
-        evidence = (
-            f"Simulation '{scenario_title}' showed stable discipline across {recommended_count}/{total_steps} steps."
-        )
-        if evidence not in updated_evidence:
-            updated_evidence.append(evidence)
-
-    behavior_profile.bias_tags = updated_tags
-    behavior_profile.evidence = updated_evidence
-    behavior_profile.updated_at = datetime.now(timezone.utc)
-    db.add(behavior_profile)
 
 
 def _build_review(
@@ -534,16 +573,22 @@ def _build_review(
     )
     db.add(review)
 
-    _apply_review_to_behavior_profile(
-        db,
-        user_id=session.user_id,
-        scenario_title=scenario.title if scenario else "Unknown scenario",
-        risky_signals=[signal for signal in risky_signals if signal != "reflection_gap"],
-        recommended_count=recommended_count,
-        total_steps=total_steps,
-    )
-
     return review
+
+
+def _compose_action_reflection(payload: SimulationActionSubmitRequest) -> str | None:
+    if payload.rationale is None and payload.reflection is None:
+        return None
+
+    parts: list[str] = []
+    rationale = payload.rationale or payload.reflection
+    if rationale:
+        parts.append(f"判断理由：{rationale}")
+    if payload.worry:
+        parts.append(f"担心点：{payload.worry}")
+    if payload.impulse_control_plan:
+        parts.append(f"冲动控制计划：{payload.impulse_control_plan}")
+    return "\n".join(parts) if parts else None
 
 
 def behavior_focus_guidance(bias_tag: str | None) -> dict | None:
@@ -762,7 +807,7 @@ def submit_action(
         step_index=event.step_index,
         choice_key=str(choice["key"]),
         choice_label=str(choice["label"]),
-        reflection=payload.reflection,
+        reflection=_compose_action_reflection(payload),
         is_recommended=str(choice["key"]) == event.recommended_choice_key,
         created_at=datetime.now(timezone.utc),
     )

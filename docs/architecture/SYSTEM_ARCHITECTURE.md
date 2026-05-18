@@ -1,7 +1,7 @@
 # FundGene 系统架构基线
 
-更新日期：2026-04-29
-状态：技术与职责边界基线。主干实现根已恢复，onboarding / coach / learning / portfolio / simulation / news 的最小真实闭环已落地；Agent Runtime v2 deterministic spine 和首个 20-case eval harness 已进入主干；下一阶段架构重点是 selective RAG、citation faithfulness、观测、部署硬化与最新 live PostgreSQL migration 验证。
+更新日期：2026-05-17
+状态：技术与职责边界基线。主干实现根已恢复，onboarding / coach / learning / portfolio / simulation / news 的最小真实闭环已落地；Agent Runtime v2 deterministic spine 和首个 20-case eval harness 已进入主干。下一阶段架构重点已经转向 Agent Command Center：Today/Daily Brief、Agent Workspace Run、L2 自动任务、Profile Authorization、模块能力工具化，以及分层 trace 展示。
 
 ## 1. 设计原则
 
@@ -10,6 +10,7 @@
 - schema-first 与 traceability-first
 - migration-first 与 contract-first
 - 前端以产品工作流和解释呈现为中心
+- Agent Command Center 优先于模块导航：用户看到一个 agent 帮他完成综合判断，portfolio/news/learning/simulation 是工具与详情页
 
 ## 2. 当前仓库现实
 
@@ -18,6 +19,7 @@
 - `apps/web` 已恢复为真实前端主应用根，并已通过 lint/build/E2E/a11y 验证
 - `apps/web` 已落地 `/start`、`/onboarding`、`/dashboard`、`/coach`、`/learning`、`/portfolio`、`/simulation`、`/news` 的真实工作流主路径
 - `/coach`、`/learning`、`/portfolio`、`/simulation`、`/news` 都已经从壳页推进到真实工作区，并能把结果回流 dashboard 或 advisor context
+- 目标 IA 已变更为 `/today`、`/agent`、`/automations`、`/profile`；当前 `/dashboard` 是 `/today` 的迁移前身，当前 `/coach` 是 `/agent` 的迁移前身，旧模块页应降级为工具详情页
 - `apps/api` 已恢复为真实后端主应用根，并已通过测试、HTTP 健康检查、Alembic 离线迁移验证；live PostgreSQL migration 曾验证到 `20260402_0005`
 - `apps/api` 已落地 auth、assistant、onboarding、behavior、dashboard、learning、portfolio、simulation、news 的最小真实接口
 - `data/dev/fundgene.db` 可作为历史 schema 对照
@@ -50,8 +52,8 @@
 当前阶段策略：
 
 - 先在 `apps/web` 内聚实现，不急于抽 `packages/ui`
-- 先把 tokens、共享 shell 和工作区骨架做好，再接真实数据与交互
-- 当前已经接上的真实工作流是 `/start` -> onboarding -> questionnaire -> coach -> learning -> portfolio -> simulation -> news -> dashboard，并让各工作区输出都绑定到当前登录用户
+- 先把 Agent Command Center IA、共享 shell 和四个主页面骨架做好，再逐步迁移旧模块入口
+- 当前已经接上的真实工作流仍是重要能力资产，但不再代表未来导航：`/start`、onboarding、questionnaire、coach、learning、portfolio、simulation、news、dashboard 都应被收编到 Today / Agent / Automations / Profile 的主路径下
 - 不沿用 legacy UI、路由结构和 Ant Design 体系
 
 ## 4. 后端方案
@@ -84,6 +86,14 @@
 
 产品默认使用单入口 advisor agent。
 
+新产品架构层：
+
+- `TodayBriefService`：生成或读取 Daily Brief，服务 `/today` 与默认 L2 自动化。
+- `AgentWorkspaceRunService`：把用户任务组织成 Agent Workspace run，返回自然语言步骤、结果、CommandAction、pending confirmation 和高级 trace 链接。
+- `AutomationService`：管理 Daily Brief、组合巡检、资讯观察、行为偏差观察的授权、频率、运行记录和安全边界。
+- `ProfileAuthorizationService`：管理用户画像、组合、行为证据、学习状态和 pending writeback confirmation。
+- Domain detail services：portfolio、news、learning、simulation、behavior 继续存在，但主要服务 agent tools、evidence drilldown 和 action targets。
+
 当前基线：
 
 - `AdvisorAgent`
@@ -105,6 +115,17 @@
 - `risk_notice`
 - `recommended_actions`
 - `follow_up_questions`
+
+Agent Command Center 需要新增或统一的产品对象：
+
+- `DailyBrief`
+- `CommandAction`
+- `AgentWorkspaceRun`
+- `AgentWorkspaceStep`
+- `AutomationRule`
+- `AutomationRun`
+- `PendingUserConfirmation`
+- `ProfileAuthorization`
 
 运行记录最小字段：
 
@@ -134,6 +155,12 @@ v2 不允许：
 - 模型直接执行任意 SQL
 - 未经 typed gateway 暴露 MCP 或本地资源能力
 
+UI trace 分层：
+
+- 默认用户层展示自然语言步骤，例如“正在读取你的风险画像”“正在筛选相关资讯”。
+- 用户展开层展示证据来源、更新时间、支持强度和安全边界。
+- Dev/Audit 层展示 run id、tool calls、worker outputs、policy status 和 latency。
+
 ## 6. 数据与存储方案
 
 主库目标：
@@ -158,6 +185,7 @@ v2 不允许：
 - 模拟域
 - 资讯域
 - agent 运行域
+- command center 域：daily briefs、agent workspace runs、automation settings/runs、pending confirmations、profile authorizations
 
 ## 7. API 契约策略
 

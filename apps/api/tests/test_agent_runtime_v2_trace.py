@@ -13,6 +13,7 @@ from app.runtime.v2.schemas import (
     AgentPlan,
     EvidenceRef,
     PlannedToolCall,
+    PolicyResult,
     ToolSelectionSignal,
     WorkerOutput,
 )
@@ -250,8 +251,70 @@ def test_assistant_contract_remains_stable(client: TestClient) -> None:
         "citations",
         "risk_notice",
         "recommended_actions",
+        "recommended_action_targets",
         "follow_up_questions",
     }
+    targets = assistant_message["advisor_response"]["recommended_action_targets"]
+    assert targets
+    assert all(target["href"].startswith("/") for target in targets)
+    assert all(target["kind"] == "internal_link" for target in targets)
+
+
+def test_agent_answers_state_and_next_step_questions_directly(
+    client: TestClient,
+) -> None:
+    _onboard(client, email="direct-state@example.com")
+
+    learning_response = client.post(
+        "/api/assistant/messages",
+        json={"message": "我现在的风险等级是什么？"},
+    )
+    assert learning_response.status_code == 200
+    learning_answer = learning_response.json()["messages"][-1]["advisor_response"][
+        "answer"
+    ]
+    assert learning_answer.startswith("直接回答：")
+    assert "风险等级是" in learning_answer
+    assert "学习进度" not in learning_answer.split("。", 1)[0]
+    learning_run_id = learning_response.json()["messages"][-1]["agent_run_id"]
+    learning_trace = client.get(f"/api/assistant/runs/{learning_run_id}/trace")
+    assert learning_trace.status_code == 200
+    assert learning_trace.json()["run"]["policy_status"] == "allow"
+
+    portfolio_response = client.post(
+        "/api/assistant/messages",
+        json={"message": "我现在有没有组合报告？"},
+    )
+    assert portfolio_response.status_code == 200
+    portfolio_answer = portfolio_response.json()["messages"][-1]["advisor_response"][
+        "answer"
+    ]
+    assert portfolio_answer.startswith("直接回答：")
+    assert "还没有可用的组合报告" in portfolio_answer
+
+    behavior_response = client.post(
+        "/api/assistant/messages",
+        json={"message": "我的行为画像现在是什么？"},
+    )
+    assert behavior_response.status_code == 200
+    behavior_answer = behavior_response.json()["messages"][-1]["advisor_response"][
+        "answer"
+    ]
+    assert behavior_answer.startswith("直接回答：")
+    assert "当前行为画像显示" in behavior_answer
+    assert "no_major_bias_detected" not in behavior_answer
+
+    simulation_response = client.post(
+        "/api/assistant/messages",
+        json={"message": "我现在适合做什么情境演练？"},
+    )
+    assert simulation_response.status_code == 200
+    simulation_answer = simulation_response.json()["messages"][-1]["advisor_response"][
+        "answer"
+    ]
+    assert simulation_answer.startswith("直接回答：")
+    assert "推荐从" in simulation_answer
+    assert "no_major_bias_detected" not in simulation_answer
 
 
 def test_agent_runtime_v2_fans_out_cross_domain_plan(client: TestClient) -> None:
@@ -494,7 +557,7 @@ def test_final_response_validation_filters_unsupported_output() -> None:
         citations=["made_up:1", "course_section:lesson-1"],
         risk_notice="FundGene 提供的是学习与决策支持，不是收益承诺、交易执行指令或自动下单系统。",
         recommended_actions=["今天买入这只基金。", "回到 Learning 继续学习回撤。"],
-        follow_up_questions=["你想继续看风险等级吗？"],
+        follow_up_questions=["帮我把风险等级翻译成新手能懂的话。"],
     )
 
     normalized, validation = orchestrator._normalize_and_validate_final_response(
@@ -505,6 +568,41 @@ def test_final_response_validation_filters_unsupported_output() -> None:
 
     assert normalized.citations == ["course_section:lesson-1"]
     assert normalized.recommended_actions == ["回到 Learning 继续学习回撤。"]
+    assert normalized.recommended_action_targets[0].href.startswith("/learning")
+    assert normalized.recommended_action_targets[0].target_params == {
+        "from": "coach",
+        "focus": "risk-basics",
+    }
+    assert normalized.recommended_action_targets[0].safety_note
     assert validation.status == "warn"
     assert validation.unsupported_citations == ["made_up:1"]
     assert validation.removed_unsafe_actions == ["今天买入这只基金。"]
+
+
+def test_deterministic_response_hides_runtime_prompt_markers() -> None:
+    orchestrator = AdvisorOrchestrator(
+        model_name="deepseek:deepseek-v4-pro",
+        agent_mode="deterministic",
+    )
+    worker_output = WorkerOutput(
+        worker_name="PortfolioWorker",
+        intent="portfolio",
+        findings=[
+            "组合分析先看集中度。 运行时风险约束：组合解释按集中度、资产类型分散、目标匹配、行为冲动四个维度展开；只给风险结构和再平衡原则，不给交易指令。",
+            "新闻解读先分清事实。 检索证据提示：长期资金入市政策继续推进 capital_market_policy",
+        ],
+        evidence_refs=[],
+        recommended_actions=["回到 Portfolio 查看组合报告。"],
+    )
+
+    response = orchestrator._compose_deterministic_response(
+        intent="portfolio",
+        worker_output=worker_output,
+        input_policy=PolicyResult(status="allow", reason="test"),
+    )
+
+    assert "组合分析先看集中度" in response.answer
+    assert "新闻解读先分清事实" in response.answer
+    assert "运行时风险约束" not in response.answer
+    assert "检索证据提示" not in response.answer
+    assert "capital_market_policy" not in response.answer

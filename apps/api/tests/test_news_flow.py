@@ -1,8 +1,11 @@
+from datetime import datetime, timezone
+
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.agent_citation import AgentCitation
+from app.models.news_item import NewsItem
 from app.models.news_analysis import NewsAnalysis
 from app.models.policy_item import PolicyItem
 from app.services.news import ingest_feed_document
@@ -114,6 +117,29 @@ def test_news_policy_analysis_updates_dashboard_and_coach_context(
     dashboard_payload = dashboard_response.json()
     assert dashboard_payload["news_status"]["has_analysis"] is True
     assert dashboard_payload["news_status"]["latest_analysis_id"] == analysis_id
+    assert dashboard_payload["news_status"]["latest_title"] == item["title"]
+    assert (
+        dashboard_payload["news_status"]["latest_summary"]
+        == "Policy guidance discusses the interest rate path and uncertainty for markets."
+    )
+    assert "把这条政策先翻译成一句新手能执行的话" not in dashboard_payload[
+        "news_status"
+    ]["beginner_translation"]
+    assert dashboard_payload["daily_brief"]["primary_action"]["target_route"] == "/portfolio"
+    assert dashboard_payload["daily_brief"]["source_coverage"]["news_policy"] is True
+    news_evidence = [
+        evidence
+        for evidence in dashboard_payload["daily_brief"]["evidence"]
+        if evidence["source_type"] == "news_policy"
+    ]
+    assert news_evidence
+    assert news_evidence[0]["claim"] == item["title"]
+    assert "新闻概括：" in news_evidence[0]["beginner_translation"]
+    assert "Agent 解读：" in news_evidence[0]["beginner_translation"]
+    assert any(
+        evidence["source_type"] == "news_policy"
+        for evidence in dashboard_payload["daily_brief"]["evidence"]
+    )
     assert any(
         card["label"] == "新闻政策" and card["value"] == "已有解读"
         for card in dashboard_payload["summary_cards"]
@@ -134,6 +160,55 @@ def test_news_policy_analysis_updates_dashboard_and_coach_context(
         assert session.scalar(select(func.count()).select_from(PolicyItem)) == 1
         assert session.scalar(select(func.count()).select_from(NewsAnalysis)) == 1
         assert session.scalar(select(func.count()).select_from(AgentCitation)) == 1
+
+
+def test_coach_latest_news_question_lists_raw_feed_items(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _complete_onboarding(client, email="latest-news-coach@example.com")
+
+    feed_document = """
+    <feed xmlns="http://www.w3.org/2005/Atom">
+      <title>Policy Feed</title>
+      <entry>
+        <id>tag:example.com,2026:latest-sec-case</id>
+        <title>SEC charges 21 individuals in insider trading case</title>
+        <link href="https://example.com/latest-sec-case" />
+        <updated>2026-05-06T14:00:00Z</updated>
+        <summary>SEC describes an alleged insider trading scheme involving multiple individuals.</summary>
+      </entry>
+      <entry>
+        <id>tag:example.com,2026:retirement-plan-guidance</id>
+        <title>SEC staff issues retirement plan guidance for small businesses</title>
+        <link href="https://example.com/retirement-plan-guidance" />
+        <updated>2026-05-05T12:00:00Z</updated>
+        <summary>Staff guidance discusses pooled employer plans and securities law questions.</summary>
+      </entry>
+    </feed>
+    """
+    with session_factory() as session:
+        ingest_feed_document(
+            session,
+            feed_url="https://example.com/latest-feed.xml",
+            content=feed_document,
+        )
+
+    response = client.post(
+        "/api/assistant/messages",
+        json={"message": "今天有什么新闻？"},
+    )
+    assert response.status_code == 200
+    advisor_response = response.json()["messages"][-1]["advisor_response"]
+
+    assert advisor_response["intent"] == "news"
+    assert "当前已同步资讯中最近几条" in advisor_response["answer"]
+    assert "SEC charges 21 individuals in insider trading case" in advisor_response["answer"]
+    assert (
+        "SEC staff issues retirement plan guidance for small businesses"
+        in advisor_response["answer"]
+    )
+    assert "进入 News" in advisor_response["recommended_actions"][0]
 
 
 def test_manual_news_analysis_is_visible_only_to_current_user(
@@ -166,3 +241,43 @@ def test_manual_news_analysis_is_visible_only_to_current_user(
     assert other_list_response.status_code == 200
     other_item_ids = {item["id"] for item in other_list_response.json()["items"]}
     assert owner_payload["item"]["id"] not in other_item_ids
+
+
+def test_news_list_refreshes_real_feed_sources(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    _complete_onboarding(client, email="refresh-news@example.com")
+
+    async def fake_refresh_news_feeds(
+        db: Session,
+        *,
+        feed_urls: list[str] | None = None,
+        limit_per_feed: int = 20,
+    ) -> list[NewsItem]:
+        item = NewsItem(
+            user_id=None,
+            source_name="Live Feed",
+            source_url="https://example.com/live.xml",
+            external_id="live-1",
+            title="Live market structure update",
+            summary="A real feed item is available for beginner-safe interpretation.",
+            url="https://example.com/live-1",
+            published_at=None,
+            fetched_at=datetime.now(timezone.utc),
+        )
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return [item]
+
+    monkeypatch.setattr(
+        "app.api.routes.news.refresh_news_feeds",
+        fake_refresh_news_feeds,
+    )
+
+    response = client.get("/api/news?refresh=true")
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["title"] == "Live market structure update"

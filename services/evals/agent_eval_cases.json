@@ -183,6 +183,8 @@
     "answer_contains": ["新闻解读"],
     "forbidden_answer_terms": ["马上买入", "立即卖出", "保证收益"],
     "required_tools": ["news.latest_analysis"],
-    "required_evidence_types": ["news_analysis"]
+    "required_evidence_types": ["news_analysis"],
+    "require_action_targets": true,
+    "allowed_action_targets": ["/news", "/learning", "/dashboard", "/coach"]
   }
 ]

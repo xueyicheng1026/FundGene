@@ -59,6 +59,12 @@ def test_coach_message_persists_and_updates_dashboard(
         "/api/assistant/messages",
         json={
             "message": "我刚开始买基金，怎么理解风险等级和回撤？",
+            "context": {
+                "from_route": "/dashboard",
+                "focus": "daily-brief",
+                "daily_brief_id": "daily-brief:test",
+                "source_ids": {"course_slug": "risk-basics"},
+            },
         },
     )
     assert message_response.status_code == 200
@@ -77,12 +83,21 @@ def test_coach_message_persists_and_updates_dashboard(
     assert assistant_message["agent_run_id"] is not None
     assert assistant_message["advisor_response"]["intent"] == "learning"
     assert "回撤" in assistant_message["advisor_response"]["answer"]
+    assert assistant_message["advisor_response"]["recommended_action_targets"]
+    assert assistant_message["advisor_response"]["recommended_action_targets"][0][
+        "href"
+    ].startswith("/")
 
     persisted_conversation_response = client.get("/api/assistant/session")
     assert persisted_conversation_response.status_code == 200
     persisted_payload = persisted_conversation_response.json()
     assert persisted_payload["session"]["id"] == conversation_payload["session"]["id"]
     assert len(persisted_payload["messages"]) == 2
+    persisted_advisor = persisted_payload["messages"][-1]["advisor_response"]
+    assert (
+        persisted_advisor["recommended_action_targets"]
+        == assistant_message["advisor_response"]["recommended_action_targets"]
+    )
 
     dashboard_response = client.get("/api/dashboard")
     assert dashboard_response.status_code == 200
@@ -108,6 +123,11 @@ def test_coach_message_persists_and_updates_dashboard(
         assert agent_run is not None
         assert agent_run.user_id == chat_session.user_id
         assert agent_run.session_id == chat_session.id
+        assert agent_run.input_payload["page_context"]["from_route"] == "/dashboard"
+        assert agent_run.input_payload["page_context"]["focus"] == "daily-brief"
+        assert agent_run.tool_trace["page_context"]["source_ids"] == {
+            "course_slug": "risk-basics"
+        }
         assert agent_run.output_payload["intent"] == "learning"
 
 

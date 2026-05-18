@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     auth_session_secure: bool = False
     auth_session_samesite: str = "lax"
     news_feeds: list[str] = Field(default_factory=lambda: list(DEFAULT_NEWS_FEEDS))
+    automation_worker_enabled: bool = False
+    automation_worker_poll_seconds: int = 60
+    automation_worker_batch_size: int = 20
+    automation_worker_retry_delay_minutes: int = 30
 
     @field_validator("news_feeds", mode="before")
     @classmethod
@@ -83,6 +87,17 @@ class Settings(BaseSettings):
         if normalized not in {"high", "max"}:
             raise ValueError("deepseek_reasoning_effort must be 'high' or 'max'.")
         return normalized
+
+    @field_validator(
+        "automation_worker_poll_seconds",
+        "automation_worker_batch_size",
+        "automation_worker_retry_delay_minutes",
+    )
+    @classmethod
+    def validate_positive_int(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("automation worker numeric settings must be positive.")
+        return value
 
     @property
     def resolved_deepseek_api_key(self) -> str | None:

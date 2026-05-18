@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 SimulationSessionStatus = Literal["in_progress", "completed"]
@@ -52,6 +52,15 @@ class SimulationActionSummary(BaseModel):
     created_at: datetime
 
 
+class BehaviorEvidenceCandidate(BaseModel):
+    behavior_evidence_id: str
+    bias_type: str
+    observed_signal: str
+    source_event: str
+    confidence: Literal["low", "medium", "high"]
+    pending_state_proposal_id: str | None = None
+
+
 class SimulationReviewResponse(BaseModel):
     session_id: str
     scenario_slug: str
@@ -59,8 +68,15 @@ class SimulationReviewResponse(BaseModel):
     bias_focus: str
     decision_summary: str
     bias_observations: list[str]
+    strengths: list[str] = Field(default_factory=list)
+    improvement_areas: list[str] = Field(default_factory=list)
     coach_feedback: str
     recommended_next_actions: list[str]
+    reflection_questions: list[str] = Field(default_factory=list)
+    behavior_evidence_candidates: list[BehaviorEvidenceCandidate] = Field(
+        default_factory=list
+    )
+    pending_state_proposal: dict[str, str] | None = None
     generated_at: datetime
     actions: list[SimulationActionSummary]
 
@@ -73,6 +89,7 @@ class SimulationSessionResponse(BaseModel):
     status: SimulationSessionStatus
     current_step: int
     total_steps: int
+    started_at: datetime
     active_event: ActiveScenarioEvent | None = None
     actions: list[SimulationActionSummary]
     completed_at: datetime | None = None
@@ -95,6 +112,9 @@ class SimulationActionSubmitRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=36)
     event_id: str = Field(min_length=1, max_length=36)
     choice_key: str = Field(min_length=1, max_length=64)
+    rationale: str | None = Field(default=None, max_length=500)
+    worry: str | None = Field(default=None, max_length=500)
+    impulse_control_plan: str | None = Field(default=None, max_length=500)
     reflection: str | None = Field(default=None, max_length=500)
 
     @field_validator("session_id", "event_id", "choice_key")
@@ -105,10 +125,16 @@ class SimulationActionSubmitRequest(BaseModel):
             raise ValueError("Field cannot be empty.")
         return normalized
 
-    @field_validator("reflection")
+    @field_validator("rationale", "worry", "impulse_control_plan", "reflection")
     @classmethod
-    def normalize_reflection(cls, value: str | None) -> str | None:
+    def normalize_optional_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
         normalized = value.strip()
         return normalized or None
+
+    @model_validator(mode="after")
+    def require_rationale_or_reflection(self) -> "SimulationActionSubmitRequest":
+        if self.rationale is None and self.reflection is None:
+            raise ValueError("Simulation action needs a rationale before submission.")
+        return self

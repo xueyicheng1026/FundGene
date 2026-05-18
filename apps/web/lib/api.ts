@@ -1,5 +1,5 @@
 type RequestOptions = {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PATCH";
   body?: unknown;
 };
 
@@ -98,10 +98,68 @@ export type DashboardNewsStatus = {
   latestItemId: string | null;
   latestItemType: string | null;
   latestTitle: string | null;
+  latestSummary: string | null;
   sourceName: string | null;
   beginnerTranslation: string | null;
   recommendedAction: string | null;
   generatedAt: string | null;
+};
+
+export type DashboardEvidenceSource =
+  | "profile"
+  | "portfolio"
+  | "news_policy"
+  | "learning"
+  | "simulation"
+  | "behavior"
+  | "coach_history";
+
+export type DashboardEvidence = {
+  id: string;
+  sourceType: DashboardEvidenceSource;
+  sourceId: string | null;
+  claim: string;
+  beginnerTranslation: string;
+  supportLevel: "strong" | "medium" | "weak";
+  freshnessLabel: string;
+  riskBoundary: string;
+};
+
+export type SafeNextAction = {
+  id: string;
+  type:
+    | "learn"
+    | "inspect_portfolio"
+    | "run_simulation"
+    | "ask_coach"
+    | "record_behavior"
+    | "read_news_context";
+  label: string;
+  reason: string;
+  targetRoute: string;
+  targetParams: Record<string, string>;
+  expectedWriteback: string;
+  safetyNote: string;
+};
+
+export type DashboardDailyBrief = {
+  briefId: string;
+  asOf: string | null;
+  status:
+    | "ready"
+    | "starter"
+    | "missing_profile"
+    | "missing_portfolio"
+    | "fallback";
+  priorityLevel: "urgent" | "attention" | "learning" | "stable";
+  headline: string;
+  beginnerExplanation: string;
+  evidence: DashboardEvidence[];
+  primaryAction: SafeNextAction;
+  secondaryActions: SafeNextAction[];
+  doNotDo: string;
+  sourceCoverage: Record<DashboardEvidenceSource, boolean>;
+  traceId: string | null;
 };
 
 export type DashboardState = {
@@ -110,6 +168,7 @@ export type DashboardState = {
   riskLevel: RiskLevel;
   biasTags: string[];
   latestRiskScore: number | null;
+  dailyBrief: DashboardDailyBrief | null;
   nextActions: string[];
   summaryCards: DashboardSummaryCard[];
   learningStatus: DashboardLearningStatus | null;
@@ -208,7 +267,15 @@ export type AdvisorStructuredResponse = {
   citations: string[];
   riskNotice: string;
   recommendedActions: string[];
+  recommendedActionTargets: AdvisorActionTarget[];
   followUpQuestions: string[];
+};
+
+export type AdvisorActionTarget = {
+  label: string;
+  href: string;
+  intent: string;
+  kind: "internal_link";
 };
 
 export type AssistantSessionSummary = {
@@ -241,6 +308,12 @@ export type AssistantConversationState = {
 export type AssistantMessageInput = {
   message: string;
   sessionId?: string | null;
+  context?: {
+    fromRoute?: string | null;
+    focus?: string | null;
+    sourceIds?: Record<string, string>;
+    dailyBriefId?: string | null;
+  };
 };
 
 export type AgentRunTraceRun = {
@@ -385,6 +458,16 @@ export type SimulationSessionActionChoice = {
   biasSignal: string | null;
 };
 
+export type SimulationActionSummary = {
+  eventId: string;
+  stepIndex: number;
+  choiceKey: string;
+  choiceLabel: string;
+  reflection: string | null;
+  isRecommended: boolean;
+  createdAt: string | null;
+};
+
 export type SimulationSessionEvent = {
   id: string;
   index: number;
@@ -409,6 +492,7 @@ export type SimulationSession = {
   openingBrief: string | null;
   reflectionPrompt: string | null;
   activeEvent: SimulationSessionEvent | null;
+  actions: SimulationActionSummary[];
 };
 
 export type SimulationFeedback = {
@@ -437,6 +521,8 @@ export type SimulationReview = {
   improvementAreas: string[];
   recommendedNextActions: string[];
   reflectionQuestions: string[];
+  behaviorEvidenceCandidates: string[];
+  pendingStateProposal: string | null;
   scoreLabel: string | null;
 };
 
@@ -449,6 +535,8 @@ export type SimulationActionInput = {
   eventId?: string | null;
   actionId: string;
   rationale?: string;
+  worry?: string;
+  impulseControlPlan?: string;
 };
 
 export type NewsItem = {
@@ -481,6 +569,7 @@ export type NewsAnalysisInput = {
 export type NewsAnalysis = {
   id: string | null;
   itemId: string | null;
+  item: NewsItem | null;
   headline: string;
   factSummary: string;
   impactPath: string[];
@@ -489,12 +578,222 @@ export type NewsAnalysis = {
   recommendedActions: string[];
   relatedLearning: string[];
   citations: string[];
+  modelStatus: "enhanced" | "fallback" | "skipped" | "legacy";
+  modelProvider: string | null;
+  modelName: string | null;
+  fallbackReason: string | null;
+  agentProcess: {
+    key: string;
+    label: string;
+    status: "completed" | "warning" | "failed";
+    detail: string;
+  }[];
   generatedAt: string | null;
 };
 
+export type AutomationKey =
+  | "daily_brief"
+  | "weekly_portfolio"
+  | "news_watch"
+  | "behavior_observation";
+
+export type AutomationStatus = "ready" | "disabled" | "needs_profile" | "blocked";
+export type AutomationRunStatus = "queued" | "running" | "succeeded" | "failed";
+
+export type AutomationCadenceOption = {
+  key: string;
+  label: string;
+};
+
+export type AutomationRunSummary = {
+  runId: string;
+  agentRunId: string | null;
+  status: AutomationRunStatus;
+  startedAt: string | null;
+  completedAt: string | null;
+  summary: string | null;
+  outputRef: string | null;
+};
+
+export type AutomationItem = {
+  key: AutomationKey;
+  title: string;
+  summary: string;
+  enabled: boolean;
+  defaultEnabled: boolean;
+  cadenceKey: string;
+  cadenceLabel: string;
+  cadenceOptions: AutomationCadenceOption[];
+  readScope: string[];
+  outputScope: string[];
+  confirmationBoundary: string;
+  safetyBoundary: string;
+  status: AutomationStatus;
+  disabledReason: string | null;
+  lastRun: AutomationRunSummary | null;
+  nextRunAt: string | null;
+  canRunNow: boolean;
+};
+
+export type AutomationQueueItem = {
+  automationKey: AutomationKey;
+  title: string;
+  nextRunAt: string | null;
+  cadenceLabel: string;
+};
+
+export type AutomationDailyBriefSummary = {
+  briefId: string;
+  headline: string;
+  beginnerExplanation: string;
+  asOf: string | null;
+  sourceCoverage: Record<string, boolean>;
+};
+
+export type AutomationNotification = {
+  id: string;
+  automationKey: AutomationKey;
+  title: string;
+  message: string;
+  actionLabel: string | null;
+  actionRoute: string | null;
+  createdAt: string | null;
+  readAt: string | null;
+};
+
+export type AutomationListState = {
+  userId: string;
+  updatedAt: string | null;
+  activeCount: number;
+  totalCount: number;
+  automations: AutomationItem[];
+  nextQueue: AutomationQueueItem[];
+  dailyBriefSummary: AutomationDailyBriefSummary | null;
+  recentNotifications: AutomationNotification[];
+};
+
+export type AutomationUpdateInput = {
+  automationKey: AutomationKey;
+  enabled?: boolean;
+  cadenceKey?: string;
+};
+
+export type AutomationRunResult = {
+  runId: string;
+  agentRunId: string | null;
+  automationKey: AutomationKey;
+  status: AutomationRunStatus;
+  triggerType: "manual" | "scheduled";
+  dueAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  summary: string | null;
+  outputRef: string | null;
+  errorMessage: string | null;
+  createdPendingProposalIds: string[];
+  steps: {
+    key: string;
+    label: string;
+    status: "queued" | "running" | "completed" | "failed";
+    detail: string;
+  }[];
+  outputPayload: JsonObject;
+};
+
+export type ProfileReadinessItem = {
+  key: string;
+  label: string;
+  ready: boolean;
+  lastUpdatedAt: string | null;
+  missingActionRoute: string | null;
+};
+
+export type ProfileContextState = {
+  userId: string;
+  displayName: string | null;
+  contextReadiness: {
+    readyCount: number;
+    totalCount: number;
+    items: ProfileReadinessItem[];
+  };
+  riskProfile: {
+    riskLevel: RiskLevel;
+    latestRiskScore: number | null;
+    updatedAt: string | null;
+  };
+  behaviorProfile: {
+    biasTags: string[];
+    evidence: string[];
+    updatedAt: string | null;
+  };
+  portfolioContext: {
+    hasReport: boolean;
+    latestSnapshotDate: string | null;
+    totalValue: number | null;
+    summary: string | null;
+  };
+  learningContext: {
+    overallProgressPercentage: number;
+    recommendedCourseTitle: string | null;
+  };
+  simulationContext: {
+    latestReviewSummary: string | null;
+    latestCompletedAt: string | null;
+  };
+  automationAuthorizations: {
+    automationKey: string;
+    enabled: boolean;
+    cadenceLabel: string;
+  }[];
+  authorizationScope: {
+    key: string;
+    label: string;
+    readable: boolean;
+  }[];
+  pendingProposalCount: number;
+};
+
+export type ProfilePendingProposal = {
+  id: string;
+  title: string;
+  sourceLabel: string;
+  evidenceSummary: string;
+  writebackLabel: string;
+  targetType: string;
+  targetId: string | null;
+  patchPreview: JsonObject;
+  reason: string;
+  validatorStatus: string;
+  validatorMessage: string | null;
+  status: "pending" | "accepted" | "rejected" | "applied";
+  safetyNote: string;
+  createdAt: string | null;
+  runId: string | null;
+};
+
+export type ProfilePendingProposalsState = {
+  pendingCount: number;
+  resolvedCount: number;
+  proposals: ProfilePendingProposal[];
+};
+
+export type ProfileProposalDecisionInput = {
+  proposalId: string;
+  reason?: string;
+};
+
+export type ProfileProposalDecisionResult = {
+  proposal: ProfilePendingProposal;
+  appliedWriteback: boolean;
+};
+
 function resolveApiBase() {
+  const configuredBase = process.env.NEXT_PUBLIC_FUNDGENE_API_URL;
   const rawBase =
-    process.env.NEXT_PUBLIC_FUNDGENE_API_URL ?? "http://127.0.0.1:8000";
+    configuredBase ??
+    (typeof window !== "undefined" && window.location.hostname === "localhost"
+      ? "http://localhost:8000"
+      : "http://127.0.0.1:8000");
   return rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
 }
 
@@ -504,6 +803,22 @@ function asObject(value: unknown): JsonObject {
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function formatErrorDetail(value: unknown): string | null {
+  const direct = asString(value);
+  if (direct !== null) {
+    return direct;
+  }
+
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((item) => asString(asObject(item).msg))
+      .filter((message): message is string => message !== null);
+    return messages.length > 0 ? messages.join("；") : null;
+  }
+
+  return null;
 }
 
 function asStringLike(value: unknown): string | null {
@@ -634,7 +949,7 @@ async function request(path: string, options: RequestOptions): Promise<unknown> 
 
     try {
       const payload = asObject(await response.json());
-      message = asString(payload.detail) ?? message;
+      message = formatErrorDetail(payload.detail) ?? message;
     } catch {
       const text = await response.text();
       message = text || message;
@@ -858,6 +1173,7 @@ function parseDashboardNewsStatus(input: unknown): DashboardNewsStatus | null {
     hasAnalysis ||
     pickString(source, ["latest_analysis_id", "latestAnalysisId"]) !== null ||
     pickString(source, ["latest_title", "latestTitle"]) !== null ||
+    pickString(source, ["latest_summary", "latestSummary"]) !== null ||
     pickString(source, ["beginner_translation", "beginnerTranslation"]) !== null;
 
   if (!hasAnyField) {
@@ -873,6 +1189,7 @@ function parseDashboardNewsStatus(input: unknown): DashboardNewsStatus | null {
     latestItemId: pickString(source, ["latest_item_id", "latestItemId"]),
     latestItemType: pickString(source, ["latest_item_type", "latestItemType"]),
     latestTitle: pickString(source, ["latest_title", "latestTitle"]),
+    latestSummary: pickString(source, ["latest_summary", "latestSummary"]),
     sourceName: pickString(source, ["source_name", "sourceName"]),
     beginnerTranslation: pickString(source, [
       "beginner_translation",
@@ -886,6 +1203,189 @@ function parseDashboardNewsStatus(input: unknown): DashboardNewsStatus | null {
   };
 }
 
+function asDashboardEvidenceSource(value: unknown): DashboardEvidenceSource | null {
+  if (
+    value === "profile" ||
+    value === "portfolio" ||
+    value === "news_policy" ||
+    value === "learning" ||
+    value === "simulation" ||
+    value === "behavior" ||
+    value === "coach_history"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function asSafeActionType(value: unknown): SafeNextAction["type"] | null {
+  if (
+    value === "learn" ||
+    value === "inspect_portfolio" ||
+    value === "run_simulation" ||
+    value === "ask_coach" ||
+    value === "record_behavior" ||
+    value === "read_news_context"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function parseTargetParams(input: unknown): Record<string, string> {
+  const source = asObject(input);
+  return Object.fromEntries(
+    Object.entries(source).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+}
+
+function parseDashboardEvidence(input: unknown): DashboardEvidence | null {
+  const source = asObject(input);
+  const id = asString(source.id);
+  const sourceType = asDashboardEvidenceSource(source.source_type ?? source.sourceType);
+  const claim = asString(source.claim);
+  const beginnerTranslation = pickString(source, [
+    "beginner_translation",
+    "beginnerTranslation",
+  ]);
+  const supportLevel = asString(source.support_level ?? source.supportLevel);
+  const freshnessLabel = pickString(source, ["freshness_label", "freshnessLabel"]);
+  const riskBoundary = pickString(source, ["risk_boundary", "riskBoundary"]);
+
+  if (
+    !id ||
+    !sourceType ||
+    !claim ||
+    !beginnerTranslation ||
+    !freshnessLabel ||
+    !riskBoundary ||
+    (supportLevel !== "strong" && supportLevel !== "medium" && supportLevel !== "weak")
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    sourceType,
+    sourceId: pickString(source, ["source_id", "sourceId"]),
+    claim,
+    beginnerTranslation,
+    supportLevel,
+    freshnessLabel,
+    riskBoundary,
+  };
+}
+
+function parseSafeNextAction(input: unknown): SafeNextAction | null {
+  const source = asObject(input);
+  const id = asString(source.id);
+  const type = asSafeActionType(source.type);
+  const label = asString(source.label);
+  const reason = asString(source.reason);
+  const targetRoute = pickString(source, ["target_route", "targetRoute"]);
+  const expectedWriteback = pickString(source, [
+    "expected_writeback",
+    "expectedWriteback",
+  ]);
+  const safetyNote = pickString(source, ["safety_note", "safetyNote"]);
+
+  if (
+    !id ||
+    !type ||
+    !label ||
+    !reason ||
+    !targetRoute ||
+    !targetRoute.startsWith("/") ||
+    !expectedWriteback ||
+    !safetyNote
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    type,
+    label,
+    reason,
+    targetRoute,
+    targetParams: parseTargetParams(source.target_params ?? source.targetParams),
+    expectedWriteback,
+    safetyNote,
+  };
+}
+
+function parseDashboardDailyBrief(input: unknown): DashboardDailyBrief | null {
+  const source = asObject(input);
+  const briefId = pickString(source, ["brief_id", "briefId"]);
+  const status = asString(source.status);
+  const priorityLevel = pickString(source, ["priority_level", "priorityLevel"]);
+  const headline = asString(source.headline);
+  const beginnerExplanation = pickString(source, [
+    "beginner_explanation",
+    "beginnerExplanation",
+  ]);
+  const primaryAction = parseSafeNextAction(
+    source.primary_action ?? source.primaryAction,
+  );
+  const doNotDo = pickString(source, ["do_not_do", "doNotDo"]);
+
+  if (
+    !briefId ||
+    !headline ||
+    !beginnerExplanation ||
+    !primaryAction ||
+    !doNotDo ||
+    (status !== "ready" &&
+      status !== "starter" &&
+      status !== "missing_profile" &&
+      status !== "missing_portfolio" &&
+      status !== "fallback") ||
+    (priorityLevel !== "urgent" &&
+      priorityLevel !== "attention" &&
+      priorityLevel !== "learning" &&
+      priorityLevel !== "stable")
+  ) {
+    return null;
+  }
+
+  const sourceCoverage = asObject(
+    source.source_coverage ?? source.sourceCoverage,
+  ) as Record<DashboardEvidenceSource, unknown>;
+  const coverageEntries: DashboardEvidenceSource[] = [
+    "profile",
+    "portfolio",
+    "news_policy",
+    "learning",
+    "simulation",
+    "behavior",
+    "coach_history",
+  ];
+
+  return {
+    briefId,
+    asOf: pickString(source, ["as_of", "asOf"]),
+    status,
+    priorityLevel,
+    headline,
+    beginnerExplanation,
+    evidence: pickArray(source, ["evidence"])
+      .map((item) => parseDashboardEvidence(item))
+      .filter((item): item is DashboardEvidence => item !== null)
+      .slice(0, 3),
+    primaryAction,
+    secondaryActions: pickArray(source, ["secondary_actions", "secondaryActions"])
+      .map((item) => parseSafeNextAction(item))
+      .filter((item): item is SafeNextAction => item !== null),
+    doNotDo,
+    sourceCoverage: Object.fromEntries(
+      coverageEntries.map((key) => [key, sourceCoverage[key] === true]),
+    ) as Record<DashboardEvidenceSource, boolean>,
+    traceId: pickString(source, ["trace_id", "traceId"]),
+  };
+}
+
 function parseDashboard(input: unknown): DashboardState {
   const source = asObject(input);
   return {
@@ -894,6 +1394,7 @@ function parseDashboard(input: unknown): DashboardState {
     riskLevel: asRiskLevel(source.risk_level),
     biasTags: asStringArray(source.bias_tags),
     latestRiskScore: asNumber(source.latest_risk_score),
+    dailyBrief: parseDashboardDailyBrief(source.daily_brief ?? source.dailyBrief),
     nextActions: asStringArray(source.next_actions),
     summaryCards: parseDashboardSummaryCards(source.summary_cards),
     learningStatus: parseDashboardLearningStatus(source.learning_status),
@@ -924,8 +1425,33 @@ function parseAdvisorStructuredResponse(
     citations: asStringArray(source.citations),
     riskNotice,
     recommendedActions: asStringArray(source.recommended_actions),
+    recommendedActionTargets: parseAdvisorActionTargets(
+      source.recommended_action_targets ?? source.recommendedActionTargets,
+    ),
     followUpQuestions: asStringArray(source.follow_up_questions),
   };
+}
+
+function parseAdvisorActionTargets(input: unknown): AdvisorActionTarget[] {
+  return pickArray({ items: input }, ["items"])
+    .map((item) => {
+      const source = asObject(item);
+      const label = asString(source.label);
+      const href = asString(source.href);
+      const intent = asString(source.intent);
+      const kind = asString(source.kind);
+      if (
+        !label ||
+        !href ||
+        !intent ||
+        kind !== "internal_link" ||
+        !href.startsWith("/")
+      ) {
+        return null;
+      }
+      return { label, href, intent, kind };
+    })
+    .filter((item): item is AdvisorActionTarget => item !== null);
 }
 
 function parseAssistantSessionSummary(input: unknown): AssistantSessionSummary | null {
@@ -1491,6 +2017,34 @@ function parseSimulationSessionEvent(
   };
 }
 
+function parseSimulationActionSummary(input: unknown): SimulationActionSummary | null {
+  const source = asObject(input);
+  const stepIndex = pickNumber(source, ["step_index", "stepIndex", "index"]) ?? 0;
+  const choiceKey = pickString(source, ["choice_key", "choiceKey", "action_id", "actionId"]);
+  const choiceLabel = pickString(source, [
+    "choice_label",
+    "choiceLabel",
+    "label",
+    "action",
+  ]);
+
+  if (!choiceKey || !choiceLabel) {
+    return null;
+  }
+
+  return {
+    eventId:
+      pickString(source, ["event_id", "eventId"]) ??
+      `event-${stepIndex || "unknown"}`,
+    stepIndex,
+    choiceKey,
+    choiceLabel,
+    reflection: pickString(source, ["reflection", "rationale", "reason"]),
+    isRecommended: asBoolean(source.is_recommended) || asBoolean(source.isRecommended),
+    createdAt: pickString(source, ["created_at", "createdAt"]),
+  };
+}
+
 function parseSimulationSession(input: unknown): SimulationSession | null {
   const source = asObject(input);
   const nestedScenario = pickObject(source, ["scenario"]);
@@ -1503,6 +2057,9 @@ function parseSimulationSession(input: unknown): SimulationSession | null {
   const activeEvent = parseSimulationSessionEvent(
     source.active_event ?? source.current_event ?? source.event,
   );
+  const actions = pickArray(source, ["actions", "submitted_actions", "history"])
+    .map((item) => parseSimulationActionSummary(item))
+    .filter((item): item is SimulationActionSummary => item !== null);
   const completedAt = pickString(source, ["completed_at"]);
   const status =
     pickString(source, ["status", "state"]) ??
@@ -1539,6 +2096,7 @@ function parseSimulationSession(input: unknown): SimulationSession | null {
       activeEvent?.prompt ??
       null,
     activeEvent,
+    actions,
   };
 }
 
@@ -1565,6 +2123,35 @@ function parseSimulationFeedback(input: unknown): SimulationFeedback | null {
   };
 }
 
+function buildSimulationFeedbackFromAction(
+  session: SimulationSession,
+): SimulationFeedback | null {
+  const latestAction = session.actions[session.actions.length - 1];
+
+  if (!latestAction) {
+    return null;
+  }
+
+  const choice = `「${latestAction.choiceLabel}」`;
+  const summary = latestAction.isRecommended
+    ? `已记录本轮动作 ${choice}。这一步和情境训练的纪律目标一致，重点是把“先检查计划”变成可重复动作。`
+    : `已记录本轮动作 ${choice}。这一步值得复盘：先看它是在回应计划，还是在缓解当下情绪。`;
+  const impact = latestAction.reflection
+    ? `你的判断理由：${latestAction.reflection}`
+    : "这次没有写下判断理由。下次建议至少补一句“我为什么现在这样选”，复盘才有抓手。";
+  const nextPrompt =
+    session.status === "completed"
+      ? "动作链已经完成，可以读取最终复盘。"
+      : session.activeEvent?.prompt ?? null;
+
+  return {
+    summary,
+    impact,
+    disciplineSignals: latestAction.isRecommended ? ["no_major_bias_detected"] : [],
+    nextPrompt,
+  };
+}
+
 function parseSimulationActionResult(input: unknown): SimulationActionResult {
   const source = asObject(input);
   const session =
@@ -1576,7 +2163,7 @@ function parseSimulationActionResult(input: unknown): SimulationActionResult {
 
   const feedback = parseSimulationFeedback(
     source.feedback ?? source.decision_feedback ?? source.result,
-  );
+  ) ?? buildSimulationFeedbackFromAction(session);
 
   return {
     session,
@@ -1597,6 +2184,27 @@ function parseSimulationReview(
   const nestedReview = pickObject(source, ["review"]);
   const reviewSource =
     Object.keys(nestedReview).length > 0 ? nestedReview : source;
+  const directStrengths = pickStringArray(reviewSource, [
+    "strengths",
+    "what_went_well",
+    "positive_signals",
+  ]);
+  const directImprovements = pickStringArray(reviewSource, [
+    "improvement_areas",
+    "what_to_improve",
+    "missed_opportunities",
+  ]);
+  const legacyObservations = pickStringArray(reviewSource, [
+    "bias_observations",
+  ]);
+  const looksLikePositiveObservation =
+    directStrengths.length === 0 &&
+    directImprovements.length === 0 &&
+    legacyObservations.some((item) =>
+      item.includes("先做了计划检查") ||
+      item.includes("稳住") ||
+      item.includes("纪律"),
+    );
 
   return {
     sessionId:
@@ -1630,7 +2238,6 @@ function parseSimulationReview(
       "final_disposition",
       "behavior_verdict",
       "training_result",
-      "bias_focus",
     ]),
     biasSignals: (() => {
       const directSignals = pickStringArray(reviewSource, [
@@ -1645,17 +2252,20 @@ function parseSimulationReview(
       const biasFocus = pickString(reviewSource, ["bias_focus"]);
       return biasFocus ? [biasFocus] : [];
     })(),
-    strengths: pickStringArray(reviewSource, [
-      "strengths",
-      "what_went_well",
-      "positive_signals",
-    ]),
-    improvementAreas: pickStringArray(reviewSource, [
-      "improvement_areas",
-      "what_to_improve",
-      "missed_opportunities",
-      "bias_observations",
-    ]),
+    strengths:
+      directStrengths.length > 0
+        ? directStrengths
+        : looksLikePositiveObservation
+          ? legacyObservations
+          : [],
+    improvementAreas:
+      directImprovements.length > 0
+        ? directImprovements
+        : directStrengths.length > 0
+          ? []
+        : looksLikePositiveObservation
+          ? []
+          : legacyObservations,
     recommendedNextActions: pickStringArray(reviewSource, [
       "recommended_next_actions",
       "next_actions",
@@ -1664,6 +2274,27 @@ function parseSimulationReview(
       "reflection_questions",
       "follow_up_questions",
     ]),
+    behaviorEvidenceCandidates: pickArray(reviewSource, [
+      "behavior_evidence_candidates",
+      "behaviorEvidenceCandidates",
+    ])
+      .map((item) => {
+        const candidate = asObject(item);
+        const signal = pickString(candidate, ["observed_signal", "observedSignal"]);
+        const biasType = pickString(candidate, ["bias_type", "biasType"]);
+        if (!signal && !biasType) {
+          return null;
+        }
+        return biasType ? `${biasType}：${signal ?? "行为证据候选"}` : signal;
+      })
+      .filter((item): item is string => item !== null),
+    pendingStateProposal: (() => {
+      const proposal = pickObject(reviewSource, [
+        "pending_state_proposal",
+        "pendingStateProposal",
+      ]);
+      return pickString(proposal, ["reason", "summary", "status"]);
+    })(),
     scoreLabel: pickString(reviewSource, [
       "score_label",
       "discipline_score_label",
@@ -1772,6 +2403,7 @@ function parseNewsAnalysis(input: unknown): NewsAnalysis {
   const nested = pickObject(source, ["analysis", "result"]);
   const analysisSource = Object.keys(nested).length > 0 ? nested : source;
   const itemSource = pickObject(analysisSource, ["item", "news_item", "policy_item"]);
+  const parsedItem = parseNewsItem(itemSource);
   const facts = pickStringArray(analysisSource, ["facts", "fact_list"]);
   const citationStrings = pickStringArray(analysisSource, [
     "citations",
@@ -1814,6 +2446,7 @@ function parseNewsAnalysis(input: unknown): NewsAnalysis {
       pickString(analysisSource, ["item_id", "news_id"]) ??
       pickString(itemSource, ["id", "item_id", "news_id"]) ??
       pickString(source, ["item_id", "news_id"]),
+    item: parsedItem,
     headline,
     factSummary,
     impactPath: pickStringArray(analysisSource, [
@@ -1844,9 +2477,483 @@ function parseNewsAnalysis(input: unknown): NewsAnalysis {
     ]),
     citations:
       citationStrings.length > 0 ? citationStrings : citationObjects,
+    modelStatus: (() => {
+      const value = pickString(analysisSource, ["model_status", "modelStatus"]);
+      if (
+        value === "enhanced" ||
+        value === "fallback" ||
+        value === "skipped" ||
+        value === "legacy"
+      ) {
+        return value;
+      }
+      return "legacy";
+    })(),
+    modelProvider: pickString(analysisSource, ["model_provider", "modelProvider"]),
+    modelName: pickString(analysisSource, ["model_name", "modelName"]),
+    fallbackReason: pickString(analysisSource, ["fallback_reason", "fallbackReason"]),
+    agentProcess: pickArray(analysisSource, ["agent_process", "agentProcess"])
+      .map((item) => {
+        const step = asObject(item);
+        const key = asString(step.key);
+        const label = asString(step.label);
+        const detail = asString(step.detail);
+        const rawStatus = asString(step.status);
+        const status =
+          rawStatus === "completed" ||
+          rawStatus === "warning" ||
+          rawStatus === "failed"
+            ? rawStatus
+            : "warning";
+        return key && label && detail ? { key, label, status, detail } : null;
+      })
+      .filter((item): item is NewsAnalysis["agentProcess"][number] => item !== null),
     generatedAt:
       pickString(analysisSource, ["generated_at", "created_at"]) ??
       pickString(source, ["generated_at", "created_at"]),
+  };
+}
+
+function asAutomationKey(value: unknown): AutomationKey | null {
+  if (
+    value === "daily_brief" ||
+    value === "weekly_portfolio" ||
+    value === "news_watch" ||
+    value === "behavior_observation"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function asAutomationStatus(value: unknown): AutomationStatus {
+  if (
+    value === "ready" ||
+    value === "disabled" ||
+    value === "needs_profile" ||
+    value === "blocked"
+  ) {
+    return value;
+  }
+  return "blocked";
+}
+
+function asAutomationRunStatus(value: unknown): AutomationRunStatus {
+  if (
+    value === "queued" ||
+    value === "running" ||
+    value === "succeeded" ||
+    value === "failed"
+  ) {
+    return value;
+  }
+  return "failed";
+}
+
+function parseAutomationRunSummary(input: unknown): AutomationRunSummary | null {
+  const source = asObject(input);
+  const runId = pickString(source, ["run_id", "runId"]);
+  if (!runId) {
+    return null;
+  }
+  return {
+    runId,
+    agentRunId: pickString(source, ["agent_run_id", "agentRunId"]),
+    status: asAutomationRunStatus(source.status),
+    startedAt: pickString(source, ["started_at", "startedAt"]),
+    completedAt: pickString(source, ["completed_at", "completedAt"]),
+    summary: asString(source.summary),
+    outputRef: pickString(source, ["output_ref", "outputRef"]),
+  };
+}
+
+function parseAutomationItem(input: unknown): AutomationItem | null {
+  const source = asObject(input);
+  const key = asAutomationKey(source.key);
+  const title = asString(source.title);
+  const summary = asString(source.summary);
+  const cadenceKey = pickString(source, ["cadence_key", "cadenceKey"]);
+  const cadenceLabel = pickString(source, ["cadence_label", "cadenceLabel"]);
+  const confirmationBoundary = pickString(source, [
+    "confirmation_boundary",
+    "confirmationBoundary",
+  ]);
+  const safetyBoundary = pickString(source, ["safety_boundary", "safetyBoundary"]);
+
+  if (
+    !key ||
+    !title ||
+    !summary ||
+    !cadenceKey ||
+    !cadenceLabel ||
+    !confirmationBoundary ||
+    !safetyBoundary
+  ) {
+    return null;
+  }
+
+  return {
+    key,
+    title,
+    summary,
+    enabled: asBoolean(source.enabled),
+    defaultEnabled: asBoolean(source.default_enabled ?? source.defaultEnabled),
+    cadenceKey,
+    cadenceLabel,
+    cadenceOptions: pickArray(source, ["cadence_options", "cadenceOptions"])
+      .map((item) => {
+        const option = asObject(item);
+        const optionKey = asString(option.key);
+        const label = asString(option.label);
+        return optionKey && label ? { key: optionKey, label } : null;
+      })
+      .filter((item): item is AutomationCadenceOption => item !== null),
+    readScope: pickStringArray(source, ["read_scope", "readScope"]),
+    outputScope: pickStringArray(source, ["output_scope", "outputScope"]),
+    confirmationBoundary,
+    safetyBoundary,
+    status: asAutomationStatus(source.status),
+    disabledReason: pickString(source, ["disabled_reason", "disabledReason"]),
+    lastRun: parseAutomationRunSummary(source.last_run ?? source.lastRun),
+    nextRunAt: pickString(source, ["next_run_at", "nextRunAt"]),
+    canRunNow: asBoolean(source.can_run_now ?? source.canRunNow),
+  };
+}
+
+function parseAutomationNotification(input: unknown): AutomationNotification | null {
+  const source = asObject(input);
+  const id = asString(source.id);
+  const automationKey = asAutomationKey(
+    source.automation_key ?? source.automationKey,
+  );
+  const title = asString(source.title);
+  const message = asString(source.message);
+  if (!id || !automationKey || !title || !message) {
+    return null;
+  }
+  return {
+    id,
+    automationKey,
+    title,
+    message,
+    actionLabel: pickString(source, ["action_label", "actionLabel"]),
+    actionRoute: pickString(source, ["action_route", "actionRoute"]),
+    createdAt: pickString(source, ["created_at", "createdAt"]),
+    readAt: pickString(source, ["read_at", "readAt"]),
+  };
+}
+
+function parseAutomationList(input: unknown): AutomationListState {
+  const source = asObject(input);
+  return {
+    userId: pickString(source, ["user_id", "userId"]) ?? "unknown",
+    updatedAt: pickString(source, ["updated_at", "updatedAt"]),
+    activeCount: pickNumber(source, ["active_count", "activeCount"]) ?? 0,
+    totalCount: pickNumber(source, ["total_count", "totalCount"]) ?? 0,
+    automations: pickArray(source, ["automations"])
+      .map((item) => parseAutomationItem(item))
+      .filter((item): item is AutomationItem => item !== null),
+    nextQueue: pickArray(source, ["next_queue", "nextQueue"])
+      .map((item) => {
+        const queueItem = asObject(item);
+        const automationKey = asAutomationKey(
+          queueItem.automation_key ?? queueItem.automationKey,
+        );
+        const title = asString(queueItem.title);
+        const cadenceLabel = pickString(queueItem, [
+          "cadence_label",
+          "cadenceLabel",
+        ]);
+        if (!automationKey || !title || !cadenceLabel) {
+          return null;
+        }
+        return {
+          automationKey,
+          title,
+          nextRunAt: pickString(queueItem, ["next_run_at", "nextRunAt"]),
+          cadenceLabel,
+        };
+      })
+      .filter((item): item is AutomationQueueItem => item !== null),
+    dailyBriefSummary: (() => {
+      const brief = asObject(
+        source.daily_brief_summary ?? source.dailyBriefSummary,
+      );
+      const briefId = pickString(brief, ["brief_id", "briefId"]);
+      const headline = asString(brief.headline);
+      const beginnerExplanation = pickString(brief, [
+        "beginner_explanation",
+        "beginnerExplanation",
+      ]);
+      if (!briefId || !headline || !beginnerExplanation) {
+        return null;
+      }
+      return {
+        briefId,
+        headline,
+        beginnerExplanation,
+        asOf: pickString(brief, ["as_of", "asOf"]),
+        sourceCoverage: Object.fromEntries(
+          Object.entries(asObject(brief.source_coverage ?? brief.sourceCoverage))
+            .filter((entry): entry is [string, boolean] => entry[1] === true || entry[1] === false),
+        ),
+      };
+    })(),
+    recentNotifications: pickArray(source, [
+      "recent_notifications",
+      "recentNotifications",
+    ])
+      .map((item) => parseAutomationNotification(item))
+      .filter((item): item is AutomationNotification => item !== null),
+  };
+}
+
+function parseAutomationRunResult(input: unknown): AutomationRunResult {
+  const source = asObject(input);
+  const runId = pickString(source, ["run_id", "runId"]);
+  const automationKey = asAutomationKey(
+    source.automation_key ?? source.automationKey,
+  );
+  if (!runId || !automationKey) {
+    throw new ApiError(500, "Automation run payload is invalid.");
+  }
+  return {
+    runId,
+    agentRunId: pickString(source, ["agent_run_id", "agentRunId"]),
+    automationKey,
+    status: asAutomationRunStatus(source.status),
+    triggerType:
+      source.trigger_type === "scheduled" || source.triggerType === "scheduled"
+        ? "scheduled"
+        : "manual",
+    dueAt: pickString(source, ["due_at", "dueAt"]),
+    startedAt: pickString(source, ["started_at", "startedAt"]),
+    completedAt: pickString(source, ["completed_at", "completedAt"]),
+    summary: asString(source.summary),
+    outputRef: pickString(source, ["output_ref", "outputRef"]),
+    errorMessage: pickString(source, ["error_message", "errorMessage"]),
+    createdPendingProposalIds: asStringArray(
+      source.created_pending_proposal_ids ?? source.createdPendingProposalIds,
+    ),
+    steps: pickArray(source, ["steps"])
+      .map((item) => {
+        const step = asObject(item);
+        const key = asString(step.key);
+        const label = asString(step.label);
+        const detail = asString(step.detail);
+        const rawStatus = asString(step.status);
+        const status =
+          rawStatus === "queued" ||
+          rawStatus === "running" ||
+          rawStatus === "completed" ||
+          rawStatus === "failed"
+            ? rawStatus
+            : "completed";
+        return key && label && detail ? { key, label, detail, status } : null;
+      })
+      .filter((item): item is AutomationRunResult["steps"][number] => item !== null),
+    outputPayload: asObject(source.output_payload ?? source.outputPayload),
+  };
+}
+
+function parseProfilePendingProposal(input: unknown): ProfilePendingProposal | null {
+  const source = asObject(input);
+  const id = asString(source.id);
+  const title = asString(source.title);
+  const sourceLabel = pickString(source, ["source_label", "sourceLabel"]);
+  const evidenceSummary = pickString(source, [
+    "evidence_summary",
+    "evidenceSummary",
+  ]);
+  const writebackLabel = pickString(source, [
+    "writeback_label",
+    "writebackLabel",
+  ]);
+  const reason = asString(source.reason);
+  const validatorStatus = pickString(source, [
+    "validator_status",
+    "validatorStatus",
+  ]);
+  const safetyNote = pickString(source, ["safety_note", "safetyNote"]);
+  const status = asString(source.status);
+
+  if (
+    !id ||
+    !title ||
+    !sourceLabel ||
+    !evidenceSummary ||
+    !writebackLabel ||
+    !reason ||
+    !validatorStatus ||
+    !safetyNote ||
+    (status !== "pending" &&
+      status !== "accepted" &&
+      status !== "rejected" &&
+      status !== "applied")
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    sourceLabel,
+    evidenceSummary,
+    writebackLabel,
+    targetType: pickString(source, ["target_type", "targetType"]) ?? "unknown",
+    targetId: pickString(source, ["target_id", "targetId"]),
+    patchPreview: asObject(source.patch_preview ?? source.patchPreview),
+    reason,
+    validatorStatus,
+    validatorMessage: pickString(source, [
+      "validator_message",
+      "validatorMessage",
+    ]),
+    status,
+    safetyNote,
+    createdAt: pickString(source, ["created_at", "createdAt"]),
+    runId: pickString(source, ["run_id", "runId"]),
+  };
+}
+
+function parseProfilePendingProposals(
+  input: unknown,
+): ProfilePendingProposalsState {
+  const source = asObject(input);
+  return {
+    pendingCount: pickNumber(source, ["pending_count", "pendingCount"]) ?? 0,
+    resolvedCount: pickNumber(source, ["resolved_count", "resolvedCount"]) ?? 0,
+    proposals: pickArray(source, ["proposals"])
+      .map((item) => parseProfilePendingProposal(item))
+      .filter((item): item is ProfilePendingProposal => item !== null),
+  };
+}
+
+function parseProfileContext(input: unknown): ProfileContextState {
+  const source = asObject(input);
+  const readiness = asObject(
+    source.context_readiness ?? source.contextReadiness,
+  );
+  const risk = asObject(source.risk_profile ?? source.riskProfile);
+  const behavior = asObject(source.behavior_profile ?? source.behaviorProfile);
+  const portfolio = asObject(
+    source.portfolio_context ?? source.portfolioContext,
+  );
+  const learning = asObject(source.learning_context ?? source.learningContext);
+  const simulation = asObject(
+    source.simulation_context ?? source.simulationContext,
+  );
+
+  return {
+    userId: pickString(source, ["user_id", "userId"]) ?? "unknown",
+    displayName: pickString(source, ["display_name", "displayName"]),
+    contextReadiness: {
+      readyCount: pickNumber(readiness, ["ready_count", "readyCount"]) ?? 0,
+      totalCount: pickNumber(readiness, ["total_count", "totalCount"]) ?? 0,
+      items: pickArray(readiness, ["items"])
+        .map((item) => {
+          const readinessItem = asObject(item);
+          const key = asString(readinessItem.key);
+          const label = asString(readinessItem.label);
+          if (!key || !label) {
+            return null;
+          }
+          return {
+            key,
+            label,
+            ready: asBoolean(readinessItem.ready),
+            lastUpdatedAt: pickString(readinessItem, [
+              "last_updated_at",
+              "lastUpdatedAt",
+            ]),
+            missingActionRoute: pickString(readinessItem, [
+              "missing_action_route",
+              "missingActionRoute",
+            ]),
+          };
+        })
+        .filter((item): item is ProfileReadinessItem => item !== null),
+    },
+    riskProfile: {
+      riskLevel: asRiskLevel(risk.risk_level ?? risk.riskLevel),
+      latestRiskScore: pickNumber(risk, ["latest_risk_score", "latestRiskScore"]),
+      updatedAt: pickString(risk, ["updated_at", "updatedAt"]),
+    },
+    behaviorProfile: {
+      biasTags: pickStringArray(behavior, ["bias_tags", "biasTags"]),
+      evidence: asStringArray(behavior.evidence),
+      updatedAt: pickString(behavior, ["updated_at", "updatedAt"]),
+    },
+    portfolioContext: {
+      hasReport: asBoolean(portfolio.has_report ?? portfolio.hasReport),
+      latestSnapshotDate: pickString(portfolio, [
+        "latest_snapshot_date",
+        "latestSnapshotDate",
+      ]),
+      totalValue: asNumber(portfolio.total_value ?? portfolio.totalValue),
+      summary: asString(portfolio.summary),
+    },
+    learningContext: {
+      overallProgressPercentage:
+        pickNumber(learning, [
+          "overall_progress_percentage",
+          "overallProgressPercentage",
+        ]) ?? 0,
+      recommendedCourseTitle: pickString(learning, [
+        "recommended_course_title",
+        "recommendedCourseTitle",
+      ]),
+    },
+    simulationContext: {
+      latestReviewSummary: pickString(simulation, [
+        "latest_review_summary",
+        "latestReviewSummary",
+      ]),
+      latestCompletedAt: pickString(simulation, [
+        "latest_completed_at",
+        "latestCompletedAt",
+      ]),
+    },
+    automationAuthorizations: pickArray(source, [
+      "automation_authorizations",
+      "automationAuthorizations",
+    ])
+      .map((item) => {
+        const authorization = asObject(item);
+        const automationKey = pickString(authorization, [
+          "automation_key",
+          "automationKey",
+        ]);
+        const cadenceLabel = pickString(authorization, [
+          "cadence_label",
+          "cadenceLabel",
+        ]);
+        if (!automationKey || !cadenceLabel) {
+          return null;
+        }
+        return {
+          automationKey,
+          enabled: asBoolean(authorization.enabled),
+          cadenceLabel,
+        };
+      })
+      .filter((item): item is ProfileContextState["automationAuthorizations"][number] => item !== null),
+    authorizationScope: pickArray(source, [
+      "authorization_scope",
+      "authorizationScope",
+    ])
+      .map((item) => {
+        const scope = asObject(item);
+        const key = asString(scope.key);
+        const label = asString(scope.label);
+        if (!key || !label) {
+          return null;
+        }
+        return { key, label, readable: asBoolean(scope.readable) };
+      })
+      .filter((item): item is ProfileContextState["authorizationScope"][number] => item !== null),
+    pendingProposalCount:
+      pickNumber(source, ["pending_proposal_count", "pendingProposalCount"]) ?? 0,
   };
 }
 
@@ -1969,6 +3076,14 @@ export async function sendAssistantMessage(
     body: {
       message: input.message.trim(),
       session_id: input.sessionId ?? undefined,
+      context: input.context
+        ? {
+            from_route: input.context.fromRoute ?? undefined,
+            focus: input.context.focus ?? undefined,
+            source_ids: input.context.sourceIds ?? undefined,
+            daily_brief_id: input.context.dailyBriefId ?? undefined,
+          }
+        : undefined,
     },
   });
 
@@ -2037,6 +3152,18 @@ export async function startSimulationSession(
   return session;
 }
 
+export async function getSimulationSession(
+  sessionId: string,
+): Promise<SimulationSession> {
+  const payload = await request(`/api/simulations/sessions/${sessionId}`, {});
+  const session = parseSimulationSession(payload);
+  if (!session) {
+    throw new ApiError(500, "Simulation session payload is invalid.");
+  }
+
+  return session;
+}
+
 export async function submitSimulationAction(
   input: SimulationActionInput,
 ): Promise<SimulationActionResult> {
@@ -2046,7 +3173,9 @@ export async function submitSimulationAction(
       session_id: input.sessionId,
       event_id: input.eventId ?? undefined,
       choice_key: input.actionId,
-      reflection: input.rationale?.trim() || undefined,
+      rationale: input.rationale?.trim() || undefined,
+      worry: input.worry?.trim() || undefined,
+      impulse_control_plan: input.impulseControlPlan?.trim() || undefined,
     },
   });
 
@@ -2060,8 +3189,11 @@ export async function getSimulationReview(
   return parseSimulationReview(payload, sessionId);
 }
 
-export async function getNewsCatalog(): Promise<NewsCatalogState> {
-  const payload = await request("/api/news?refresh=true", {});
+export async function getNewsCatalog(
+  options: { refresh?: boolean } = { refresh: true },
+): Promise<NewsCatalogState> {
+  const query = options.refresh === false ? "" : "?refresh=true&limit=20";
+  const payload = await request(`/api/news${query}`, {});
   return parseNewsCatalog(payload);
 }
 
@@ -2078,4 +3210,96 @@ export async function analyzeNews(
   });
 
   return parseNewsAnalysis(payload);
+}
+
+export async function getNewsAnalysis(analysisId: string): Promise<NewsAnalysis> {
+  const payload = await request(`/api/news/analyses/${analysisId}`, {});
+  return parseNewsAnalysis(payload);
+}
+
+export async function getAutomationsState(): Promise<AutomationListState> {
+  const payload = await request("/api/automations", {});
+  return parseAutomationList(payload);
+}
+
+export async function updateAutomationSetting(
+  input: AutomationUpdateInput,
+): Promise<AutomationItem> {
+  const payload = await request(`/api/automations/${input.automationKey}`, {
+    method: "PATCH",
+    body: {
+      enabled: input.enabled,
+      cadence_key: input.cadenceKey,
+    },
+  });
+  const item = parseAutomationItem(payload);
+  if (!item) {
+    throw new ApiError(500, "Automation payload is invalid.");
+  }
+  return item;
+}
+
+export async function runAutomationNow(
+  automationKey: AutomationKey,
+): Promise<AutomationRunResult> {
+  const payload = await request(`/api/automations/${automationKey}/run`, {
+    method: "POST",
+  });
+  return parseAutomationRunResult(payload);
+}
+
+export async function getProfileContext(): Promise<ProfileContextState> {
+  const payload = await request("/api/profile/context", {});
+  return parseProfileContext(payload);
+}
+
+export async function getProfilePendingProposals(): Promise<ProfilePendingProposalsState> {
+  const payload = await request("/api/profile/pending-proposals", {});
+  return parseProfilePendingProposals(payload);
+}
+
+export async function acceptProfilePendingProposal(
+  input: ProfileProposalDecisionInput,
+): Promise<ProfileProposalDecisionResult> {
+  const payload = await request(
+    `/api/profile/pending-proposals/${input.proposalId}/accept`,
+    {
+      method: "POST",
+      body: { reason: input.reason },
+    },
+  );
+  const source = asObject(payload);
+  const proposal = parseProfilePendingProposal(source.proposal);
+  if (!proposal) {
+    throw new ApiError(500, "Profile proposal payload is invalid.");
+  }
+  return {
+    proposal,
+    appliedWriteback: asBoolean(
+      source.applied_writeback ?? source.appliedWriteback,
+    ),
+  };
+}
+
+export async function rejectProfilePendingProposal(
+  input: ProfileProposalDecisionInput,
+): Promise<ProfileProposalDecisionResult> {
+  const payload = await request(
+    `/api/profile/pending-proposals/${input.proposalId}/reject`,
+    {
+      method: "POST",
+      body: { reason: input.reason },
+    },
+  );
+  const source = asObject(payload);
+  const proposal = parseProfilePendingProposal(source.proposal);
+  if (!proposal) {
+    throw new ApiError(500, "Profile proposal payload is invalid.");
+  }
+  return {
+    proposal,
+    appliedWriteback: asBoolean(
+      source.applied_writeback ?? source.appliedWriteback,
+    ),
+  };
 }

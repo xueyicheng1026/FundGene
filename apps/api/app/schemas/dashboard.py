@@ -1,8 +1,90 @@
 from datetime import date, datetime
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.behavior import RiskLevel
+
+
+DashboardBriefStatus = Literal[
+    "ready",
+    "starter",
+    "missing_profile",
+    "missing_portfolio",
+    "fallback",
+]
+DashboardBriefPriority = Literal["urgent", "attention", "learning", "stable"]
+DashboardEvidenceSource = Literal[
+    "profile",
+    "portfolio",
+    "news_policy",
+    "learning",
+    "simulation",
+    "behavior",
+    "coach_history",
+]
+DashboardEvidenceSupport = Literal["strong", "medium", "weak"]
+SafeNextActionType = Literal[
+    "learn",
+    "inspect_portfolio",
+    "run_simulation",
+    "ask_coach",
+    "record_behavior",
+    "read_news_context",
+]
+
+
+class DashboardEvidence(BaseModel):
+    id: str
+    source_type: DashboardEvidenceSource
+    source_id: str | None = None
+    claim: str
+    beginner_translation: str
+    support_level: DashboardEvidenceSupport
+    freshness_label: str
+    risk_boundary: str
+
+
+class SafeNextAction(BaseModel):
+    id: str
+    type: SafeNextActionType
+    label: str
+    reason: str
+    target_route: str
+    target_params: dict[str, str] = Field(default_factory=dict)
+    expected_writeback: str
+    safety_note: str
+
+    @field_validator("target_route")
+    @classmethod
+    def validate_target_route(cls, value: str) -> str:
+        allowed_routes = {
+            "/dashboard",
+            "/onboarding",
+            "/learning",
+            "/portfolio",
+            "/simulation",
+            "/news",
+            "/coach",
+        }
+        if value not in allowed_routes:
+            raise ValueError("Safe Next Action target route is not allow-listed.")
+        return value
+
+
+class DashboardDailyBrief(BaseModel):
+    brief_id: str
+    as_of: datetime
+    status: DashboardBriefStatus
+    priority_level: DashboardBriefPriority
+    headline: str
+    beginner_explanation: str
+    evidence: list[DashboardEvidence]
+    primary_action: SafeNextAction
+    secondary_actions: list[SafeNextAction] = Field(default_factory=list)
+    do_not_do: str
+    source_coverage: dict[DashboardEvidenceSource, bool]
+    trace_id: str | None = None
 
 
 class DashboardSummaryCard(BaseModel):
@@ -54,6 +136,7 @@ class DashboardNewsStatus(BaseModel):
     latest_item_id: str | None = None
     latest_item_type: str | None = None
     latest_title: str | None = None
+    latest_summary: str | None = None
     source_name: str | None = None
     beginner_translation: str | None = None
     recommended_action: str | None = None
@@ -66,6 +149,7 @@ class DashboardResponse(BaseModel):
     risk_level: RiskLevel | None
     bias_tags: list[str]
     latest_risk_score: int | None
+    daily_brief: DashboardDailyBrief
     next_actions: list[str]
     summary_cards: list[DashboardSummaryCard]
     learning_status: DashboardLearningStatus | None = None

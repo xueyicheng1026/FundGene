@@ -1,4 +1,5 @@
 from app.runtime.toolchains.base import AdvisorUserContext, Toolchain
+from app.runtime.follow_up_prompts import build_user_follow_up_prompts
 
 
 class BehaviorToolchain(Toolchain):
@@ -41,8 +42,5 @@ class BehaviorToolchain(Toolchain):
             "answer": answer,
             "citations": ["behavior_bias_v1"],
             "recommended_actions": recommended_actions,
-            "follow_up_questions": [
-                "你想继续拆解追涨心态，还是先看恐慌卖出的触发点？",
-                "要不要我帮你做一个每周一次的行为复盘提纲？",
-            ],
+            "follow_up_questions": build_user_follow_up_prompts("behavior", message),
         }

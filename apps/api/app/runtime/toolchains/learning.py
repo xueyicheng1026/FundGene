@@ -1,4 +1,5 @@
 from app.runtime.toolchains.base import AdvisorUserContext, Toolchain
+from app.runtime.follow_up_prompts import build_user_follow_up_prompts
 
 
 class LearningToolchain(Toolchain):
@@ -43,20 +44,14 @@ class LearningToolchain(Toolchain):
             " 如果你刚开始接触基金，先把风险等级理解成“你能承受多大波动”，而不是收益承诺。"
             f"{learning_hint}"
         )
-        follow_up_questions = [
-            "你想先理解基金风险等级，还是先理解回撤是什么意思？",
-            "要不要我用一个新手能听懂的例子解释定投和一次性买入的差别？",
-        ]
+        follow_up_questions = build_user_follow_up_prompts("learning", message)
 
         if "回撤" in message or "drawdown" in message.lower():
             answer = (
                 "回撤可以理解为“从一段时间高点回落了多少”。它不会直接告诉你基金好坏，"
                 "但能帮助你判断自己能否承受账户短期下跌。"
             )
-            follow_up_questions = [
-                "你想继续看风险等级和回撤之间的关系吗？",
-                "要不要我用一个 100 元跌到 80 元的例子解释回撤感受？",
-            ]
+            follow_up_questions = build_user_follow_up_prompts("learning", "回撤")
 
         return {
             "answer": answer,

@@ -1,7 +1,7 @@
 # FundGene 实施路线图
 
-更新日期：2026-04-29
-状态：执行基线文档。`apps/web` 与 `apps/api` 已恢复，onboarding / coach / dashboard / learning / portfolio / simulation / news 的前几条真实闭环已经落地，Agent Runtime v2 deterministic spine 与首个 20-case eval harness 已进入主干；当前文档描述的是从这些闭环继续进入 selective RAG、citation faithfulness、hardening、observability 与有限扩展的后续顺序。
+更新日期：2026-05-17
+状态：执行基线文档。`apps/web` 与 `apps/api` 已恢复，onboarding / coach / dashboard / learning / portfolio / simulation / news 的真实闭环已经落地，Agent Runtime v2 deterministic spine 与首个 20-case eval harness 已进入主干。当前执行方向已经切换到 Agent Command Center：先重塑 IA 和 agent task loop，再把旧模块收编为工具和详情页。
 
 ## 1. 实施原则
 
@@ -10,6 +10,108 @@
 - 先做最小可发布主干，再扩展行为画像、模拟和资讯。
 - 先锁定 schema、契约和持久化，再扩展模型能力。
 - 前端先把信息层级与工作区做对，不在旧 UI 上修修补补。
+- 新阶段先做 Agent Command Center，不继续按旧模块顺序扩展。
+
+## 1.1 当前优先路线：Agent Command Center
+
+以下路线是后续实现主线。下面旧 Phase 0-6 保留为“已完成能力资产”和历史基线，不再代表未来产品 IA。
+
+### Command Center Phase 0: 文档与契约收口
+
+目标：
+
+- 防止旧模块导航上下文继续污染实现。
+- 统一 `AGENTS.md`、`PROJECT_OVERVIEW.md`、`PRODUCT_BLUEPRINT.md`、UX 和实施计划。
+
+完成标准：
+
+- 后续 agent 能明确知道目标 IA 是 `/today`、`/agent`、`/automations`、`/profile`。
+- 旧 `/dashboard`、`/coach`、`/learning`、`/portfolio`、`/simulation`、`/news` 被描述为迁移前身或详情页，而不是一级导航。
+
+### Command Center Phase 1: Route and Navigation Migration
+
+目标：
+
+- `/dashboard -> /today`
+- `/coach -> /agent`
+- 新增 `/automations`
+- 新增或重塑 `/profile`
+- 旧模块从主导航移除，保留为 Agent action targets。
+
+验证：
+
+```bash
+pnpm lint:web
+pnpm build:web
+pnpm test:web:e2e
+pnpm test:web:a11y
+```
+
+必须做桌面和移动端截图检查。
+
+### Command Center Phase 2: Today / Daily Brief
+
+目标：
+
+- 让 Daily Brief 成为默认 home 对象。
+- 一屏展示一个判断、最多三条证据、一个安全下一步、一个安全边界和生成时间。
+
+实现方向：
+
+- 可先复用现有 `GET /api/dashboard.daily_brief`。
+- 后续可迁移为 `GET /api/today` 或独立 brief endpoint。
+
+### Command Center Phase 3: Agent Workspace Run
+
+目标：
+
+- 把旧 coach chat 改成 task-run 工作台。
+- 默认展示自然语言执行步骤。
+- 高级模式展示 trace/tool/evidence/policy。
+- 关键写回以 confirmation card 处理。
+
+### Command Center Phase 4: L2 Automation MVP
+
+目标：
+
+- 每日简报默认开启但可关闭。
+- 组合巡检、资讯影响观察、行为偏差观察以授权卡片呈现。
+- 先做规则和运行记录，不急于复杂调度系统。
+
+### Command Center Phase 5: Profile Authorization and Pending Writeback
+
+目标：
+
+- `/profile` 管理风险画像、组合、行为证据、学习状态和自动任务授权。
+- 行为画像和高影响状态变化必须 pending confirmation。
+
+### Command Center Phase 6: Module-to-Tool Migration
+
+目标：
+
+- 保留 portfolio/news/learning/simulation 的现有业务能力。
+- 它们作为 Agent action 目标、证据详情、自动任务结果和 profile drilldown 存在。
+- 不再作为主导航驱动产品。
+
+### Command Center Phase 7: Screenshot and Regression Review
+
+目标：
+
+- 用浏览器截图和测试防止产品回到模块堆叠。
+
+验证：
+
+```bash
+pnpm lint:web
+pnpm build:web
+pnpm test:web:e2e
+pnpm test:web:a11y
+pnpm test:api
+pnpm test:agent-evals
+pnpm migrate:api:sql
+```
+
+截图至少覆盖 `/today`、`/agent`、`/automations`、`/profile` 的桌面与移动端，以及一次 Agent Workspace task run。
 
 ## 2. Phase 0: 仓库现实收口
 

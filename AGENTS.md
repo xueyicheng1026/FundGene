@@ -1,6 +1,6 @@
 # FundGene Agent Context
 
-Last updated: 2026-05-16
+Last updated: 2026-05-18
 Status: Canonical working context for all future agents
 
 ## 1. Purpose of This Document
@@ -38,9 +38,11 @@ When updating this document:
 
 FundGene is not a general chatbot and not a trading automation system.
 
-FundGene is an AI-guided learning and decision-support product for beginner fund investors. Its role is to help users understand investing basics, recognize behavior biases, interpret portfolio structure, and train decision-making through historical scenarios.
+FundGene is now moving toward an Agent Command Center product model for beginner fund investors. Its role is to let users give goals to a disciplined investment coach agent, then have the agent automatically organize user context, portfolio structure, news/policy signals, behavior evidence, learning gaps, and safe next actions.
 
-The product should feel like a disciplined investment coach for beginners, not like a speculative trading assistant.
+The product should feel like an agent that has already done the first round of thinking for the user: it prepares a daily brief, explains why it matters, shows what it checked, proposes safe actions, and asks for confirmation before durable state changes.
+
+The product must still feel like a disciplined investment coach for beginners, not like a speculative trading assistant, brokerage tool, or autonomous trading system.
 
 ## 4. Product Mission
 
@@ -50,7 +52,8 @@ FundGene exists to help beginner investors:
 - understand risk and portfolio structure,
 - identify behavior and decision-making biases,
 - practice investment decisions in explainable historical scenarios,
-- improve judgment through explanation, reflection, and guided next steps.
+- improve judgment through explanation, reflection, and guided next steps,
+- reduce manual analysis burden by letting an agent summarize what changed, why it matters to the user's context, and what safe action is worth considering next.
 
 ## 5. Target Users
 
@@ -67,21 +70,20 @@ The default user model is beginner-first, not advanced trader-first.
 
 ### 6.1 Core product tracks
 
-Phase 1 FundGene focuses on four core tracks:
+The next FundGene direction is Agent Command Center first. V1 focuses on:
 
-1. AI learning assistant and fund knowledge education
-2. user profiling and behavior bias identification
-3. portfolio analysis and decision support
-4. historical scenario simulation and review
+1. Daily Brief as the default home: the agent automatically summarizes today's most important judgment, evidence, user impact, safe next action, and safety boundary.
+2. Agent Workspace as the primary manual task surface: the user gives a task, the agent plans, calls tools, shows progress, and returns a structured answer.
+3. Automations as authorized background work: daily brief and weekly portfolio/behavior checks can run without the user manually opening each module.
+4. Profile and Authorization Center: portfolio, risk profile, behavior evidence, learning state, and data permissions are managed as agent context.
 
-Supporting product surfaces:
+Existing domain capabilities are not removed, but they are no longer the main information architecture:
 
-- dashboard or home overview,
-- learning center,
-- behavior coaching,
-- portfolio analysis workspace,
-- simulation workspace,
-- news and policy interpretation.
+- portfolio analysis becomes an agent tool and detail surface,
+- news and policy interpretation becomes an agent tool and detail surface,
+- learning becomes an agent-recommended action and detail surface,
+- simulation becomes an agent-triggered training action and detail surface,
+- behavior profile becomes context plus confirmation workflow, not a standalone destination-first module.
 
 ### 6.2 Explicit non-goals
 
@@ -94,6 +96,8 @@ FundGene must not become:
 - a multi-agent demo built mainly for novelty.
 
 Any feature that looks like direct trade execution, guaranteed return language, or aggressive investment advice is outside scope unless this document is explicitly updated first.
+
+Automation is allowed only for analysis, summarization, monitoring, recommendation drafting, trace generation, and pending state proposals. Automation must not place trades, connect to broker execution, promise returns, silently rewrite canonical behavior profile from weak evidence, or present safe next actions as investment orders.
 
 ## 7. Core Product Philosophy
 
@@ -112,6 +116,8 @@ The product should improve the user's judgment over time, not simply produce one
 ### 7.4 Traceability-first
 
 Agent outputs should be structured, inspectable, and tied to evidence, execution steps, and risk notices wherever applicable.
+
+The user-facing product should show a clear natural-language process view by default, similar in spirit to a coding agent showing work progress, while reserving raw tool names, trace IDs, evidence keys, worker outputs, and model metadata for advanced/developer views.
 
 ### 7.5 Product-first, framework-second
 
@@ -134,6 +140,8 @@ The default architecture is:
 
 Do not default to free-form multi-agent conversations.
 
+Implementation agents may use multi-agent development workflows when useful, but the FundGene product itself should expose one coherent user-facing agent. Internal workers, skills, tools, scheduled jobs, and traces are implementation machinery behind that single product agent.
+
 ### 8.2 Schema-first outputs
 
 Business-critical AI outputs should be defined by schemas before prompt expansion. Structured outputs are preferred over free-form text whenever the result affects persistence, rendering, or downstream logic.
@@ -149,6 +157,12 @@ The data model should support durable learning progress, behavior profiles, port
 ### 8.5 Real product loops before advanced orchestration
 
 The project should first complete usable product loops with strong explanation and persistence. Advanced orchestration, complex long-running agent graphs, or human-in-the-loop workflow engines are second-stage concerns.
+
+For the new Agent Command Center direction, the first real loop is:
+
+```text
+authorized context -> Daily Brief -> user asks follow-up or confirms action -> Agent Workspace run -> safe next action or pending proposal -> writeback after confirmation -> next Daily Brief
+```
 
 ## 9. Canonical Technical Stack
 
@@ -172,6 +186,8 @@ Frontend operating rules:
 - Avoid unnecessary framework-specific complexity when simple React and API composition is enough.
 - Build dashboard and workspace flows that are fast, explainable, and easy to extend.
 - Do not inherit the legacy visual direction by default. Frontend should be treated as rebuildable.
+- As of 2026-05-17, the current frontend visual direction is Apple-style polish: light canvas, translucent white materials, blue primary actions, calm depth, precise typography, and restrained financial-workbench density. Preserve beginner-first product meaning and do not turn FundGene into a generic Apple product landing page.
+- As of the later 2026-05-17 Agent Command Center decision, future frontend work should reduce top-level navigation around the target IA: `Today`, `Agent Workspace`, `Automations`, and `Profile`. Existing routes may remain during migration, but should not keep driving the product structure.
 
 ### 9.2 Backend
 
@@ -267,6 +283,7 @@ Important rule:
 
 - `apps/web` now exists as a real Next.js 16 / React 19 / TypeScript / App Router / Tailwind CSS 4 application skeleton.
 - `apps/web` currently provides a shared product shell plus `/`, `/dashboard`, `/onboarding`, `/coach`, `/learning`, `/learning/[courseSlug]`, `/portfolio`, `/simulation`, and `/news` workspace routes.
+- Target V1 information architecture is now `/today`, `/agent`, `/automations`, and `/profile`, with current routes kept or aliased during migration as needed. Until those routes are implemented, treat `/dashboard` as the current Daily Brief surface and `/coach` as the current Agent Workspace precursor.
 - `apps/web` now includes a minimal auth entry route at `/start`; authenticated workspace pages run on a real cookie-backed user session instead of a local header bridge.
 - `apps/web` now includes the first real MVP Spine A workflow: `/start` -> `/onboarding` persists profile and questionnaire state to the backend, `/coach` can submit a real beginner fund question and read persisted structured answers, and `/dashboard` reads the resulting real state instead of mock placeholders.
 - `apps/web` now includes a real learning loop: `/learning` reads the persisted learning path, `/learning/[courseSlug]` reads course detail and section completion state, and section completion writes back to the backend and refreshes dashboard state.
@@ -276,12 +293,28 @@ Important rule:
 - `apps/web` now has a systematic high-end financial workbench visual pass across the shared shell and the main workspace routes. The redesign keeps the beginner-first product boundary, removes generic SaaS/gradient-orb styling, centralizes core UI primitives in `components/ui/primitives.tsx`, and uses the existing ECharts dependency for the portfolio allocation donut.
 - The 2026-05-04 Figma replacement pass implemented the `FundGene` Figma file `FFZJZxEArViu5GYUDx2gr9`, root node `38:2`, across the current frontend. The pass tightened the dark black-green Figma shell and token system, rebuilt `/start` around the Figma account-entry screen, preserved the authenticated workspace behavior, and expanded visual coverage across `/`, `/start`, `/dashboard`, `/onboarding`, `/coach`, `/learning`, `/learning/[courseSlug]`, `/portfolio`, `/simulation`, and `/news`.
 - The 2026-05-04 frontend UX pass moves `/coach` to a conversation-first layout: chat is the primary surface, structured answer details stay inside assistant messages, and internal agent trace/evidence stays out of the user-facing UI. Trace and evidence remain persisted and readable through authorized backend APIs for development and audit, but beginner users should see explanation, risk boundary, next actions, and follow-up prompts rather than tool names, run IDs, or citation keys.
+- The 2026-05-16 frontend remediation pass used `docs/audits/frontend-ux-2026-05-16/frontend-backend-ux-audit.md` as the source checklist: user-facing internal agent/runtime labels were removed or mapped, simulation active-session resume is exposed, news interpretation stays beside the selected item and defaults to a shorter list, portfolio input has field-level validation plus an example snapshot, fake search pills became static path hints, and seed/mock labels such as `FundGene dev fixture`, `POLICY`, and `Beginner Core Path` are mapped before display. The pass is verified by `pnpm lint:web`, `pnpm build:web`, `pnpm test:web:e2e`, and a live screenshot audit covering 20 route screenshots plus 7 interaction screenshots under `docs/audits/frontend-ux-2026-05-16/post-optimization/`.
+- The later 2026-05-16 multi-agent browser-led UX optimization pass made `/learning` and `/learning/[courseSlug]` task-first on mobile, expanded course sections into readable learning/self-check/reflection blocks, improved `/coach` pending-message ergonomics, added `/onboarding` unsaved-change and missing-question feedback, required a short rationale before `/simulation` action submission, aligned `/start` submit copy with onboarding redirects, removed a remaining English `No trading` label, and added browser dark-theme metadata. The pass was checked with real browser interactions on course, coach, onboarding, and simulation paths, and verified by `pnpm lint:web`, `pnpm build:web`, `pnpm test:web:e2e`, `pnpm test:web:a11y`, and `git diff --check -- apps/web`.
+- The later 2026-05-16 portfolio-focused reviewer pass optimized only `/portfolio`: duplicate fund codes, empty date, and empty cash are now caught before API submission; users first review draft total value, cash ratio, holding weights, and concentration before saving a persistent snapshot; success feedback moves attention to the refreshed latest report; report allocation metrics no longer collapse in the desktop right column; clipped ECharts outer labels were removed in favor of the explicit legend/weight rows. The pass added portfolio-specific web e2e coverage for duplicate-code blocking and two-step snapshot saving, and was verified by `pnpm lint:web`, `pnpm build:web`, `pnpm test:web:e2e`, `pnpm test:web:a11y`, visual smoke screenshots, and `git diff --check`.
+- The 2026-05-17 Apple-style frontend pass converted the active web UI away from the dark black-green shell toward a light Apple-inspired material system: global tokens now use a light canvas, translucent white panels, blue primary controls, calmer shadows, lighter typography, and Apple-like chart colors. The pass updated the shared shell, account entry, section headings, metric cards, portfolio allocation palette, and documented the new direction here.
+- The 2026-05-17 Coach action-target pass kept `recommended_actions` as the stable string array but added backend-owned `recommended_action_targets` for allow-listed internal product links. `/coach` now renders assistant “下一步” items as actionable links while preserving user-voiced follow-up prompt chips and keeping internal agent trace details out of the beginner-facing UI.
+- The later 2026-05-17 frontend screenshot optimization pass used `docs/audits/frontend-screenshot-review-2026-05-17/README.md` as the checklist and optimized mobile scanability across `/`, `/start`, `/onboarding`, `/coach`, `/portfolio`, and `/simulation`: questionnaire items collapse to the current question on mobile, portfolio uses mobile jump controls and compact history/holdings, simulation hides desktop-only density and exposes a compact scenario action card, coach separates follow-up prompt chips from navigation links and removes the mobile side rail, and start/overview/dashboard reduce mobile explanatory density. The pass is documented in `docs/audits/frontend-optimization-2026-05-17/README.md` and verified by `pnpm lint:web`, `pnpm build:web`, and a 21-test Playwright run covering workspace, visual-smoke, and accessibility checks.
+- The 2026-05-17 Agentic Beginner Coach pass implemented the first backend-owned Daily Brief contract inside `GET /api/dashboard`: `daily_brief` now carries one headline judgment, up to three displayable evidence items, one Safe Next Action, source coverage, and a `do_not_do` safety boundary. `/dashboard` now uses that object as the first-screen home instead of deriving a generic module action from `next_actions`; `/coach` can receive page context (`from_route`, `focus`, `source_ids`, `daily_brief_id`) and stores it in agent-run input/trace metadata. The pass was verified by `pnpm lint:web`, `pnpm build:web`, `pnpm test:web:e2e`, `pnpm test:web:a11y`, `pnpm test:api`, and `pnpm migrate:api:sql`.
+- The later 2026-05-17 Agentic Beginner Coach continuation tightened the implementation against `docs/product/agentic-beginner-coach-implementation-plan.md` and `docs/product/agentic-beginner-coach-ux-v1.md`: simulation action submission now accepts rationale, worry, and impulse-control plan; simulation reviews return behavior evidence candidates and pending behavior-profile proposal copy instead of directly mutating canonical behavior profile from one session; Coach page context is injected into runtime planning/tool/worker inputs; `recommended_action_targets` now carry SafeNextAction-compatible route params, expected writeback, and safety notes; Daily Brief evidence is prioritized to match the current primary judgment; `/dashboard` mobile now shows judgment -> evidence -> safe action -> safety boundary, and `/portfolio` shows the latest report before the input form when a report exists. This continuation was verified by `pnpm test:api`, `pnpm test:agent-evals`, `pnpm lint:web`, `pnpm build:web`, `pnpm test:web:e2e`, `pnpm test:web:a11y`, `pnpm migrate:api:sql`, and screenshot review of generated Playwright portfolio/dashboard images.
+- The later 2026-05-17 Agent Command Center handoff continuation completed the interrupted `/agent` review from `docs/audits/agent-command-center-handoff-2026-05-17/session-019e356f-handoff.md`: `/today` remained accepted, while `/agent` was reworked so mobile prioritizes the active task surface before support panels, the left rail honestly presents task context/recent prompts rather than pretending to switch fully independent sessions, internal labels such as `Session rail`, `Run status`, `TRACE`, and raw writeback table names are hidden from the default user-facing UI, and final screenshots are recorded under `apps/web/test-results/visual-smoke-today-visual-smoke-chromium/` and `apps/web/test-results/visual-smoke-agent-visual-smoke-chromium/`. The follow-up shell pass then moved the desktop workspace toward a ChatGPT/Codex-like model: a persistent left app rail, a thin main titlebar, a collapsible global sidebar, and `/agent` support-panel toggles in a compact toolbar so the active task surface expands instead of being squeezed by residual side controls. The continuation is summarized in `docs/audits/agent-command-center-handoff-2026-05-17/final-review.md`; the latest shell pass was verified by `pnpm lint:web`, `pnpm build:web`, and `pnpm --filter @fundgene/web test:e2e -- e2e/workspaces.spec.ts --project=chromium`.
+- The later 2026-05-17 Automations/Profile continuation advanced the remaining Agent Command Center top-level surfaces after `/today` and `/agent`: `/automations` now has a client workspace with controllable Daily Brief, weekly portfolio check, news impact watch, and behavior observation cards, each showing cadence, read scope, generated output, confirmation boundary, and safety boundary; `/profile` now has a client context center showing profile readiness, risk/behavior context, latest portfolio context, learning/training state, authorization scope, and pending writeback cards with explicit user decision controls. This is still a frontend migration milestone only: durable `automation_settings`, `automation_runs`, profile-wide pending proposal listing, and accept/reject/apply endpoints are not yet implemented. The continuation is summarized in `docs/audits/agent-command-center-handoff-2026-05-17/automations-profile-review.md` and verified by `pnpm lint:web`, `pnpm build:web`, `FUNDGENE_WEB_PORT=3024 pnpm test:web:a11y`, `FUNDGENE_WEB_PORT=3027 pnpm --filter @fundgene/web test:e2e -- e2e/workspaces.spec.ts --project=chromium`, and `FUNDGENE_WEB_PORT=3028 pnpm --dir apps/web exec playwright test e2e/visual-smoke.spec.ts --project=chromium -g "automations|profile"`.
+- The later 2026-05-17 Automations/Profile backend continuation added the first durable Agent Command Center backend contract: `automation_settings`, `automation_runs`, and `daily_brief_preferences` through Alembic revision `20260517_0010`; `GET /api/automations`, `PATCH /api/automations/{automation_key}`, and `POST /api/automations/{automation_key}/run`; `GET /api/profile/context`, `GET /api/profile/pending-proposals`, `POST /api/profile/pending-proposals/{proposal_id}/accept`, and `POST /api/profile/pending-proposals/{proposal_id}/reject`. Pending writebacks reuse `agent_state_update_proposals` with explicit user-decision fields (`user_decision_status`, `decision_note`, `decided_at`, `applied_at`) and only allow-listed `behavior_profile_note` is applied to behavior evidence after user confirmation. This is still not a background scheduler, and the frontend still needs to consume the new backend contracts instead of local `/automations` and `/profile` state.
+- The later 2026-05-17 Automations/Profile frontend API continuation connected the Command Center frontend to the new backend contracts: `apps/web/lib/api.ts` now includes typed clients for automations, profile context, and pending proposal decisions; `/automations` reads backend-owned automation settings, cadence options, queue state, Daily Brief summary, PATCHes enable/cadence changes, and can POST manual runs; `/profile` reads backend-owned context readiness, authorization scope, automation authorizations, and pending proposals, then uses backend accept/reject endpoints instead of local seed state. The pass is summarized in `docs/audits/agent-command-center-handoff-2026-05-17/frontend-api-connection-review.md` and verified by `pnpm lint:web`, `pnpm build:web`, `pnpm --filter @fundgene/web test:e2e -- e2e/workspaces.spec.ts --project=chromium`, `FUNDGENE_WEB_PORT=3033 pnpm test:web:a11y`, `FUNDGENE_WEB_PORT=3032 pnpm --dir apps/web exec playwright test e2e/visual-smoke.spec.ts --project=chromium -g "automations|profile"`, and `git diff --check` on the touched web files. This still does not add a scheduler/background worker; automation runs remain synchronous backend records.
+- The later 2026-05-17 Automation Scheduler continuation added the first real scheduler/background-worker path: Alembic revision `20260517_0011` adds `automation_notifications` plus scheduled/manual trigger metadata, due time, error message, and `agent_run_id` on `automation_runs`; `run_due_automations` scans enabled due tasks for onboarded users, computes real allow-listed cadence times with timezone handling, persists scheduled runs, creates in-app notifications, and creates pending proposals through the existing user-confirmation path. `daily_brief` generates notification-only output, `weekly_portfolio` and `news_watch` generate internal Safe Next Action proposals, and `behavior_observation` generates only a pending `behavior_profile_note` that cannot mutate behavior evidence until the user accepts it in Profile. The worker can run as `python -m app.scripts.run_automation_worker --once --limit 20` or loop with `--poll-seconds`; FastAPI lifespan startup is available only when `FUNDGENE_AUTOMATION_WORKER_ENABLED=true` and remains disabled by default to avoid test pollution or duplicated API-worker schedules. `/automations` now also renders backend `recent_notifications`. This is summarized in `docs/audits/agent-command-center-handoff-2026-05-17/automation-scheduler-review.md`; remaining production hardening is external deployment topology, richer notification delivery, and stronger multi-worker claim semantics beyond the first `FOR UPDATE SKIP LOCKED` scan.
+- The 2026-05-18 real-news-source continuation connected the news loop to live configured RSS/Atom sources instead of relying on dev fixtures or manual paste only. `refresh_news_feeds` and `refresh_news_feeds_sync` now use a real feed User-Agent, respect system proxy environment, and ingest configured feeds into `news_items` / `policy_items`. `/news` frontend loads `GET /api/news?refresh=true&limit=20` by default and exposes a “同步真实资讯” refresh button. `news_watch` automation now refreshes feeds before creating its scheduled run, notification, and pending Safe Next Action. Local verification fetched real SEC/Fed feed entries through `/api/news?refresh=true&limit=10`, returning SEC Press Releases and Federal Reserve release items.
+- The later 2026-05-18 user-facing Agent copy cleanup made `/agent` stop exposing internal runtime/prompt language in normal conversation. Agent Runtime v2 now sanitizes deterministic and model-composed final answers before persistence/display, `portfolio` and `news` workers avoid user-visible markers such as `运行时风险约束`, `影响路径约束`, and `检索证据提示`, the frontend strips legacy persisted markers including `直接回答：`, and Daily Brief prompt chips no longer inject long raw evidence claims into user prompts. Chrome user-view verification confirmed the existing conversation no longer shows the cited internal markers after refresh and new Agent replies use the softer user-facing risk boundary copy.
+- The later 2026-05-18 beginner-facing UX compression pass responded to real Chrome walkthrough feedback across `/start`, `/onboarding`, `/today`, `/agent`, `/automations`, `/profile`, `/news`, `/portfolio`, and `/simulation`: `/start` now defaults to creating an account and starting onboarding, login failures explain that the account may not exist; `/onboarding` is now an explicit one-question-at-a-time flow; `/today` first screen is compressed to judgment, reason, one safe next action, and safety boundary with audit/source detail folded; `/agent` defaults to a chat-first focus mode with support panels collapsed; internal/developer labels such as `Daily Brief`, `L2`, `Assignment`, `DeepSeek`, `写回`, and raw behavior codes are mapped to beginner-facing copy; `/portfolio` makes the beginner example path more prominent; `/news` avoids English-heavy summaries by default and uses Chinese fact/impact/uncertainty framing; mobile navigation is a bottom four-item bar for top-level surfaces and hidden on onboarding to avoid covering the active question. Next dev indicators are disabled in `apps/web/next.config.ts` after dev-server restart. Verification covered `pnpm lint:web`, `pnpm build:web`, `pnpm --filter @fundgene/web test:e2e -- e2e/workspaces.spec.ts --project=chromium`, and visual smoke screenshots for start/today/agent/onboarding/portfolio/news.
 - `apps/web` now includes a Playwright plus axe QA baseline under `apps/web/e2e` and a GitHub Actions workflow at `.github/workflows/ci.yml`.
 - `.github/workflows/ci.yml` now has separate `web` and `api` jobs. The `api` job uses Python 3.12 plus uv and runs `pnpm sync:api`, `pnpm test:api`, `pnpm test:agent-evals`, and `pnpm migrate:api:sql`.
 - `apps/web` is verified by `pnpm lint:web`, `pnpm build:web`, and the new `pnpm test:web:e2e` entrypoint when Playwright browsers are installed. The 2026-04-29 visual pass was additionally smoke-checked at 1440px, 900px, and 390px widths for horizontal overflow and screenshot review. The 2026-05-04 expanded visual-smoke suite now covers every current product route at desktop and mobile widths, including `/`, `/start`, `/onboarding`, and `/learning/[courseSlug]`.
 - `apps/api` now exists as a real Python 3.12+ / FastAPI / SQLAlchemy / Alembic / PydanticAI application skeleton.
-- `apps/api` currently provides `GET /api/health`, `GET /api/ready`, `GET /api/product`, `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/session`, `GET /api/auth/me`, `POST /api/auth/logout`, `GET /api/assistant/session`, `POST /api/assistant/messages`, `GET /api/assistant/runs/{run_id}/trace`, `POST /api/onboarding/profile`, `GET /api/users/me`, `POST /api/behavior/questionnaires`, `GET /api/behavior/profile`, `GET /api/behavior/training-plan`, `GET /api/dashboard`, `GET /api/learning/path`, `GET /api/learning/courses/{course_slug}`, `POST /api/learning/progress`, `POST /api/portfolio/snapshots`, `GET /api/portfolio/latest`, `GET /api/portfolio/history`, `GET /api/simulations/scenarios`, `POST /api/simulations/sessions`, `GET /api/simulations/sessions/{session_id}`, `POST /api/simulations/actions`, `GET /api/simulations/review/{session_id}`, `GET /api/news`, `GET /api/news/{item_id}`, `POST /api/news/analyze`, and `GET /api/news/analyses/{analysis_id}`, plus a single-entry `AdvisorAgent` runtime with domain toolchains.
-- `apps/api` now has a coherent migration-first auth-plus-onboarding-plus-coach-plus-learning-plus-portfolio-plus-simulation-plus-news-plus-agent-trace baseline; the authoritative current baseline tables are `auth_users`, `auth_sessions`, `user_profiles`, `risk_questionnaires`, `behavior_profiles`, `chat_sessions`, `chat_messages`, `agent_runs`, `agent_steps`, `agent_tool_calls`, `agent_evidence_refs`, `agent_state_update_proposals`, `learning_paths`, `courses`, `course_sections`, `user_course_progress`, `portfolio_snapshots`, `portfolio_holdings`, `portfolio_analyses`, `scenarios`, `scenario_events`, `simulation_sessions`, `simulation_actions`, `simulation_reviews`, `news_items`, `policy_items`, `news_analyses`, and `agent_citations`.
+- `apps/api` currently provides `GET /api/health`, `GET /api/ready`, `GET /api/product`, `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/session`, `GET /api/auth/me`, `POST /api/auth/logout`, `GET /api/assistant/session`, `POST /api/assistant/messages`, `GET /api/assistant/runs/{run_id}/trace`, `POST /api/onboarding/profile`, `GET /api/users/me`, `POST /api/behavior/questionnaires`, `GET /api/behavior/profile`, `GET /api/behavior/training-plan`, `GET /api/dashboard`, `GET /api/automations`, `PATCH /api/automations/{automation_key}`, `POST /api/automations/{automation_key}/run`, `GET /api/profile/context`, `GET /api/profile/pending-proposals`, `POST /api/profile/pending-proposals/{proposal_id}/accept`, `POST /api/profile/pending-proposals/{proposal_id}/reject`, `GET /api/learning/path`, `GET /api/learning/courses/{course_slug}`, `POST /api/learning/progress`, `POST /api/portfolio/snapshots`, `GET /api/portfolio/latest`, `GET /api/portfolio/history`, `GET /api/simulations/scenarios`, `POST /api/simulations/sessions`, `GET /api/simulations/sessions/{session_id}`, `POST /api/simulations/actions`, `GET /api/simulations/review/{session_id}`, `GET /api/news`, `GET /api/news/{item_id}`, `POST /api/news/analyze`, and `GET /api/news/analyses/{analysis_id}`, plus a single-entry `AdvisorAgent` runtime with domain toolchains.
+- `apps/api` now has a coherent migration-first auth-plus-onboarding-plus-coach-plus-learning-plus-portfolio-plus-simulation-plus-news-plus-agent-trace-plus-command-center baseline; the authoritative current baseline tables are `auth_users`, `auth_sessions`, `user_profiles`, `risk_questionnaires`, `behavior_profiles`, `chat_sessions`, `chat_messages`, `agent_runs`, `agent_steps`, `agent_tool_calls`, `agent_evidence_refs`, `agent_state_update_proposals`, `automation_settings`, `automation_runs`, `automation_notifications`, `daily_brief_preferences`, `learning_paths`, `courses`, `course_sections`, `user_course_progress`, `portfolio_snapshots`, `portfolio_holdings`, `portfolio_analyses`, `scenarios`, `scenario_events`, `simulation_sessions`, `simulation_actions`, `simulation_reviews`, `news_items`, `policy_items`, `news_analyses`, and `agent_citations`.
 - `apps/api` now contains the first Agent Runtime v2 deterministic advisor spine through revision `20260429_0009`: advisor runs persist steps, tool calls, evidence refs, state update proposals, policy status, latency, and context snapshots; `GET /api/assistant/runs/{run_id}/trace` exposes authorized trace reads for development and audit workflows, while `/coach` keeps those internals out of the default user interface.
 - The 2026-05-05 runtime hardening pass added `worker_output_v2` structured findings inside Agent Runtime v2 traces. Domain workers still return the same beginner-facing assistant contract, but internal worker output now records each claim with evidence keys, support level, and safety boundary. This borrows the useful schema-first idea from TradingAgents-style systems without importing trader agents, buy/sell actions, stop-loss fields, simulated exchange execution, or multi-agent trading semantics.
 - The 2026-05-16 agent-runtime orchestration pass studied public open-source agent systems including OpenHands SDK, LangGraph, DeepAgents, PydanticAI, AutoGen, CrewAI, and Llama Agents/Workflows, while explicitly avoiding leaked or non-public Claude Code material. The implementation borrowed architecture primitives only: explicit planning, tool constraints, read-only tool registry metadata, multi-worker fan-out/fan-in, worker-output validation, richer trace steps, and additional embedded domain tools. It did not import external frameworks wholesale, add code execution, add uncontrolled MCP access, or change FundGene into a trading/autonomous execution agent.
@@ -340,7 +373,15 @@ Important rule:
 
 ### 13.1 Product positioning
 
-FundGene is a beginner fund investing coach. It should move users from fragmented information and emotional reactions toward explainable understanding, repeatable practice, and disciplined next steps.
+FundGene is a beginner fund investing Agent Command Center.
+
+It should move users from fragmented information and emotional reactions toward a simpler loop:
+
+```text
+Agent has checked today's context -> user sees the brief -> user asks or authorizes work -> agent runs tools -> user confirms safe next actions
+```
+
+The product promise is not "more pages" or "more financial data." The promise is that FundGene's agent does the first round of synthesis for the user and makes the next safe step obvious.
 
 ### 13.2 Core user problems
 
@@ -354,26 +395,33 @@ FundGene is designed to solve:
 
 ### 13.3 Core modules
 
-The product spine is:
+The target V1 product spine is:
 
-- dashboard,
-- AI coach workspace,
-- learning center,
-- behavior profile,
-- portfolio analysis,
-- historical scenario simulation,
-- news and policy interpretation.
+1. Today: the default home and Daily Brief surface.
+2. Agent Workspace: the user-driven task execution surface.
+3. Automations: authorized background tasks such as daily brief, weekly portfolio check, and behavior-bias observation.
+4. Profile: the user's portfolio, risk profile, behavior evidence, learning state, and authorization controls.
+
+Former module pages become agent tools or detail surfaces:
+
+- portfolio: inspect holdings, concentration, and risk detail when the agent asks for it or the user drills in,
+- news: inspect source items and impact paths behind a brief or workspace run,
+- learning: complete a recommended learning action,
+- simulation: complete a recommended historical training assignment,
+- behavior: confirm or reject pending behavior-profile evidence.
 
 ### 13.4 User main path
 
 The main user loop is:
 
-1. onboarding and risk profile,
-2. dashboard with recommended next actions,
-3. guided learning,
-4. portfolio health check,
-5. micro-simulation or historical training,
-6. behavior update and next-step recommendation.
+1. log in or complete onboarding/profile setup,
+2. open Today and read the agent-generated Daily Brief,
+3. see one judgment, why it matters, one safe next action, and one "do not do" boundary,
+4. click into Agent Workspace to ask a follow-up or assign a task,
+5. watch the agent's natural-language execution steps; optionally expand advanced trace/tool details,
+6. receive a structured result with evidence and safe next actions,
+7. confirm durable updates such as behavior evidence, recurring automations, or training assignments,
+8. return to the next Daily Brief.
 
 ### 13.5 Minimal releasable spine
 
@@ -381,13 +429,14 @@ The minimum releasable spine is:
 
 - authentication and basic user profile,
 - risk questionnaire,
-- dashboard,
-- AI coach for beginner fund questions,
-- learning center with progress tracking,
-- portfolio analysis with explainable output,
-- durable structured records for runs, reports, and evidence.
+- Today / Daily Brief home,
+- Agent Workspace for user-directed tasks,
+- default-on but user-controllable Daily Brief automation,
+- portfolio/news/learning/simulation capabilities callable by the agent,
+- profile and authorization center,
+- durable structured records for runs, reports, evidence, automations, and pending state proposals.
 
-Historical simulation and news interpretation can be released in reduced form after the above spine is real and stable.
+Historical simulation, learning, portfolio, and news interpretation should first support agent-led safe next actions and detail drill-downs, rather than returning as equal-weight navigation modules.
 
 ### 13.6 MVP input rules
 
@@ -397,6 +446,42 @@ For MVP:
 - questionnaire inputs should be internal and structured,
 - course content should come from internal fixtures or curated local sources first,
 - no broker links, trading account connections, or live execution flows are allowed.
+
+### 13.7 Agent automation levels
+
+V1 includes L1 and L2 automation:
+
+- L1 manual task mode: the user asks the agent to analyze, explain, inspect, summarize, or plan.
+- L2 daily automation mode: the system generates a Daily Brief by default, with user-visible authorization and the ability to turn it off.
+
+L3 proactive monitoring is a later blueprint item only. It may produce alerts when risk context changes, but it must still require confirmation for durable profile changes and must not execute trades.
+
+### 13.8 Agent process display
+
+Default process display should use natural language:
+
+```text
+Understanding your task
+Reading your risk profile
+Checking your latest portfolio
+Reviewing relevant news and policy items
+Evaluating impact paths
+Preparing a safe next action
+Waiting for your confirmation
+```
+
+Advanced/developer mode may expose:
+
+```text
+tool calls
+trace id
+evidence refs
+worker outputs
+model/fallback metadata
+policy guard result
+```
+
+Beginner-facing views must not dump internal labels by default.
 
 ## 14. Technical Architecture Baseline
 
@@ -545,10 +630,17 @@ Current priorities are:
 
 1. keep one coherent product direction and one coherent repository story,
 2. lock the beginner-first product boundary,
-3. build on top of the current migration-first baseline rather than ad hoc fixtures or offline-only assumptions,
-4. stabilize the now-real onboarding/dashboard/coach/learning/portfolio/simulation loops before expanding breadth,
-5. stabilize `/news` against real feed refresh, manual interpretation, dashboard, and coach-context behavior,
-6. move the next engineering focus toward observability, production deployment, and runtime hardening rather than new novelty surfaces.
+3. migrate the product from module-first navigation to Agent Command Center navigation,
+4. keep the current migration-first backend baseline while reshaping outputs around Daily Brief, Agent Workspace runs, automations, and profile authorization,
+5. preserve useful existing loops as agent tools/detail surfaces instead of deleting working domain capability,
+6. use multi-agent development, frontend screenshot review, browser visual checks, e2e tests, accessibility checks, API tests, and agent evals for large UI/runtime changes,
+7. move engineering focus toward the Agent Command Center contract before adding new breadth.
+
+Important interpretation rule for Sections 16.3 through 16.8:
+
+- These phases describe already-built capability assets and historical implementation sequence.
+- They no longer define the future V1 product navigation.
+- Future work should reuse the completed auth, onboarding, dashboard, coach, learning, portfolio, simulation, news, and runtime capabilities under the Agent Command Center IA: Today, Agent Workspace, Automations, and Profile.
 
 ### 16.3 Phase 0: Repository Truth and Hygiene
 
@@ -638,7 +730,7 @@ Status as of 2026-04-02:
   - dashboard can reflect the latest coach interaction,
   - `/learning` reads a real persisted learning path,
   - `/learning/[courseSlug]` reads real course detail and section completion state,
-  - course section completion writes to `user_course_progress` and refreshes dashboard next actions.
+  - course section completion writes to `user_course_progress` and refreshes current product guidance.
 - the temporary local identity bridge via `X-FundGene-User-Id` has been removed from the main path.
 - learning is no longer shell-level and is now part of the same persisted user loop.
 

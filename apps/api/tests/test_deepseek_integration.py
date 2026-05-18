@@ -9,7 +9,7 @@ from app.core.config import get_settings
 from app.runtime.deps import get_advisor_runtime
 from app.runtime.v2.composer import ResponseComposer
 from app.runtime.v2.orchestrator import RISK_NOTICE
-from app.runtime.v2.schemas import PolicyResult, WorkerOutput
+from app.runtime.v2.schemas import EvidenceRef, PolicyResult, WorkerOutput
 from app.schemas.assistant import AdvisorResponse
 
 
@@ -20,7 +20,7 @@ def _deterministic_response() -> AdvisorResponse:
         citations=["agent_runtime_v2"],
         risk_notice=RISK_NOTICE,
         recommended_actions=["先完成一节风险课程。"],
-        follow_up_questions=["你想先看回撤例子吗？"],
+        follow_up_questions=["我想用一个数字例子理解回撤。"],
     )
 
 
@@ -58,8 +58,8 @@ def _clear_runtime_caches() -> None:
 
 
 def test_deepseek_hybrid_without_key_uses_deterministic_fallback(monkeypatch) -> None:
-    monkeypatch.delenv("FUNDGENE_DEEPSEEK_API_KEY", raising=False)
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.setenv("FUNDGENE_DEEPSEEK_API_KEY", "")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "")
     _clear_runtime_caches()
 
     composer = ResponseComposer(
@@ -151,6 +151,116 @@ def test_coach_mock_deepseek_success_records_model_trace(
         run = session.get(AgentRun, run_id)
         assert run is not None
         assert run.fallback_reason is None
+
+
+def test_news_model_composer_keeps_concrete_headlines(monkeypatch) -> None:
+    monkeypatch.setenv("FUNDGENE_DEEPSEEK_API_KEY", "test-key")
+    _clear_runtime_caches()
+
+    async def generic_news_model(self, **kwargs):  # noqa: ANN001
+        deterministic = kwargs["deterministic_response"]
+        return deterministic.model_copy(
+            update={
+                "answer": (
+                    "想看懂财经新闻，可以先拆成事实、影响路径和不确定性，"
+                    "再判断和自己的学习计划是否相关。"
+                )
+            }
+        )
+
+    monkeypatch.setattr(ResponseComposer, "_run_model_composer", generic_news_model)
+    composer = ResponseComposer(
+        model_name="deepseek:deepseek-v4-pro",
+        agent_mode="model",
+        timeout_ms=1000,
+        risk_notice=RISK_NOTICE,
+    )
+    worker_output = WorkerOutput(
+        worker_name="NewsWorker",
+        intent="news",
+        findings=[
+            "当前已同步资讯中最近几条是："
+            "1. “SEC Charges 21 Individuals With Alleged Wide-Reaching Insider Trading Scheme”："
+            "2026-05-06，SEC charged 21 individuals."
+        ],
+        evidence_refs=[
+            EvidenceRef(
+                worker_name="NewsWorker",
+                source_type="policy_item",
+                source_id="policy-1",
+                quote_or_summary="SEC charged 21 individuals.",
+                claim="新闻回答引用检索到的来源材料作为解释证据。",
+            )
+        ],
+        recommended_actions=["进入 News，选择最相关的一条新闻或政策生成结构化解读。"],
+    )
+    deterministic = AdvisorResponse(
+        answer=worker_output.findings[0],
+        intent="news",
+        citations=["policy_item:policy-1"],
+        risk_notice=RISK_NOTICE,
+        recommended_actions=worker_output.recommended_actions,
+        follow_up_questions=["请用第一条新闻说明它可能影响哪些基金类型。"],
+    )
+
+    result = asyncio.run(
+        composer.compose(
+            intent="news",
+            worker_output=worker_output,
+            input_policy=PolicyResult(status="allow", reason="test"),
+            deterministic_response=deterministic,
+        )
+    )
+
+    assert result.response.answer == deterministic.answer
+    assert result.metadata["composer_mode"] == "deterministic_fallback"
+    assert result.metadata["fallback_reason"] == "news_concrete_items_dropped"
+
+
+def test_model_composer_keeps_direct_state_answer(monkeypatch) -> None:
+    monkeypatch.setenv("FUNDGENE_DEEPSEEK_API_KEY", "test-key")
+    _clear_runtime_caches()
+
+    async def generic_state_model(self, **kwargs):  # noqa: ANN001
+        deterministic = kwargs["deterministic_response"]
+        return deterministic.model_copy(
+            update={"answer": "组合分析通常要先看集中度、重复风险和目标匹配。"}
+        )
+
+    monkeypatch.setattr(ResponseComposer, "_run_model_composer", generic_state_model)
+    composer = ResponseComposer(
+        model_name="deepseek:deepseek-v4-pro",
+        agent_mode="model",
+        timeout_ms=1000,
+        risk_notice=RISK_NOTICE,
+    )
+    worker_output = WorkerOutput(
+        worker_name="PortfolioWorker",
+        intent="portfolio",
+        findings=["直接回答：当前还没有可用的组合报告；需要先录入一份持仓快照。"],
+        recommended_actions=["先手工录入当前持仓快照。"],
+    )
+    deterministic = AdvisorResponse(
+        answer=worker_output.findings[0],
+        intent="portfolio",
+        citations=["portfolio_analysis"],
+        risk_notice=RISK_NOTICE,
+        recommended_actions=worker_output.recommended_actions,
+        follow_up_questions=["请告诉我录入持仓快照需要哪些字段。"],
+    )
+
+    result = asyncio.run(
+        composer.compose(
+            intent="portfolio",
+            worker_output=worker_output,
+            input_policy=PolicyResult(status="allow", reason="test"),
+            deterministic_response=deterministic,
+        )
+    )
+
+    assert result.response.answer == deterministic.answer
+    assert result.metadata["composer_mode"] == "deterministic_fallback"
+    assert result.metadata["fallback_reason"] == "direct_answer_dropped"
 
 
 def test_news_unsafe_model_enhancement_falls_back_to_rule_payload(

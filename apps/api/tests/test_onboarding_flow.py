@@ -62,6 +62,9 @@ def test_onboarding_questionnaire_dashboard_flow(
     assert pending_dashboard_payload["onboarding_completed"] is False
     assert pending_dashboard_payload["risk_level"] is None
     assert pending_dashboard_payload["summary_cards"][0]["value"] == "待完成"
+    assert pending_dashboard_payload["daily_brief"]["status"] == "missing_profile"
+    assert pending_dashboard_payload["daily_brief"]["primary_action"]["target_route"] == "/onboarding"
+    assert "伪造个性化判断" in pending_dashboard_payload["daily_brief"]["beginner_explanation"]
 
     submit_response = client.post(
         "/api/behavior/questionnaires",
@@ -101,6 +104,11 @@ def test_onboarding_questionnaire_dashboard_flow(
     assert dashboard_payload["risk_level"] == "growth"
     assert dashboard_payload["latest_risk_score"] == 83
     assert dashboard_payload["summary_cards"][0]["value"] == "已完成"
+    assert dashboard_payload["daily_brief"]["status"] == "missing_portfolio"
+    assert dashboard_payload["daily_brief"]["primary_action"]["type"] == "inspect_portfolio"
+    assert dashboard_payload["daily_brief"]["primary_action"]["target_route"] == "/portfolio"
+    assert len(dashboard_payload["daily_brief"]["evidence"]) <= 3
+    assert "直接操作账户" in dashboard_payload["daily_brief"]["do_not_do"]
     assert len(dashboard_payload["next_actions"]) == 4
     assert dashboard_payload["simulation_status"]["completed_sessions_count"] == 0
     assert dashboard_payload["next_actions"][0].startswith("进入 Simulation")

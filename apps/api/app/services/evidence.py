@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import re
 from dataclasses import dataclass
 
@@ -32,9 +33,10 @@ class EvidenceHit:
     support_summary: str
     citation_key: str
     score: int
+    published_at: datetime | None = None
 
     def as_payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "source_type": self.source_type,
             "source_id": self.source_id,
             "source_title": self.source_title,
@@ -43,6 +45,9 @@ class EvidenceHit:
             "citation_key": self.citation_key,
             "score": self.score,
         }
+        if self.published_at is not None:
+            payload["published_at"] = self.published_at.isoformat()
+        return payload
 
 
 class EvidenceService:
@@ -77,6 +82,9 @@ class EvidenceService:
         user_id: str,
         limit: int = 3,
     ) -> list[EvidenceHit]:
+        if _is_broad_latest_news_query(query):
+            return self._latest_news_policy_hits(user_id=user_id, limit=limit)
+
         hits: list[EvidenceHit] = []
         analyses = list(
             self.db.scalars(
@@ -139,6 +147,49 @@ class EvidenceService:
 
         return self._top_hits(hits, limit=limit)
 
+    def _latest_news_policy_hits(
+        self,
+        *,
+        user_id: str,
+        limit: int,
+    ) -> list[EvidenceHit]:
+        hits: list[EvidenceHit] = []
+        for item in self.db.scalars(
+            select(PolicyItem)
+            .order_by(PolicyItem.published_at.desc(), PolicyItem.fetched_at.desc())
+            .limit(20)
+        ):
+            hits.append(
+                self._score_hit(
+                    source_type="policy_item",
+                    source_id=item.id,
+                    source_title=item.title,
+                    text=f"{item.title} {item.summary or ''} {item.policy_area or ''}",
+                    query="news policy",
+                    published_at=item.published_at or item.fetched_at,
+                )
+            )
+
+        for item in self.db.scalars(
+            select(NewsItem)
+            .order_by(NewsItem.published_at.desc(), NewsItem.fetched_at.desc())
+            .limit(20)
+        ):
+            if item.user_id not in (None, user_id):
+                continue
+            hits.append(
+                self._score_hit(
+                    source_type="news_item",
+                    source_id=item.id,
+                    source_title=item.title,
+                    text=f"{item.title} {item.summary or ''}",
+                    query="news",
+                    published_at=item.published_at or item.fetched_at,
+                )
+            )
+
+        return sorted(hits, key=_published_timestamp, reverse=True)[:limit]
+
     def _score_hit(
         self,
         *,
@@ -147,6 +198,7 @@ class EvidenceService:
         source_title: str,
         text: str,
         query: str,
+        published_at: datetime | None = None,
     ) -> EvidenceHit:
         normalized_text = _normalize(text)
         terms = _query_terms(query)
@@ -166,6 +218,7 @@ class EvidenceService:
             support_summary=f"{source_title} 提供了与本次问题相关的解释证据。",
             citation_key=f"{source_type}:{source_id}",
             score=score,
+            published_at=published_at,
         )
 
     def _top_hits(self, hits: list[EvidenceHit], *, limit: int) -> list[EvidenceHit]:
@@ -181,6 +234,22 @@ def _query_terms(query: str) -> set[str]:
         if any(_normalize(term) in normalized for term in alias_terms):
             terms.update(_normalize(term) for term in alias_terms)
     return {term for term in terms if term}
+
+
+def _is_broad_latest_news_query(query: str) -> bool:
+    normalized = _normalize(query)
+    has_news_word = any(term in normalized for term in ("新闻", "资讯", "news"))
+    asks_latest = any(term in normalized for term in ("今天", "今日", "最近", "最新", "有什么", "哪些"))
+    return has_news_word and asks_latest
+
+
+def _published_timestamp(hit: EvidenceHit) -> float:
+    value = hit.published_at
+    if value is None:
+        return 0
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.timestamp()
 
 
 def _normalize(value: str) -> str:

@@ -1,5 +1,6 @@
 from app.runtime.v2.schemas import SkillSelection, ToolResult, WorkerOutput
 from app.runtime.v2.workers.common import (
+    asks_for_list_or_status,
     collect_evidence,
     finding_from_evidence,
     learning_outcome_for,
@@ -8,6 +9,16 @@ from app.runtime.v2.workers.common import (
     skill_output_guidance,
     tool_payload,
 )
+
+
+def _format_news_hit(hit: dict, index: int) -> str:
+    title = str(hit.get("source_title") or "未命名资讯").strip()
+    snippet = str(hit.get("snippet") or "").strip()
+    published_at = str(hit.get("published_at") or "").strip()
+    freshness = f"{published_at[:10]}，" if published_at else ""
+    if snippet and snippet != title:
+        return f"{index}. “{title}”：{freshness}{snippet}"
+    return f"{index}. “{title}”：{freshness}当前同步到的新闻/政策标题。"
 
 
 class NewsWorker:
@@ -28,22 +39,35 @@ class NewsWorker:
         translation = news.get("beginner_translation")
         evidence_hits = evidence_payload.get("hits") or []
 
-        finding = (
-            "新闻解读先分清事实、影响路径和不确定性，不要把标题情绪直接当成投资结论。"
-        )
+        finding = "新闻解读先分清事实、影响路径和不确定性，不要把标题情绪直接当成投资结论。"
         if translation:
             finding += f" 最近一条真实新闻/政策分析是“{title}”：{translation}"
         elif title:
             finding += f" 当前最近信息是“{title}”，但还需要生成结构化解读。"
+        elif evidence_hits:
+            formatted_hits = [
+                _format_news_hit(hit, index)
+                for index, hit in enumerate(evidence_hits[:3], start=1)
+            ]
+            finding += (
+                ("直接回答：当前已同步资讯中最近几条是：" if asks_for_list_or_status(message) else " 当前已同步资讯中最近几条是：")
+                + "；".join(formatted_hits)
+                + "。如果用户问“今天有什么新闻”，先给出这些具体标题，再提醒它们需要逐条解读。"
+            )
         if impact_lens.get("summary"):
-            finding += f" 影响路径约束：{impact_lens['summary']}"
-        if evidence_hits:
+            finding += (
+                " 这类信息适合先按事实、影响路径、不确定性和你能做的学习动作来拆，"
+                "不要直接跳到买卖结论。"
+            )
+        if evidence_hits and (translation or title):
             first_hit = evidence_hits[0]
-            finding += f" 检索证据提示：{first_hit.get('snippet')}"
+            snippet = str(first_hit.get("snippet") or "").strip()
+            if snippet:
+                finding += f" 相关背景是：{snippet}"
 
         action = (
             news.get("recommended_action")
-            or "回到 News，选择一条新闻或政策生成结构化解读。"
+            or "进入 News，选择最相关的一条新闻或政策生成结构化解读。"
         )
 
         evidence_refs = collect_evidence(tool_results)

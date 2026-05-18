@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -112,6 +113,7 @@ class ResponseComposer:
             response = await self._run_model_composer(
                 intent=intent,
                 worker_output=worker_output,
+                input_policy=input_policy,
                 deterministic_response=deterministic_response,
             )
         except Exception as exc:
@@ -126,6 +128,39 @@ class ResponseComposer:
                 fallback_reason=str(exc),
             )
 
+        direct_fallback_reason = self._direct_answer_fallback_reason(
+            worker_output=worker_output,
+            response=response,
+        )
+        if direct_fallback_reason is not None:
+            return ComposeResult(
+                response=deterministic_response,
+                metadata={
+                    "composer_mode": "deterministic_fallback",
+                    "reason": direct_fallback_reason,
+                    "fallback_reason": direct_fallback_reason,
+                    **self.model_info.metadata(),
+                },
+                fallback_reason=direct_fallback_reason,
+            )
+
+        news_fallback_reason = self._news_concrete_items_fallback_reason(
+            intent=intent,
+            worker_output=worker_output,
+            response=response,
+        )
+        if news_fallback_reason is not None:
+            return ComposeResult(
+                response=deterministic_response,
+                metadata={
+                    "composer_mode": "deterministic_fallback",
+                    "reason": news_fallback_reason,
+                    "fallback_reason": news_fallback_reason,
+                    **self.model_info.metadata(),
+                },
+                fallback_reason=news_fallback_reason,
+            )
+
         return ComposeResult(
             response=response,
             metadata={
@@ -135,11 +170,63 @@ class ResponseComposer:
             },
         )
 
+    def _direct_answer_fallback_reason(
+        self,
+        *,
+        worker_output: WorkerOutput,
+        response: AdvisorResponse,
+    ) -> str | None:
+        finding_text = " ".join(worker_output.findings)
+        marker = "直接回答："
+        if marker not in finding_text:
+            return None
+
+        direct_answer = finding_text.split(marker, 1)[1].split("。", 1)[0]
+        anchors = [
+            value.strip(" “”《》")
+            for value in re.split(r"[；，、:：()（）/]", direct_answer)
+            if len(value.strip(" “”《》")) >= 3
+        ]
+        if not anchors:
+            return None
+
+        normalized_answer = response.answer.casefold()
+        if any(anchor.casefold() in normalized_answer for anchor in anchors):
+            return None
+
+        return "direct_answer_dropped"
+
+    def _news_concrete_items_fallback_reason(
+        self,
+        *,
+        intent: str,
+        worker_output: WorkerOutput,
+        response: AdvisorResponse,
+    ) -> str | None:
+        if intent != "news":
+            return None
+
+        finding_text = " ".join(worker_output.findings)
+        quoted_titles = [
+            title.strip()
+            for title in re.findall(r"“([^”]{6,180})”", finding_text)
+            if title.strip()
+        ]
+        if not quoted_titles:
+            return None
+
+        normalized_answer = response.answer.casefold()
+        if any(title.casefold() in normalized_answer for title in quoted_titles):
+            return None
+
+        return "news_concrete_items_dropped"
+
     async def _run_model_composer(
         self,
         *,
         intent: str,
         worker_output: WorkerOutput,
+        input_policy: PolicyResult,
         deterministic_response: AdvisorResponse,
     ) -> AdvisorResponse:
         if Agent is None or PromptedOutput is None:  # pragma: no cover - guarded above
@@ -159,22 +246,45 @@ class ResponseComposer:
                 "You are FundGene's final response composer for beginner fund-investing education. "
                 "Use only the provided worker findings and evidence. Do not add trade execution, "
                 "return promises, broker/account connection instructions, or unsupported facts. "
-                "Keep Chinese answers beginner-friendly, concise, and action-oriented."
+                "If the input policy is allow, answer the user's learning question directly; "
+                "do not lead with refusal or boundary-only wording. Reserve refusal wording for "
+                "block_with_guidance or runtime_repair policy states. "
+                "For allowed questions, the answer field must start with the substantive explanation, "
+                "not with phrases like '这个问题只能作为...', '不能被理解为...', '不构成...', "
+                "'FundGene 提供的是...', or other disclaimers. Keep disclaimer text only in risk_notice. "
+                "Keep Chinese answers beginner-friendly, concise, and action-oriented. "
+                "If a worker finding contains '直接回答：', preserve that direct answer at "
+                "the start of the user-facing answer before adding explanation or safety context. "
+                "For news intent, preserve concrete news or policy titles from worker findings; "
+                "when the user asks what news exists today or recently, list the available "
+                "headlines first before teaching the interpretation method. "
+                "Write follow_up_questions as user-voiced prompts the beginner can click and send, "
+                "such as '我应该先理解风险等级还是回撤？'. Never write coach-voiced prompts like "
+                "'你想...？' or '要不要我...？'."
             ),
         )
         prompt = json.dumps(
             {
                 "intent": intent,
                 "worker_output": worker_output.model_dump(mode="json"),
+                "input_policy": input_policy.model_dump(mode="json"),
                 "required_risk_notice": self.risk_notice,
                 "fallback_response": deterministic_response.model_dump(mode="json"),
                 "output_contract": {
                     "answer": "Chinese beginner-facing explanation grounded in worker findings",
+                    "answer_for_allow_policy": (
+                        "Start by explaining the requested concept directly. Do not put safety "
+                        "boundary language in the answer when input_policy.status is allow."
+                    ),
                     "intent": intent,
                     "citations": "reuse evidence citation keys where possible",
                     "risk_notice": self.risk_notice,
                     "recommended_actions": "safe in-product actions only",
-                    "follow_up_questions": "1-2 useful beginner follow-ups",
+                    "follow_up_questions": (
+                        "1-2 useful beginner follow-ups phrased from the user's perspective, "
+                        "ready to click/send. Use '我...' or '请...' wording, not '你想...' "
+                        "or '要不要我...'."
+                    ),
                 },
             },
             ensure_ascii=False,

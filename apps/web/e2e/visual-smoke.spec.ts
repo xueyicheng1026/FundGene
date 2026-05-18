@@ -5,25 +5,27 @@ import { mockFundGeneApi } from "./fixtures";
 test.describe.configure({ mode: "serial" });
 
 const visualRoutes = [
-  { name: "overview", path: "/", marker: "核心模块矩阵" },
+  { name: "overview", path: "/", marker: "四个主入口" },
   {
     name: "start",
     path: "/start",
-    marker: "账号入口",
+    marker: "开始建档",
     authenticated: false,
   },
-  { name: "dashboard", path: "/dashboard", marker: "今日任务流" },
-  { name: "onboarding", path: "/onboarding", marker: "建档进度" },
-  { name: "coach", path: "/coach", marker: "对话优先" },
-  { name: "learning", path: "/learning", marker: "三门基础课先撑住新手的决策语言" },
+  { name: "today", path: "/today", marker: "今日简报" },
+  { name: "agent", path: "/agent", marker: "教练工作区" },
+  { name: "automations", path: "/automations", marker: "自动任务" },
+  { name: "profile", path: "/profile", marker: "上下文中心" },
+  { name: "onboarding", path: "/onboarding", marker: "开始建档" },
+  { name: "learning", path: "/learning", marker: "今日训练任务" },
   {
     name: "course-detail",
     path: "/learning/risk-basics",
-    marker: "逐节完成，逐节回写",
+    marker: "每一节都要服务一个可执行判断动作。",
   },
-  { name: "portfolio", path: "/portfolio", marker: "最近一份组合体检报告" },
-  { name: "simulation", path: "/simulation", marker: "Scenario dossier" },
-  { name: "news", path: "/news", marker: "选择一条资讯，生成结构化 readout" },
+  { name: "portfolio", path: "/portfolio", marker: "组合画像结论" },
+  { name: "simulation", path: "/simulation", marker: "训练任务单" },
+  { name: "news", path: "/news", marker: "影响路径图" },
 ];
 
 for (const route of visualRoutes) {

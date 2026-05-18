@@ -74,3 +74,45 @@ def learning_outcome_for(
         if intent in skill.skill_name:
             return skill.learning_outcome
     return skills[0].learning_outcome
+
+
+def asks_for_list_or_status(message: str) -> bool:
+    normalized = message.lower()
+    return any(
+        term in normalized
+        for term in (
+            "有哪些",
+            "有什么",
+            "哪些",
+            "几",
+            "列",
+            "列表",
+            "现在",
+            "当前",
+            "目前",
+            "有没有",
+            "是否",
+            "进度",
+            "状态",
+            "是什么",
+            "什么课",
+            "什么情境",
+            "下一步",
+            "先做什么",
+            "该做什么",
+            "应该做什么",
+            "what",
+            "which",
+            "list",
+            "status",
+            "progress",
+            "next",
+        )
+    )
+
+
+def display_bias_tags(tags: list[str]) -> list[str]:
+    labels = {
+        "no_major_bias_detected": "暂无显著行为偏差标签",
+    }
+    return [labels.get(tag, tag) for tag in tags]

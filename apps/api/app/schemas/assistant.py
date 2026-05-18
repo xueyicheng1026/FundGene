@@ -5,9 +5,47 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
+class AssistantMessageContext(BaseModel):
+    from_route: str | None = Field(default=None, max_length=80)
+    focus: str | None = Field(default=None, max_length=80)
+    source_ids: dict[str, str] = Field(default_factory=dict)
+    daily_brief_id: str | None = Field(default=None, max_length=160)
+
+    @field_validator("from_route", "focus", "daily_brief_id")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("source_ids")
+    @classmethod
+    def normalize_source_ids(cls, value: dict[str, str]) -> dict[str, str]:
+        allowed_keys = {
+            "portfolio_analysis_id",
+            "portfolio_snapshot_id",
+            "news_analysis_id",
+            "news_item_id",
+            "course_slug",
+            "section_slug",
+            "simulation_session_id",
+            "scenario_id",
+        }
+        normalized: dict[str, str] = {}
+        for key, item in value.items():
+            if key not in allowed_keys or not isinstance(item, str):
+                continue
+            cleaned = item.strip()
+            if cleaned:
+                normalized[key] = cleaned[:160]
+        return normalized
+
+
 class AssistantMessageRequest(BaseModel):
     session_id: str | None = Field(default=None, min_length=1, max_length=36)
     message: str = Field(min_length=1, max_length=4000)
+    context: AssistantMessageContext | None = None
 
     @field_validator("session_id")
     @classmethod
@@ -26,12 +64,25 @@ class AssistantMessageRequest(BaseModel):
         return normalized
 
 
+class AdvisorActionTarget(BaseModel):
+    label: str
+    href: str
+    intent: str
+    action_id: str | None = None
+    reason: str | None = None
+    target_params: dict[str, str] = Field(default_factory=dict)
+    expected_writeback: str | None = None
+    safety_note: str | None = None
+    kind: Literal["internal_link"] = "internal_link"
+
+
 class AdvisorResponse(BaseModel):
     answer: str
     intent: str
     citations: list[str] = Field(default_factory=list)
     risk_notice: str
     recommended_actions: list[str] = Field(default_factory=list)
+    recommended_action_targets: list[AdvisorActionTarget] = Field(default_factory=list)
     follow_up_questions: list[str] = Field(default_factory=list)
 
 
@@ -122,4 +173,6 @@ class AgentRunTraceResponse(BaseModel):
     steps: list[AgentRunTraceStep] = Field(default_factory=list)
     tool_calls: list[AgentRunTraceToolCall] = Field(default_factory=list)
     evidence_refs: list[AgentRunTraceEvidenceRef] = Field(default_factory=list)
-    state_update_proposals: list[AgentRunTraceStateUpdateProposal] = Field(default_factory=list)
+    state_update_proposals: list[AgentRunTraceStateUpdateProposal] = Field(
+        default_factory=list
+    )

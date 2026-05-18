@@ -64,6 +64,13 @@ class AgentCitationResponse(BaseModel):
     url: str
 
 
+class NewsAgentProcessStep(BaseModel):
+    key: str
+    label: str
+    status: Literal["completed", "warning", "failed"]
+    detail: str
+
+
 class NewsAnalysisResponse(BaseModel):
     id: str
     item: NewsItemSummary
@@ -75,4 +82,9 @@ class NewsAnalysisResponse(BaseModel):
     recommended_next_actions: list[str]
     risk_notice: str
     citations: list[AgentCitationResponse]
+    model_status: Literal["enhanced", "fallback", "skipped", "legacy"]
+    model_provider: str | None = None
+    model_name: str | None = None
+    fallback_reason: str | None = None
+    agent_process: list[NewsAgentProcessStep] = Field(default_factory=list)
     generated_at: datetime

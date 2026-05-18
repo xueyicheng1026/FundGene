@@ -15,10 +15,10 @@ export function SectionBlock({
 }) {
   return (
     <section className={cn("space-y-3", className)}>
-      <div className="grid max-w-6xl gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(18rem,0.65fr)] lg:items-start">
+      <div className="grid max-w-6xl gap-2 lg:grid-cols-[minmax(0,0.82fr)_minmax(18rem,0.6fr)] lg:items-start">
         <div className="min-w-0">
           <StatusPill tone="accent">{eyebrow}</StatusPill>
-          <h2 className="mt-3 max-w-3xl text-2xl font-black leading-tight tracking-normal text-white sm:text-3xl">
+          <h2 className="mt-2 max-w-3xl text-xl font-semibold leading-tight tracking-normal text-[color:var(--ink-strong)] sm:text-2xl">
             {title}
           </h2>
         </div>

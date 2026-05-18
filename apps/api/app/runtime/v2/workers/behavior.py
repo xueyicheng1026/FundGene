@@ -5,7 +5,9 @@ from app.runtime.v2.schemas import (
     WorkerOutput,
 )
 from app.runtime.v2.workers.common import (
+    asks_for_list_or_status,
     collect_evidence,
+    display_bias_tags,
     finding_from_evidence,
     learning_outcome_for,
     skill_forbidden_language,
@@ -30,12 +32,17 @@ class BehaviorWorker:
         training_plan = tool_payload(tool_results, "behavior.training_plan")
         simulation = tool_payload(tool_results, "simulation.latest_review")
         bias_tags = behavior.get("bias_tags") or []
+        display_tags = display_bias_tags(bias_tags)
         training_focus = training_plan.get("training_focus") or behavior.get(
             "training_focus"
         )
         review_summary = simulation.get("latest_review_summary")
 
         finding = "行为陪练先识别触发情绪的情境，再把情绪和投资动作拆开。"
+        if asks_for_list_or_status(message):
+            bias_text = "、".join(display_tags) if display_tags else "暂无显著行为偏差标签"
+            focus_text = training_focus or "先记录投资动作前的触发情绪"
+            finding = f"直接回答：当前行为画像显示 {bias_text}；建议训练焦点是“{focus_text}”。"
         if (
             "情境" in message
             or "演练" in message
@@ -45,8 +52,8 @@ class BehaviorWorker:
             finding = "历史情境演练的价值不在于猜对涨跌，而在于练习把情绪和动作拆开并留下复盘证据。"
         if "追涨" in message or "chase" in message.lower():
             finding = "追涨的关键风险是把短期涨幅误当成长期确定性，需要先确认冲动来自计划还是害怕错过。"
-        if bias_tags:
-            finding += f" 当前画像已出现“{bias_tags[0]}”信号。"
+        if display_tags:
+            finding += f" 当前画像已出现“{display_tags[0]}”信号。"
         if training_focus:
             finding += f" 更适合的训练方向是“{training_focus}”。"
         if review_summary:

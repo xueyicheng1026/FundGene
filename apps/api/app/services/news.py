@@ -23,6 +23,7 @@ from app.models.user import UserProfile
 from app.schemas.dashboard import DashboardNewsStatus
 from app.schemas.news import (
     AgentCitationResponse,
+    NewsAgentProcessStep,
     NewsAnalysisResponse,
     NewsAnalyzeRequest,
     NewsItemDetailResponse,
@@ -36,6 +37,17 @@ NEWS_ANALYSIS_VERSION = "news_policy_analysis_v1"
 NEWS_RISK_NOTICE = (
     "FundGene 对新闻和政策的解读只用于学习与决策支持，不构成收益承诺、买卖建议或交易指令。"
 )
+BEGINNER_TRANSLATION_PROMPT_PREFIXES = (
+    "把这条政策先翻译成一句新手能执行的话：",
+    "把这条新闻先翻译成一句新手能执行的话：",
+)
+FEED_REQUEST_HEADERS = {
+    "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+    "User-Agent": (
+        "FundGene/0.1 local research prototype "
+        "(beginner fund education; contact: demo@fundgene.local)"
+    ),
+}
 POLICY_KEYWORDS = {
     "policy",
     "regulation",
@@ -62,6 +74,64 @@ def _trim(value: str, *, limit: int) -> str:
     if len(normalized) <= limit:
         return normalized
     return normalized[:limit].rstrip()
+
+
+def _display_beginner_translation(value: str) -> str:
+    normalized = " ".join(value.strip().split())
+    for prefix in BEGINNER_TRANSLATION_PROMPT_PREFIXES:
+        if normalized.startswith(prefix):
+            return normalized.removeprefix(prefix).strip()
+    return normalized
+
+
+def _news_agent_process_steps(analysis: NewsAnalysis) -> list[NewsAgentProcessStep]:
+    model_label = analysis.model_name or "DeepSeek"
+    model_status = analysis.model_status or "legacy"
+    model_step_status = "completed" if model_status == "enhanced" else "warning"
+    model_detail = (
+        f"{model_label} 已完成结构化解读。"
+        if model_status == "enhanced"
+        else (
+            "本次没有拿到可用模型增强结果，页面展示的是规则兜底分析。"
+            if model_status in {"fallback", "skipped"}
+            else "这条历史解读缺少模型运行元数据，建议重新生成以确认 DeepSeek 是否参与。"
+        )
+    )
+    if analysis.fallback_reason:
+        model_detail = f"{model_detail} 原因：{analysis.fallback_reason}。"
+
+    return [
+        NewsAgentProcessStep(
+            key="read_source",
+            label="读取真实资讯来源",
+            status="completed",
+            detail="已读取标题、摘要、发布时间和来源链接。",
+        ),
+        NewsAgentProcessStep(
+            key="split_facts",
+            label="拆分新闻事实",
+            status="completed",
+            detail="已把标题和摘要拆成事实、影响对象和不确定性。",
+        ),
+        NewsAgentProcessStep(
+            key="deepseek_enhancement",
+            label="调用 DeepSeek 生成解读",
+            status=model_step_status,  # type: ignore[arg-type]
+            detail=model_detail,
+        ),
+        NewsAgentProcessStep(
+            key="safety_guard",
+            label="检查安全边界",
+            status="completed",
+            detail="已过滤收益承诺、买卖指令、满仓/清仓等不适合新手的表达。",
+        ),
+        NewsAgentProcessStep(
+            key="persist_result",
+            label="保存分析结果",
+            status="completed",
+            detail="已保存为可被 Today、Agent 和自动任务引用的 news analysis。",
+        ),
+    ]
 
 
 def _clean_text(value: Any, *, limit: int | None = None) -> str:
@@ -295,9 +365,10 @@ async def refresh_news_feeds(
     urls = feed_urls or get_settings().news_feeds
     ingested: list[NewsItem | PolicyItem] = []
     async with httpx.AsyncClient(
-        timeout=5.0,
+        headers=FEED_REQUEST_HEADERS,
+        timeout=10.0,
         follow_redirects=True,
-        trust_env=False,
+        trust_env=True,
     ) as client:
         responses = await asyncio.gather(
             *(client.get(feed_url) for feed_url in urls),
@@ -319,6 +390,37 @@ async def refresh_news_feeds(
                 limit_per_feed=limit_per_feed,
             )
         )
+    return ingested
+
+
+def refresh_news_feeds_sync(
+    db: Session,
+    *,
+    feed_urls: list[str] | None = None,
+    limit_per_feed: int = 20,
+) -> list[NewsItem | PolicyItem]:
+    urls = feed_urls or get_settings().news_feeds
+    ingested: list[NewsItem | PolicyItem] = []
+    with httpx.Client(
+        headers=FEED_REQUEST_HEADERS,
+        timeout=10.0,
+        follow_redirects=True,
+        trust_env=True,
+    ) as client:
+        for feed_url in urls:
+            try:
+                response = client.get(feed_url)
+                response.raise_for_status()
+            except httpx.HTTPError:
+                continue
+            ingested.extend(
+                ingest_feed_document(
+                    db,
+                    feed_url=feed_url,
+                    content=response.text,
+                    limit_per_feed=limit_per_feed,
+                )
+            )
     return ingested
 
 
@@ -516,8 +618,8 @@ def _build_rule_analysis(
     ]
 
     beginner_translation = (
-        f"把这条{label}先翻译成一句新手能执行的话：它提醒你关注“{title}”背后的风险来源，"
-        "但下一步应该先核对自己的基金类型、持有期限和组合暴露，而不是被标题直接推着操作。"
+        f"它提醒你关注“{title}”背后的风险来源；下一步先核对自己的基金类型、"
+        "持有期限和组合暴露，而不是被标题直接推着操作。"
     )
     related_learning_topics = ["fund-basics", "risk-and-drawdown"]
     if item_type == "policy":
@@ -593,7 +695,7 @@ def _serialize_analysis(
         facts=list(analysis.facts),
         impact_paths=list(analysis.impact_paths),
         uncertainty_notes=list(analysis.uncertainty_notes),
-        beginner_translation=analysis.beginner_translation,
+        beginner_translation=_display_beginner_translation(analysis.beginner_translation),
         related_learning_topics=list(analysis.related_learning_topics),
         recommended_next_actions=list(analysis.recommended_next_actions),
         risk_notice=analysis.risk_notice,
@@ -601,6 +703,11 @@ def _serialize_analysis(
             _serialize_citation(citation)
             for citation in _list_citations(db, analysis_id=analysis.id)
         ],
+        model_status=analysis.model_status or "legacy",  # type: ignore[arg-type]
+        model_provider=analysis.model_provider,
+        model_name=analysis.model_name,
+        fallback_reason=analysis.fallback_reason,
+        agent_process=_news_agent_process_steps(analysis),
         generated_at=analysis.generated_at,
     )
 
@@ -654,6 +761,16 @@ def create_news_analysis(
         related_learning_topics=analysis_payload["related_learning_topics"],
         recommended_next_actions=analysis_payload["recommended_next_actions"],
         risk_notice=str(analysis_payload["risk_notice"]),
+        model_status=enhancement.status,
+        model_provider=(
+            enhancement.model_info.provider if enhancement.model_info is not None else None
+        ),
+        model_name=(
+            enhancement.model_info.configured_model_name
+            if enhancement.model_info is not None
+            else None
+        ),
+        fallback_reason=enhancement.fallback_reason,
         generated_at=now,
     )
     db.add(analysis)
@@ -715,8 +832,9 @@ def get_news_overview(
         latest_item_id=item.id,
         latest_item_type=item_type,
         latest_title=item.title,
+        latest_summary=item.summary,
         source_name=item.source_name,
-        beginner_translation=analysis.beginner_translation,
+        beginner_translation=_display_beginner_translation(analysis.beginner_translation),
         recommended_action=recommended_actions[0] if recommended_actions else None,
         generated_at=analysis.generated_at,
     )

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import re
 from time import perf_counter
 
 from sqlalchemy.orm import Session
@@ -8,6 +9,8 @@ from app.models.agent_run import AgentRun
 from app.models.agent_state_update_proposal import AgentStateUpdateProposal
 from app.models.agent_step import AgentStep
 from app.models.agent_tool_call import AgentToolCall
+from app.runtime.action_targets import build_recommended_action_targets
+from app.runtime.follow_up_prompts import build_user_follow_up_prompts
 from app.runtime.toolchains.base import AdvisorUserContext
 from app.runtime.v2.composer import ResponseComposer
 from app.runtime.v2.features import RuntimeCapabilityConfig, build_runtime_capabilities
@@ -43,8 +46,13 @@ from app.services.evidence import EvidenceService
 
 
 ORCHESTRATOR_VERSION = "agent_runtime_v2"
-RISK_NOTICE = (
-    "FundGene 提供的是学习与决策支持，不是收益承诺、交易执行指令或自动下单系统。"
+RISK_NOTICE = "这次回答用于帮你理解风险和整理下一步，不代表收益承诺，也不会替你买卖或下单。"
+
+_INTERNAL_FINDING_PATTERNS = (
+    re.compile(r"\s*运行时风险约束：[^。]*(?:。|$)"),
+    re.compile(r"\s*影响路径约束：[^。]*(?:。|$)"),
+    re.compile(r"\s*检索证据提示：[^。]*(?:。|$)"),
+    re.compile(r"\s*如果用户问“[^”]+”，先给出这些具体标题，再提醒它们需要逐条解读。?"),
 )
 
 
@@ -94,21 +102,26 @@ class AdvisorOrchestrator:
         session_id: str,
         message: str,
         user_context: AdvisorUserContext,
+        page_context: dict[str, object] | None = None,
     ) -> OrchestratorRunResult:
         run_started = perf_counter()
         input_policy = self.policy.check_input(message)
         execution_policy = input_policy
+        contextual_message = self._contextualize_message(
+            message=message,
+            page_context=page_context,
+        )
         self._record_step(
             db,
             run_id=agent_run.id,
             sequence=1,
             step_name="input_guard",
-            input_payload={"message": message},
+            input_payload={"message": message, "page_context": page_context},
             output_payload=input_policy.model_dump(mode="json"),
         )
 
         plan = self.planner.build_plan(
-            message=message,
+            message=contextual_message,
             blocked=input_policy.status == "block_with_guidance",
         )
         intent = plan.primary_intent
@@ -117,7 +130,7 @@ class AdvisorOrchestrator:
             run_id=agent_run.id,
             sequence=2,
             step_name="classify_intent",
-            input_payload={"message": message},
+            input_payload={"message": message, "page_context": page_context},
             output_payload={
                 "intent": intent,
                 "detected_intents": plan.detected_intents,
@@ -132,6 +145,7 @@ class AdvisorOrchestrator:
             input_payload={
                 "intent": intent,
                 "policy_status": input_policy.status,
+                "page_context": page_context,
             },
             output_payload=plan.model_dump(mode="json"),
         )
@@ -143,8 +157,11 @@ class AdvisorOrchestrator:
             run_id=agent_run.id,
             sequence=4,
             step_name="load_context_snapshot",
-            input_payload={"user_id": user_context.user_id},
-            output_payload=snapshot.model_dump(mode="json"),
+            input_payload={"user_id": user_context.user_id, "page_context": page_context},
+            output_payload={
+                **snapshot.model_dump(mode="json"),
+                "page_context": page_context,
+            },
         )
 
         plan_validation = self._validate_plan(
@@ -225,7 +242,7 @@ class AdvisorOrchestrator:
                 step_id=tool_step.id,
                 tool_name=tool_name,
                 snapshot=snapshot,
-                query=message,
+                query=contextual_message,
                 evidence_service=evidence_service,
             )
             for tool_name in selected_tools
@@ -261,7 +278,7 @@ class AdvisorOrchestrator:
         )
         worker_outputs = self._run_workers(
             plan=plan,
-            message=message,
+            message=contextual_message,
             tool_results=tool_results,
             input_policy=execution_policy,
         )
@@ -378,6 +395,7 @@ class AdvisorOrchestrator:
                 "orchestrator_version": ORCHESTRATOR_VERSION,
                 "intent": intent,
                 "policy_status": output_policy.status,
+                "page_context": page_context,
                 "tools": selected_tools,
                 "skills": [
                     skill.model_dump(mode="json") for skill in plan.selected_skills
@@ -406,6 +424,39 @@ class AdvisorOrchestrator:
             },
             fallback_reason=compose_result.fallback_reason,
         )
+
+    def _contextualize_message(
+        self,
+        *,
+        message: str,
+        page_context: dict[str, object] | None,
+    ) -> str:
+        if not page_context:
+            return message
+
+        fragments: list[str] = []
+        from_route = page_context.get("from_route")
+        focus = page_context.get("focus")
+        daily_brief_id = page_context.get("daily_brief_id")
+        source_ids = page_context.get("source_ids")
+        if isinstance(from_route, str) and from_route:
+            fragments.append(f"来源页面={from_route}")
+        if isinstance(focus, str) and focus:
+            fragments.append(f"当前焦点={focus}")
+        if isinstance(daily_brief_id, str) and daily_brief_id:
+            fragments.append(f"Daily Brief={daily_brief_id}")
+        if isinstance(source_ids, dict) and source_ids:
+            clean_source_ids = {
+                str(key): str(value)
+                for key, value in source_ids.items()
+                if value is not None
+            }
+            if clean_source_ids:
+                fragments.append(f"关联来源={clean_source_ids}")
+
+        if not fragments:
+            return message
+        return f"{message}\n\n[页面上下文：{'; '.join(fragments)}]"
 
     def _run_worker(
         self,
@@ -855,8 +906,14 @@ class AdvisorOrchestrator:
 
         normalized = response.model_copy(
             update={
+                "answer": self._sanitize_user_visible_text(response.answer),
+                "risk_notice": self._sanitize_user_visible_text(response.risk_notice),
                 "citations": normalized_citations,
                 "recommended_actions": safe_actions,
+                "recommended_action_targets": build_recommended_action_targets(
+                    intent=response.intent,
+                    actions=safe_actions,
+                ),
             }
         )
         issues: list[str] = []
@@ -1045,7 +1102,7 @@ class AdvisorOrchestrator:
             )
             intent = "learning"
         else:
-            answer = " ".join(worker_output.findings)
+            answer = self._public_answer_from_findings(worker_output.findings)
 
         return AdvisorResponse(
             answer=answer,
@@ -1053,8 +1110,23 @@ class AdvisorOrchestrator:
             citations=citations or ["agent_runtime_v2"],
             risk_notice=RISK_NOTICE,
             recommended_actions=worker_output.recommended_actions,
-            follow_up_questions=self._follow_up_questions(intent),
+            follow_up_questions=self._follow_up_questions(
+                intent,
+                " ".join(worker_output.findings),
+            ),
         )
+
+    def _public_answer_from_findings(self, findings: list[str]) -> str:
+        answer = " ".join(finding.strip() for finding in findings if finding.strip())
+        answer = self._sanitize_user_visible_text(answer)
+        return answer or "我会先基于你的画像、组合和最近资料解释风险来源，再给出一个安全的下一步。"
+
+    def _sanitize_user_visible_text(self, text: str) -> str:
+        answer = text.replace("直接回答：", "")
+        for pattern in _INTERNAL_FINDING_PATTERNS:
+            answer = pattern.sub(" ", answer)
+        answer = re.sub(r"\s+", " ", answer).strip()
+        return answer
 
     def _execute_tool(
         self,
@@ -1243,6 +1315,8 @@ class AdvisorOrchestrator:
                 "bias",
                 "emotion",
                 "panic",
+                "画像",
+                "标签",
                 "追涨",
                 "偏差",
                 "情绪",
@@ -1263,28 +1337,8 @@ class AdvisorOrchestrator:
             return "simulation"
         return "learning"
 
-    def _follow_up_questions(self, intent: str) -> list[str]:
-        if intent == "portfolio":
-            return [
-                "你想先看集中度，还是先看风险桶分布？",
-                "要不要我只讲再平衡原则，不给交易指令？",
-            ]
-        if intent == "behavior":
-            return [
-                "你想继续拆解追涨，还是先拆解恐慌卖出？",
-                "要不要把这次情绪写成每周复盘模板？",
-            ]
-        if intent == "simulation":
-            return [
-                "你想继续做一次低风险情境训练吗？",
-                "要不要把复盘结果转成下一次训练提示？",
-            ]
-        if intent == "news":
-            return ["你想要政策影响路径模板吗？", "要不要把这条新闻转成学习笔记？"]
-        return [
-            "你想先理解风险等级，还是先理解回撤？",
-            "要不要我用一个新手例子继续解释？",
-        ]
+    def _follow_up_questions(self, intent: str, message: str = "") -> list[str]:
+        return build_user_follow_up_prompts(intent, message)
 
     def _elapsed_ms(self, started: float) -> int:
         return max(0, round((perf_counter() - started) * 1000))

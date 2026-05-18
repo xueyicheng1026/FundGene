@@ -28,6 +28,13 @@ AUTOMATION_TERMS = (
     "连接交易账户",
     "broker account",
 )
+SAFE_EDUCATIONAL_OUTPUT_PHRASES = (
+    "恐慌卖出",
+    "买卖建议",
+    "买卖结论",
+    "买卖指令",
+)
+NEGATION_PREFIXES = ("不", "不能", "不要", "不得", "不是", "避免", "防止")
 
 
 class SafetyPolicy:
@@ -59,7 +66,7 @@ class SafetyPolicy:
                 *RETURN_PROMISE_TERMS,
                 *AUTOMATION_TERMS,
             )
-            if term.lower() in normalized
+            if _has_unsafe_output_term(normalized, term.lower())
         ]
         if blocked_terms:
             return PolicyResult(
@@ -72,3 +79,24 @@ class SafetyPolicy:
                 ),
             )
         return PolicyResult(status="allow", reason="输出符合学习和决策支持边界。")
+
+
+def _has_unsafe_output_term(normalized_answer: str, term: str) -> bool:
+    start = 0
+    while True:
+        index = normalized_answer.find(term, start)
+        if index == -1:
+            return False
+        if not _is_safe_output_context(normalized_answer, term=term, index=index):
+            return True
+        start = index + len(term)
+
+
+def _is_safe_output_context(normalized_answer: str, *, term: str, index: int) -> bool:
+    window_start = max(0, index - 8)
+    window_end = min(len(normalized_answer), index + len(term) + 8)
+    context = normalized_answer[window_start:window_end]
+    if any(phrase.lower() in context for phrase in SAFE_EDUCATIONAL_OUTPUT_PHRASES):
+        return True
+    prefix = normalized_answer[window_start:index]
+    return any(prefix.endswith(negation) for negation in NEGATION_PREFIXES)
