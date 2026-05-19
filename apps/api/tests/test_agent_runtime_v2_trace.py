@@ -273,7 +273,7 @@ def test_agent_answers_state_and_next_step_questions_directly(
     learning_answer = learning_response.json()["messages"][-1]["advisor_response"][
         "answer"
     ]
-    assert learning_answer.startswith("直接回答：")
+    assert "直接回答：" not in learning_answer
     assert "风险等级是" in learning_answer
     assert "学习进度" not in learning_answer.split("。", 1)[0]
     learning_run_id = learning_response.json()["messages"][-1]["agent_run_id"]
@@ -289,7 +289,7 @@ def test_agent_answers_state_and_next_step_questions_directly(
     portfolio_answer = portfolio_response.json()["messages"][-1]["advisor_response"][
         "answer"
     ]
-    assert portfolio_answer.startswith("直接回答：")
+    assert "直接回答：" not in portfolio_answer
     assert "还没有可用的组合报告" in portfolio_answer
 
     behavior_response = client.post(
@@ -300,7 +300,7 @@ def test_agent_answers_state_and_next_step_questions_directly(
     behavior_answer = behavior_response.json()["messages"][-1]["advisor_response"][
         "answer"
     ]
-    assert behavior_answer.startswith("直接回答：")
+    assert "直接回答：" not in behavior_answer
     assert "当前行为画像显示" in behavior_answer
     assert "no_major_bias_detected" not in behavior_answer
 
@@ -312,7 +312,7 @@ def test_agent_answers_state_and_next_step_questions_directly(
     simulation_answer = simulation_response.json()["messages"][-1]["advisor_response"][
         "answer"
     ]
-    assert simulation_answer.startswith("直接回答：")
+    assert "直接回答：" not in simulation_answer
     assert "推荐从" in simulation_answer
     assert "no_major_bias_detected" not in simulation_answer
 

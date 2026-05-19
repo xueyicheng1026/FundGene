@@ -53,12 +53,14 @@ def get_model_runtime_info(
     configured_model_name: str,
     *,
     settings: Settings | None = None,
+    deepseek_api_key_override: str | None = None,
 ) -> ModelRuntimeInfo:
     settings = settings or get_settings()
     provider, provider_model_name = split_model_name(configured_model_name)
     credentials_available = model_credentials_available(
         configured_model_name,
         settings=settings,
+        deepseek_api_key_override=deepseek_api_key_override,
     )
     return ModelRuntimeInfo(
         configured_model_name=configured_model_name,
@@ -80,11 +82,12 @@ def model_credentials_available(
     configured_model_name: str,
     *,
     settings: Settings | None = None,
+    deepseek_api_key_override: str | None = None,
 ) -> bool:
     settings = settings or get_settings()
     provider, _ = split_model_name(configured_model_name)
     if provider == "deepseek":
-        return bool(settings.resolved_deepseek_api_key)
+        return bool(deepseek_api_key_override or settings.resolved_deepseek_api_key)
     if provider == "openai":
         return bool(os.getenv("OPENAI_API_KEY"))
     if provider == "anthropic":
@@ -98,9 +101,14 @@ def build_model(
     configured_model_name: str,
     *,
     settings: Settings | None = None,
+    deepseek_api_key_override: str | None = None,
 ) -> tuple[Any, ModelRuntimeInfo]:
     settings = settings or get_settings()
-    info = get_model_runtime_info(configured_model_name, settings=settings)
+    info = get_model_runtime_info(
+        configured_model_name,
+        settings=settings,
+        deepseek_api_key_override=deepseek_api_key_override,
+    )
 
     if Agent is None or OpenAIChatModel is None:
         raise RuntimeError("pydantic_ai_unavailable")
@@ -108,7 +116,7 @@ def build_model(
     if info.provider == "deepseek":
         if DeepSeekProvider is None or OpenAIChatModelSettings is None:
             raise RuntimeError("deepseek_provider_unavailable")
-        api_key = settings.resolved_deepseek_api_key
+        api_key = deepseek_api_key_override or settings.resolved_deepseek_api_key
         if not api_key:
             raise RuntimeError("model_not_configured")
         return (
@@ -142,11 +150,16 @@ async def run_structured_model(
     prompt: str,
     timeout_ms: int,
     settings: Settings | None = None,
+    deepseek_api_key_override: str | None = None,
 ) -> tuple[Any, ModelRuntimeInfo]:
     if Agent is None:
         raise RuntimeError("pydantic_ai_unavailable")
 
-    model, info = build_model(configured_model_name, settings=settings)
+    model, info = build_model(
+        configured_model_name,
+        settings=settings,
+        deepseek_api_key_override=deepseek_api_key_override,
+    )
     agent = Agent(
         model,
         output_type=output_type,

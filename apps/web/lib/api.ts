@@ -1,5 +1,5 @@
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "PUT";
   body?: unknown;
 };
 
@@ -787,6 +787,24 @@ export type ProfileProposalDecisionInput = {
 export type ProfileProposalDecisionResult = {
   proposal: ProfilePendingProposal;
   appliedWriteback: boolean;
+};
+
+export type ProfileLlmSettings = {
+  provider: "deepseek";
+  modelName: string;
+  configured: boolean;
+  enabled: boolean;
+  source: "user" | "workspace" | "none";
+  maskedApiKey: string | null;
+  updatedAt: string | null;
+  warning: string | null;
+};
+
+export type ProfileLlmSettingsInput = {
+  provider?: "deepseek";
+  modelName: string;
+  apiKey?: string;
+  enabled: boolean;
 };
 
 function resolveApiBase() {
@@ -2960,6 +2978,26 @@ function parseProfileContext(input: unknown): ProfileContextState {
   };
 }
 
+function parseProfileLlmSettings(input: unknown): ProfileLlmSettings {
+  const source = asObject(input);
+  const provider = asString(source.provider) === "deepseek" ? "deepseek" : "deepseek";
+  const status = asString(source.source);
+  return {
+    provider,
+    modelName:
+      pickString(source, ["model_name", "modelName"]) ?? "deepseek:deepseek-v4-pro",
+    configured: asBoolean(source.configured),
+    enabled: asBoolean(source.enabled),
+    source:
+      status === "user" || status === "workspace" || status === "none"
+        ? status
+        : "none",
+    maskedApiKey: pickString(source, ["masked_api_key", "maskedApiKey"]),
+    updatedAt: pickString(source, ["updated_at", "updatedAt"]),
+    warning: asString(source.warning),
+  };
+}
+
 export async function registerAuthAccount(
   input: AuthCredentialsInput,
 ): Promise<void> {
@@ -3277,6 +3315,26 @@ export async function getProfileContext(): Promise<ProfileContextState> {
 export async function getProfilePendingProposals(): Promise<ProfilePendingProposalsState> {
   const payload = await request("/api/profile/pending-proposals", {});
   return parseProfilePendingProposals(payload);
+}
+
+export async function getProfileLlmSettings(): Promise<ProfileLlmSettings> {
+  const payload = await request("/api/profile/llm-settings", {});
+  return parseProfileLlmSettings(payload);
+}
+
+export async function updateProfileLlmSettings(
+  input: ProfileLlmSettingsInput,
+): Promise<ProfileLlmSettings> {
+  const payload = await request("/api/profile/llm-settings", {
+    method: "PUT",
+    body: {
+      provider: input.provider ?? "deepseek",
+      model_name: input.modelName.trim(),
+      api_key: input.apiKey?.trim() || undefined,
+      enabled: input.enabled,
+    },
+  });
+  return parseProfileLlmSettings(asObject(payload).settings);
 }
 
 export async function acceptProfilePendingProposal(

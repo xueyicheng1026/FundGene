@@ -11,6 +11,7 @@ from app.runtime.model_factory import (
     get_model_runtime_info,
     model_credentials_available,
 )
+from app.schemas.assistant import AdvisorActionTarget
 from app.runtime.v2.schemas import PolicyResult, WorkerOutput
 from app.schemas.assistant import AdvisorResponse
 
@@ -36,12 +37,17 @@ class ResponseComposer:
         agent_mode: str,
         timeout_ms: int,
         risk_notice: str,
+        deepseek_api_key_override: str | None = None,
     ) -> None:
         self.model_name = model_name
         self.agent_mode = agent_mode.strip().lower()
         self.timeout_ms = max(1000, timeout_ms)
         self.risk_notice = risk_notice
-        self.model_info = get_model_runtime_info(model_name)
+        self.deepseek_api_key_override = deepseek_api_key_override
+        self.model_info = get_model_runtime_info(
+            model_name,
+            deepseek_api_key_override=deepseek_api_key_override,
+        )
 
     async def compose(
         self,
@@ -95,13 +101,14 @@ class ResponseComposer:
                 fallback_reason="pydantic_ai_unavailable",
             )
 
-        if self.agent_mode == "hybrid" and not model_credentials_available(
+        if self.agent_mode in {"hybrid", "model"} and not model_credentials_available(
             self.model_name,
+            deepseek_api_key_override=self.deepseek_api_key_override,
         ):
             return ComposeResult(
-                response=deterministic_response,
+                response=self._build_model_not_configured_response(intent=intent),
                 metadata={
-                    "composer_mode": "deterministic_fallback",
+                    "composer_mode": "model_unconfigured",
                     "reason": "model_not_configured",
                     "fallback_reason": "model_not_configured",
                     **self.model_info.metadata(),
@@ -232,7 +239,10 @@ class ResponseComposer:
         if Agent is None or PromptedOutput is None:  # pragma: no cover - guarded above
             raise RuntimeError("pydantic_ai_unavailable")
 
-        model, _info = build_model(self.model_name)
+        model, _info = build_model(
+            self.model_name,
+            deepseek_api_key_override=self.deepseek_api_key_override,
+        )
         agent = Agent(
             model,
             output_type=PromptedOutput(
@@ -322,4 +332,31 @@ class ResponseComposer:
                 "recommended_actions": recommended_actions,
                 "follow_up_questions": follow_up_questions,
             }
+        )
+
+    def _build_model_not_configured_response(self, *, intent: str) -> AdvisorResponse:
+        action = "到资料中心配置模型 API。"
+        return AdvisorResponse(
+            answer=(
+                "当前还没有接入可用的 LLM API，所以我不能把这次内容伪装成模型回答。"
+                "请先到「资料中心 -> 模型设置」配置 DeepSeek API key，或让部署环境配置工作区 key；"
+                "配置完成后再发送同一个问题，我会用真实模型回答。"
+            ),
+            intent=intent,
+            citations=[],
+            risk_notice=self.risk_notice,
+            recommended_actions=[action],
+            recommended_action_targets=[
+                AdvisorActionTarget(
+                    label="打开模型设置",
+                    href="/profile?focus=llm-settings",
+                    intent="profile",
+                    action_id="coach-profile-llm-settings",
+                    reason="先补齐模型连接，避免把规则模板误看成真实模型回答。",
+                    target_params={"from": "coach", "focus": "llm-settings"},
+                    expected_writeback="user_llm_settings",
+                    safety_note="模型设置只影响回答生成，不会触发账户操作。",
+                )
+            ],
+            follow_up_questions=["我已经配置好 API key，请重新回答刚才的问题。"],
         )

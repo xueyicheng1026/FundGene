@@ -66,6 +66,7 @@ class AdvisorOrchestrator:
         runtime_flags: str = "default",
         max_tool_calls: int = 8,
         max_workers: int = 3,
+        deepseek_api_key_override: str | None = None,
     ) -> None:
         self.model_name = model_name
         self.agent_mode = agent_mode
@@ -85,6 +86,7 @@ class AdvisorOrchestrator:
             agent_mode=agent_mode,
             timeout_ms=model_timeout_ms,
             risk_notice=RISK_NOTICE,
+            deepseek_api_key_override=deepseek_api_key_override,
         )
         self.workers = {
             "learning": LearningWorker(),

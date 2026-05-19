@@ -221,10 +221,10 @@ function modelStatusLabel(analysis: NewsAnalysis): string {
     return "已生成解读";
   }
   if (analysis.modelStatus === "fallback") {
-    return "已显示基础解读";
+    return "模型未完成";
   }
   if (analysis.modelStatus === "skipped") {
-    return "暂用基础解读";
+    return "模型未配置";
   }
   return "历史解读";
 }
@@ -376,6 +376,14 @@ function AnalysisCanvas({ analysis }: { analysis: NewsAnalysis }) {
                 查看原文
               </a>
             ) : null}
+          </div>
+        ) : null}
+        {analysis.modelStatus !== "enhanced" ? (
+          <div className="mt-4 rounded-lg border border-[rgba(255,159,10,0.28)] bg-[rgba(255,159,10,0.1)] px-4 py-3 text-sm font-medium leading-6 text-[color:var(--accent-clay)]">
+            {analysis.modelStatus === "skipped"
+              ? "这次没有可用的 LLM API，下面只显示来源事实和规则拆解，不会伪装成模型解读。请到资料中心配置模型 Key 后重新生成。"
+              : "这次模型增强没有成功，下面只显示来源事实和规则拆解。"}
+            {analysis.fallbackReason ? ` 原因：${analysis.fallbackReason}。` : null}
           </div>
         ) : null}
       </div>
@@ -598,7 +606,7 @@ export function NewsWorkspace() {
 
   const newsQuery = useQuery({
     queryKey: newsCatalogQueryKey,
-    queryFn: () => getNewsCatalog({ refresh: false }),
+    queryFn: () => getNewsCatalog({ refresh: true }),
     enabled: Boolean(sessionQuery.data),
     staleTime: newsCatalogStaleTimeMs,
     gcTime: newsCatalogGcTimeMs,

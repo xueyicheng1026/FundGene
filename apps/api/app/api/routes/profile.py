@@ -8,15 +8,20 @@ from app.core.database import get_db_session
 from app.models.user import UserProfile
 from app.schemas.profile import (
     ProfileContextResponse,
+    ProfileLlmSettingsResponse,
+    ProfileLlmSettingsUpdateRequest,
+    ProfileLlmSettingsUpdateResponse,
     ProfilePendingProposalsResponse,
     ProfileProposalDecisionRequest,
     ProfileProposalDecisionResponse,
 )
 from app.services.profile import (
     accept_profile_pending_proposal,
+    get_profile_llm_settings,
     get_profile_context,
     get_profile_pending_proposals,
     reject_profile_pending_proposal,
+    update_profile_llm_settings,
 )
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -36,6 +41,23 @@ def read_profile_pending_proposals(
     user: Annotated[UserProfile, Depends(get_current_user)],
 ) -> ProfilePendingProposalsResponse:
     return get_profile_pending_proposals(db, user=user)
+
+
+@router.get("/llm-settings", response_model=ProfileLlmSettingsResponse)
+def read_profile_llm_settings(
+    db: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserProfile, Depends(get_current_user)],
+) -> ProfileLlmSettingsResponse:
+    return get_profile_llm_settings(db, user=user)
+
+
+@router.put("/llm-settings", response_model=ProfileLlmSettingsUpdateResponse)
+def update_llm_settings(
+    payload: ProfileLlmSettingsUpdateRequest,
+    db: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserProfile, Depends(get_current_user)],
+) -> ProfileLlmSettingsUpdateResponse:
+    return update_profile_llm_settings(db, user=user, payload=payload)
 
 
 @router.post(

@@ -57,7 +57,7 @@ def _clear_runtime_caches() -> None:
     get_advisor_runtime.cache_clear()
 
 
-def test_deepseek_hybrid_without_key_uses_deterministic_fallback(monkeypatch) -> None:
+def test_deepseek_hybrid_without_key_reports_configuration_required(monkeypatch) -> None:
     monkeypatch.setenv("FUNDGENE_DEEPSEEK_API_KEY", "")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "")
     _clear_runtime_caches()
@@ -77,12 +77,69 @@ def test_deepseek_hybrid_without_key_uses_deterministic_fallback(monkeypatch) ->
         )
     )
 
-    assert result.response.answer.startswith("规则回答")
-    assert result.metadata["composer_mode"] == "deterministic_fallback"
+    assert "没有接入可用的 LLM API" in result.response.answer
+    assert "规则回答" not in result.response.answer
+    assert result.response.recommended_action_targets[0].href.startswith("/profile")
+    assert result.metadata["composer_mode"] == "model_unconfigured"
     assert result.metadata["provider"] == "deepseek"
     assert result.metadata["model_name"] == "deepseek:deepseek-v4-pro"
     assert result.metadata["fallback_reason"] == "model_not_configured"
     assert result.fallback_reason == "model_not_configured"
+
+
+def test_profile_llm_settings_can_supply_user_deepseek_key(
+    monkeypatch,
+    client: TestClient,
+) -> None:
+    monkeypatch.setenv("FUNDGENE_AGENT_MODE", "hybrid")
+    monkeypatch.setenv("FUNDGENE_DEEPSEEK_API_KEY", "")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "")
+    _clear_runtime_caches()
+
+    async def fake_model(self, **kwargs):  # noqa: ANN001
+        deterministic = kwargs["deterministic_response"]
+        return deterministic.model_copy(
+            update={"answer": "用户 Key 模型回答：先把风险等级和回撤拆开看。"}
+        )
+
+    monkeypatch.setattr(ResponseComposer, "_run_model_composer", fake_model)
+    _onboard(client, email="user-llm-settings@example.com")
+
+    empty_settings = client.get("/api/profile/llm-settings")
+    assert empty_settings.status_code == 200
+    assert empty_settings.json()["source"] == "none"
+    assert empty_settings.json()["configured"] is False
+
+    save_settings = client.put(
+        "/api/profile/llm-settings",
+        json={
+            "provider": "deepseek",
+            "model_name": "deepseek:deepseek-v4-pro",
+            "api_key": "sk-user-demo-key",
+            "enabled": True,
+        },
+    )
+    assert save_settings.status_code == 200
+    saved_payload = save_settings.json()["settings"]
+    assert saved_payload["source"] == "user"
+    assert saved_payload["configured"] is True
+    assert saved_payload["masked_api_key"].startswith("sk-use")
+    assert "sk-user-demo-key" not in json.dumps(saved_payload)
+
+    response = client.post(
+        "/api/assistant/messages",
+        json={"message": "基金回撤是什么意思？"},
+    )
+    assert response.status_code == 200
+    assistant_message = response.json()["messages"][-1]
+    assert assistant_message["advisor_response"]["answer"].startswith("用户 Key 模型回答")
+
+    trace_response = client.get(
+        f"/api/assistant/runs/{assistant_message['agent_run_id']}/trace"
+    )
+    assert trace_response.status_code == 200
+    composer = trace_response.json()["run"]["tool_trace"]["composer"]
+    assert composer["composer_mode"] == "model"
 
 
 def test_deepseek_model_failure_keeps_deterministic_response(monkeypatch) -> None:

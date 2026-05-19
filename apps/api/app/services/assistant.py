@@ -35,6 +35,7 @@ from app.services.behavior import get_behavior_training_plan
 from app.services.learning import get_learning_overview
 from app.services.news import get_news_overview
 from app.services.portfolio import get_portfolio_overview
+from app.services.profile import get_effective_llm_config
 from app.services.simulation import get_latest_simulation_overview
 
 COACH_CONTEXT_TYPE = "coach"
@@ -338,10 +339,13 @@ async def send_message(
     db.add(user_message)
     db.flush()
 
+    effective_model_name, deepseek_api_key_override, llm_settings_source = (
+        get_effective_llm_config(db, user=user)
+    )
     agent_run = AgentRun(
         session_id=session.id,
         user_id=user.id,
-        model_name=runtime.model_name,
+        model_name=effective_model_name,
         schema_version="assistant_message_v1",
         run_status="running",
         run_type="advisor_orchestrator",
@@ -354,6 +358,11 @@ async def send_message(
             "page_context": page_context,
             "user_message_id": user_message.id,
             "user_context": _build_user_context_payload(user_context),
+            "llm_settings": {
+                "source": llm_settings_source,
+                "model_name": effective_model_name,
+                "configured": llm_settings_source != "none",
+            },
         },
         output_payload={},
         tool_trace={"user_message_id": user_message.id, "page_context": page_context},
@@ -364,12 +373,13 @@ async def send_message(
     db.flush()
 
     orchestrator = AdvisorOrchestrator(
-        model_name=runtime.model_name,
+        model_name=effective_model_name,
         agent_mode=runtime.agent_mode,
         model_timeout_ms=runtime.model_timeout_ms,
         runtime_flags=runtime.runtime_flags,
         max_tool_calls=runtime.max_tool_calls,
         max_workers=runtime.max_workers,
+        deepseek_api_key_override=deepseek_api_key_override,
     )
     run_result = await orchestrator.run(
         db=db,

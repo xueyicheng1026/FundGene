@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.models.agent_run import AgentRun
 from app.models.agent_state_update_proposal import AgentStateUpdateProposal
+from app.models.user_llm_setting import UserLlmSetting
 from app.models.user import UserProfile
+from app.core.config import get_settings
 from app.schemas.profile import (
     ProfileAuthorizationScopeItem,
     ProfileAutomationAuthorization,
@@ -22,6 +24,9 @@ from app.schemas.profile import (
     ProfileReadinessItem,
     ProfileRiskProfile,
     ProfileSimulationContext,
+    ProfileLlmSettingsResponse,
+    ProfileLlmSettingsUpdateRequest,
+    ProfileLlmSettingsUpdateResponse,
 )
 from app.services.automations import (
     AUTOMATION_BY_KEY,
@@ -37,6 +42,123 @@ from app.services.dashboard import build_dashboard_state
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _mask_api_key(value: str | None) -> str | None:
+    if not value:
+        return None
+    stripped = value.strip()
+    if len(stripped) <= 10:
+        return f"{stripped[:2]}...{stripped[-2:]}"
+    return f"{stripped[:6]}...{stripped[-4:]}"
+
+
+def _get_user_llm_setting(
+    db: Session,
+    *,
+    user_id: str,
+) -> UserLlmSetting | None:
+    return db.get(UserLlmSetting, user_id)
+
+
+def _serialize_llm_settings(
+    setting: UserLlmSetting | None,
+) -> ProfileLlmSettingsResponse:
+    settings = get_settings()
+    user_key = (
+        setting.api_key.strip()
+        if setting is not None and setting.enabled and setting.api_key
+        else None
+    )
+    workspace_key = settings.resolved_deepseek_api_key
+    source = "user" if user_key else "workspace" if workspace_key else "none"
+    configured = source != "none"
+    model_name = setting.model_name if setting is not None else settings.advisor_model
+    warning = None
+    if not configured:
+        warning = "当前没有可用的 LLM API，Agent 会明确提示模型未配置，不会伪装成模型回答。"
+
+    return ProfileLlmSettingsResponse(
+        provider="deepseek",
+        model_name=model_name,
+        configured=configured,
+        enabled=setting.enabled if setting is not None else bool(workspace_key),
+        source=source,  # type: ignore[arg-type]
+        masked_api_key=(
+            _mask_api_key(setting.api_key)
+            if setting is not None and setting.api_key
+            else ("工作区已配置" if workspace_key else None)
+        ),
+        updated_at=setting.updated_at if setting is not None else None,
+        warning=warning,
+    )
+
+
+def get_profile_llm_settings(
+    db: Session,
+    *,
+    user: UserProfile,
+) -> ProfileLlmSettingsResponse:
+    return _serialize_llm_settings(_get_user_llm_setting(db, user_id=user.id))
+
+
+def get_effective_llm_config(
+    db: Session,
+    *,
+    user: UserProfile,
+) -> tuple[str, str | None, str]:
+    settings = get_settings()
+    setting = _get_user_llm_setting(db, user_id=user.id)
+    if setting is not None and setting.enabled and setting.api_key:
+        api_key = setting.api_key.strip()
+        if api_key:
+            return setting.model_name, api_key, "user"
+    if settings.resolved_deepseek_api_key:
+        return settings.advisor_model, None, "workspace"
+    return (
+        setting.model_name if setting is not None else settings.advisor_model,
+        None,
+        "none",
+    )
+
+
+def update_profile_llm_settings(
+    db: Session,
+    *,
+    user: UserProfile,
+    payload: ProfileLlmSettingsUpdateRequest,
+) -> ProfileLlmSettingsUpdateResponse:
+    model_name = payload.model_name.strip() or "deepseek:deepseek-v4-pro"
+    if not model_name.startswith("deepseek:"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="FundGene demo currently supports DeepSeek model names only.",
+        )
+
+    setting = _get_user_llm_setting(db, user_id=user.id)
+    now = _utc_now()
+    api_key = payload.api_key.strip() if payload.api_key else None
+    if setting is None:
+        setting = UserLlmSetting(
+            user_id=user.id,
+            provider=payload.provider,
+            model_name=model_name,
+            api_key=api_key,
+            enabled=payload.enabled,
+            created_at=now,
+            updated_at=now,
+        )
+    else:
+        setting.provider = payload.provider
+        setting.model_name = model_name
+        if api_key:
+            setting.api_key = api_key
+        setting.enabled = payload.enabled
+        setting.updated_at = now
+    db.add(setting)
+    db.commit()
+    db.refresh(setting)
+    return ProfileLlmSettingsUpdateResponse(settings=_serialize_llm_settings(setting))
 
 
 def _proposal_status(proposal: AgentStateUpdateProposal) -> str:

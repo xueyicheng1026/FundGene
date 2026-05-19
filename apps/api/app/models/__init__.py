@@ -32,6 +32,7 @@ from app.models.simulation_review import SimulationReview
 from app.models.simulation_session import SimulationSession
 from app.models.user import UserProfile
 from app.models.user_course_progress import UserCourseProgress
+from app.models.user_llm_setting import UserLlmSetting
 
 __all__ = [
     "AgentRun",
@@ -66,4 +67,5 @@ __all__ = [
     "SimulationSession",
     "UserProfile",
     "UserCourseProgress",
+    "UserLlmSetting",
 ]

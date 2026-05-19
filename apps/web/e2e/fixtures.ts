@@ -975,6 +975,28 @@ function buildPendingProposals() {
   };
 }
 
+function buildLlmSettings(): {
+  provider: "deepseek";
+  model_name: string;
+  configured: boolean;
+  enabled: boolean;
+  source: "user" | "workspace" | "none";
+  masked_api_key: string | null;
+  updated_at: string | null;
+  warning: string | null;
+} {
+  return {
+    provider: "deepseek",
+    model_name: "deepseek:deepseek-v4-pro",
+    configured: false,
+    enabled: true,
+    source: "none",
+    masked_api_key: null,
+    updated_at: null,
+    warning: "当前没有可用的 LLM API，Agent 会明确提示模型未配置，不会伪装成模型回答。",
+  };
+}
+
 function json(route: Route, body: unknown, status = 200) {
   const requestOrigin = new URL(route.request().headers().origin ?? route.request().url()).origin;
 
@@ -984,7 +1006,7 @@ function json(route: Route, body: unknown, status = 200) {
     headers: {
       "Access-Control-Allow-Credentials": "true",
       "Access-Control-Allow-Headers": "content-type",
-      "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
+      "Access-Control-Allow-Methods": "GET,POST,PATCH,PUT,OPTIONS",
       "Access-Control-Allow-Origin": requestOrigin,
     },
     body: JSON.stringify(body),
@@ -999,6 +1021,7 @@ export async function mockFundGeneApi(
   const automationState = buildAutomationState();
   const profileContext = buildProfileContext();
   const pendingProposals = buildPendingProposals();
+  const llmSettings = buildLlmSettings();
 
   await page.context().route("**/*", async (route) => {
     const url = new URL(route.request().url());
@@ -1130,6 +1153,32 @@ export async function mockFundGeneApi(
     }
     if (path === "/api/profile/pending-proposals") {
       return json(route, pendingProposals);
+    }
+    if (path === "/api/profile/llm-settings") {
+      if (route.request().method() === "PUT") {
+        let payload: Record<string, unknown> = {};
+        try {
+          payload = route.request().postDataJSON() as Record<string, unknown>;
+        } catch {
+          payload = {};
+        }
+        if (typeof payload.model_name === "string" && payload.model_name.trim()) {
+          llmSettings.model_name = payload.model_name.trim();
+        }
+        if (typeof payload.enabled === "boolean") {
+          llmSettings.enabled = payload.enabled;
+        }
+        if (typeof payload.api_key === "string" && payload.api_key.trim()) {
+          const key = payload.api_key.trim();
+          llmSettings.configured = true;
+          llmSettings.source = "user";
+          llmSettings.masked_api_key = `${key.slice(0, 6)}...${key.slice(-4)}`;
+          llmSettings.warning = null;
+          llmSettings.updated_at = "2026-04-26T10:30:00Z";
+        }
+        return json(route, { settings: llmSettings });
+      }
+      return json(route, llmSettings);
     }
     if (path.startsWith("/api/profile/pending-proposals/")) {
       const parts = path.split("/");

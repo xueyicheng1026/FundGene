@@ -739,6 +739,8 @@ def create_news_analysis(
     user: UserProfile,
     payload: NewsAnalyzeRequest,
 ) -> NewsAnalysisResponse:
+    from app.services.profile import get_effective_llm_config
+
     if payload.item_id is not None:
         item_type, item = _get_item(
             db,
@@ -755,6 +757,9 @@ def create_news_analysis(
             body=payload.body or "",
         )
     rule_analysis_payload = _build_rule_analysis(item=item, item_type=item_type)
+    effective_model_name, deepseek_api_key_override, _llm_source = (
+        get_effective_llm_config(db, user=user)
+    )
     enhancement = enhance_news_analysis_payload(
         item_context={
             "item_type": item_type,
@@ -767,6 +772,8 @@ def create_news_analysis(
             "url": item.url,
         },
         rule_payload=rule_analysis_payload,
+        configured_model_name=effective_model_name,
+        deepseek_api_key_override=deepseek_api_key_override,
     )
     analysis_payload = enhancement.payload or rule_analysis_payload
     now = datetime.now(timezone.utc)

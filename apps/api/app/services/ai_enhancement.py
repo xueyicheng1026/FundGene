@@ -125,13 +125,27 @@ def enhance_news_analysis_payload(
     *,
     item_context: dict[str, Any],
     rule_payload: dict[str, Any],
+    configured_model_name: str | None = None,
+    deepseek_api_key_override: str | None = None,
 ) -> NewsEnhancementResult:
     settings = get_settings()
-    model_info = get_model_runtime_info(settings.advisor_model, settings=settings)
-    if not _model_enhancement_enabled():
+    model_name = configured_model_name or settings.advisor_model
+    model_info = get_model_runtime_info(
+        model_name,
+        settings=settings,
+        deepseek_api_key_override=deepseek_api_key_override,
+    )
+    if not _model_enhancement_enabled(
+        configured_model_name=model_name,
+        deepseek_api_key_override=deepseek_api_key_override,
+    ):
         return NewsEnhancementResult(
             status="skipped",
-            fallback_reason="model_not_configured_or_disabled",
+            fallback_reason=(
+                "model_disabled"
+                if settings.agent_mode.strip().lower() == "deterministic"
+                else "model_not_configured"
+            ),
             model_info=model_info,
             payload=rule_payload,
         )
@@ -159,6 +173,8 @@ def enhance_news_analysis_payload(
                 "You may rewrite and clarify, but you must not add unsupported facts, "
                 "trading instructions, return promises, or automation capability."
             ),
+            configured_model_name=model_name,
+            deepseek_api_key_override=deepseek_api_key_override,
         )
         if isinstance(model_result, tuple):
             enhanced, model_info = model_result
@@ -313,11 +329,19 @@ def enhance_portfolio_analysis_text(
     )
 
 
-def _model_enhancement_enabled() -> bool:
+def _model_enhancement_enabled(
+    *,
+    configured_model_name: str | None = None,
+    deepseek_api_key_override: str | None = None,
+) -> bool:
     settings = get_settings()
     if settings.agent_mode.strip().lower() == "deterministic":
         return False
-    return model_credentials_available(settings.advisor_model, settings=settings)
+    return model_credentials_available(
+        configured_model_name or settings.advisor_model,
+        settings=settings,
+        deepseek_api_key_override=deepseek_api_key_override,
+    )
 
 
 def _run_model_enhancement(
@@ -325,17 +349,21 @@ def _run_model_enhancement(
     output_type: type[T],
     prompt: str,
     instructions: str,
+    configured_model_name: str | None = None,
+    deepseek_api_key_override: str | None = None,
 ) -> tuple[T, ModelRuntimeInfo]:
     settings = get_settings()
+    model_name = configured_model_name or settings.advisor_model
 
     async def run() -> tuple[T, ModelRuntimeInfo]:
         output, info = await run_structured_model(
-            configured_model_name=settings.advisor_model,
+            configured_model_name=model_name,
             output_type=output_type,
             instructions=instructions,
             prompt=prompt,
             timeout_ms=settings.agent_model_timeout_ms,
             settings=settings,
+            deepseek_api_key_override=deepseek_api_key_override,
         )
         return output, info
 

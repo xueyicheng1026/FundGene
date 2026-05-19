@@ -15,6 +15,7 @@ ReadinessKey = Literal[
     "automations",
 ]
 ProposalDecisionStatus = Literal["pending", "accepted", "rejected", "applied"]
+LlmSettingsSource = Literal["user", "workspace", "none"]
 
 
 class ProfileReadinessItem(BaseModel):
@@ -117,3 +118,25 @@ class ProfileProposalDecisionRequest(BaseModel):
 class ProfileProposalDecisionResponse(BaseModel):
     proposal: ProfilePendingProposalResponse
     applied_writeback: bool = False
+
+
+class ProfileLlmSettingsResponse(BaseModel):
+    provider: Literal["deepseek"] = "deepseek"
+    model_name: str
+    configured: bool
+    enabled: bool
+    source: LlmSettingsSource
+    masked_api_key: str | None = None
+    updated_at: datetime | None = None
+    warning: str | None = None
+
+
+class ProfileLlmSettingsUpdateRequest(BaseModel):
+    provider: Literal["deepseek"] = "deepseek"
+    model_name: str = Field(default="deepseek:deepseek-v4-pro", max_length=128)
+    api_key: str | None = Field(default=None, max_length=512)
+    enabled: bool = True
+
+
+class ProfileLlmSettingsUpdateResponse(BaseModel):
+    settings: ProfileLlmSettingsResponse

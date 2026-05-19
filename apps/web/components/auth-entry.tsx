@@ -16,6 +16,21 @@ import {
 import { InlineNotice, StatusPill } from "./ui/primitives";
 
 type AuthMode = "sign-in" | "sign-up";
+const REMEMBERED_EMAIL_KEY = "fundgene:last-auth-email";
+
+function getRememberedEmail(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  return window.localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? "";
+}
+
+function rememberEmail(value: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(REMEMBERED_EMAIL_KEY, value);
+}
 
 function resolveNextPath(nextPath: string | null, session: SessionUser): string {
   if (!session.onboardingCompleted) {
@@ -33,8 +48,9 @@ export function AuthEntry() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState<AuthMode>("sign-up");
-  const [email, setEmail] = useState("");
+  const rememberedEmail = getRememberedEmail();
+  const [mode, setMode] = useState<AuthMode>(rememberedEmail ? "sign-in" : "sign-up");
+  const [email, setEmail] = useState(rememberedEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -73,6 +89,7 @@ export function AuthEntry() {
       } else {
         await loginAuthAccount({ email: trimmedEmail, password });
       }
+      rememberEmail(trimmedEmail);
       const session = await getSessionUser();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["session-user"] }),
@@ -89,6 +106,12 @@ export function AuthEntry() {
       });
     },
     onError: (error) => {
+      if (mode === "sign-up" && error instanceof ApiError && error.status === 409) {
+        rememberEmail(email.trim());
+        setMode("sign-in");
+        setSubmitError("这个邮箱已经注册过了，已为你切到登录。输入原密码即可继续。");
+        return;
+      }
       if (mode === "sign-in") {
         setSubmitError(
           "账号不存在或密码不正确。还没有账号的话，请先创建账号并开始建档。",
@@ -212,7 +235,7 @@ export function AuthEntry() {
 
             <section className="surface-panel-strong order-1 min-h-[auto] px-6 py-8 sm:px-9 sm:py-10 xl:order-2 xl:min-h-[560px]">
               <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-3xl font-semibold tracking-normal text-[color:var(--ink-strong)]">
+                <h2 className="text-3xl font-semibold tracking-normal text-[color:var(--ink-strong)]">
                   {mode === "sign-up" ? "开始建档" : "登录已有账号"}
                 </h2>
                 <StatusPill tone="accent">
@@ -247,7 +270,12 @@ export function AuthEntry() {
                     name="email"
                     className="field-input"
                     value={email}
-                    onChange={(event) => setEmail(event.target.value)}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      if (event.target.value.trim()) {
+                        rememberEmail(event.target.value.trim());
+                      }
+                    }}
                     placeholder="you@example.com"
                     autoComplete="email"
                   />

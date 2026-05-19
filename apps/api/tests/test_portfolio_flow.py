@@ -120,7 +120,7 @@ def test_portfolio_snapshot_persists_report_history_and_coach_context(
     assert coach_response.status_code == 200
     coach_payload = coach_response.json()
     assert coach_payload["messages"][1]["advisor_response"]["intent"] == "portfolio"
-    assert "直接回答：" in coach_payload["messages"][1]["advisor_response"]["answer"]
+    assert "直接回答：" not in coach_payload["messages"][1]["advisor_response"]["answer"]
     assert "当前已有最近组合报告" in coach_payload["messages"][1]["advisor_response"]["answer"]
 
     with session_factory() as session:

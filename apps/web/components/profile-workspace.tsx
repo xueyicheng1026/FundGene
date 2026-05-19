@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock3,
+  KeyRound,
   UserRoundCog,
 } from "lucide-react";
 
@@ -16,8 +17,10 @@ import {
   acceptProfilePendingProposal,
   ApiError,
   getProfileContext,
+  getProfileLlmSettings,
   getProfilePendingProposals,
   rejectProfilePendingProposal,
+  updateProfileLlmSettings,
   type ProfilePendingProposal,
   type RiskLevel,
 } from "@/lib/api";
@@ -25,6 +28,7 @@ import { formatBiasTags, formatProductCopy } from "@/lib/display-labels";
 import {
   Button,
   ErrorState,
+  Field,
   LoadingState,
   Panel,
   ProgressBar,
@@ -122,6 +126,10 @@ function formatAutomationLabel(key: string): string {
 export function ProfileWorkspace() {
   const queryClient = useQueryClient();
   const [operationError, setOperationError] = useState<string | null>(null);
+  const [llmOperationError, setLlmOperationError] = useState<string | null>(null);
+  const [llmModelName, setLlmModelName] = useState<string | null>(null);
+  const [llmApiKey, setLlmApiKey] = useState("");
+  const [llmEnabled, setLlmEnabled] = useState<boolean | null>(null);
 
   const contextQuery = useQuery({
     queryKey: ["profile-context"],
@@ -132,6 +140,12 @@ export function ProfileWorkspace() {
   const proposalsQuery = useQuery({
     queryKey: ["profile-pending-proposals"],
     queryFn: getProfilePendingProposals,
+    retry: false,
+  });
+
+  const llmSettingsQuery = useQuery({
+    queryKey: ["profile-llm-settings"],
+    queryFn: getProfileLlmSettings,
     retry: false,
   });
 
@@ -169,12 +183,28 @@ export function ProfileWorkspace() {
     },
   });
 
+  const llmSettingsMutation = useMutation({
+    mutationFn: updateProfileLlmSettings,
+    onMutate: () => setLlmOperationError(null),
+    onSuccess: async () => {
+      setLlmApiKey("");
+      await queryClient.invalidateQueries({ queryKey: ["profile-llm-settings"] });
+    },
+    onError: (error) => {
+      setLlmOperationError(
+        isApiError(error) ? error.message : "模型设置暂时无法保存。",
+      );
+    },
+  });
+
   const context = contextQuery.data;
   const proposals = proposalsQuery.data;
+  const llmSettings = llmSettingsQuery.data;
   const pendingProposals = proposals?.proposals ?? [];
   const readiness = context?.contextReadiness;
-  const isLoading = contextQuery.isLoading || proposalsQuery.isLoading;
-  const error = contextQuery.error ?? proposalsQuery.error;
+  const isLoading =
+    contextQuery.isLoading || proposalsQuery.isLoading || llmSettingsQuery.isLoading;
+  const error = contextQuery.error ?? proposalsQuery.error ?? llmSettingsQuery.error;
   const activeAcceptTitle = proposalOperationLabel(
     "accept",
     pendingProposals.find(
@@ -187,6 +217,24 @@ export function ProfileWorkspace() {
       (proposal) => proposal.id === rejectMutation.variables?.proposalId,
     ),
   );
+  const llmStatusTone = llmSettings?.configured ? "positive" : "warning";
+  const llmStatusLabel =
+    llmSettings?.source === "user"
+      ? "用户 Key 已配置"
+      : llmSettings?.source === "workspace"
+        ? "工作区 Key 已配置"
+        : "未配置";
+  const effectiveLlmModelName =
+    llmModelName ?? llmSettings?.modelName ?? "deepseek:deepseek-v4-pro";
+  const effectiveLlmEnabled = llmEnabled ?? llmSettings?.enabled ?? true;
+
+  const saveLlmSettings = () => {
+    llmSettingsMutation.mutate({
+      modelName: effectiveLlmModelName,
+      apiKey: llmApiKey,
+      enabled: effectiveLlmEnabled,
+    });
+  };
 
   return (
     <div className="profile-command-page command-single-page">
@@ -454,6 +502,69 @@ export function ProfileWorkspace() {
               </div>
               <p className="profile-auth-note">
                 自动任务只能读取这里明确存在的资料。高影响保存仍需确认。
+              </p>
+            </div>
+          </Panel>
+
+          <Panel className="profile-auth-panel">
+            <div className="profile-auth-block" id="llm-settings">
+              <div className="profile-card-heading">
+                <KeyRound aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
+                <h2>模型设置</h2>
+              </div>
+              <div className="profile-auth-list">
+                <div className="profile-auth-row">
+                  <span>LLM 连接状态</span>
+                  <StatusPill tone={llmStatusTone}>{llmStatusLabel}</StatusPill>
+                </div>
+                <div className="profile-auth-row">
+                  <span>当前模型</span>
+                  <span>{llmSettings?.modelName ?? effectiveLlmModelName}</span>
+                </div>
+                <div className="profile-auth-row">
+                  <span>Key 预览</span>
+                  <span>{llmSettings?.maskedApiKey ?? "未保存"}</span>
+                </div>
+              </div>
+              {llmSettings?.warning ? (
+                <p className="command-inline-error">{llmSettings.warning}</p>
+              ) : null}
+              {llmOperationError ? (
+                <p className="command-inline-error">{llmOperationError}</p>
+              ) : null}
+              <div className="grid gap-3">
+                <Field
+                  label="DeepSeek API Key"
+                  type="password"
+                  autoComplete="off"
+                  value={llmApiKey}
+                  placeholder="sk-..."
+                  hint="保存后只显示脱敏预览；未配置时 Agent 会直接提示模型不可用。"
+                  onChange={(event) => setLlmApiKey(event.target.value)}
+                />
+                <Field
+                  label="模型名称"
+                  value={effectiveLlmModelName}
+                  onChange={(event) => setLlmModelName(event.target.value)}
+                />
+                <label className="flex items-center gap-2 text-sm font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={effectiveLlmEnabled}
+                    onChange={(event) => setLlmEnabled(event.target.checked)}
+                  />
+                  启用我的模型 Key
+                </label>
+                <Button
+                  type="button"
+                  disabled={llmSettingsMutation.isPending}
+                  onClick={saveLlmSettings}
+                >
+                  {llmSettingsMutation.isPending ? "保存中" : "保存模型设置"}
+                </Button>
+              </div>
+              <p className="profile-auth-note">
+                展示版会把 Key 存在后端资料表；生产环境应改成加密密钥托管。
               </p>
             </div>
           </Panel>

@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     deepseek_thinking: str = "disabled"
     deepseek_reasoning_effort: str = "high"
     auth_session_cookie_name: str = "fundgene_session"
-    auth_session_ttl_hours: int = 168
+    auth_session_ttl_hours: int = 720
     auth_session_secure: bool = False
     auth_session_samesite: str = "lax"
     news_feeds: list[str] = Field(default_factory=lambda: list(DEFAULT_NEWS_FEEDS))
