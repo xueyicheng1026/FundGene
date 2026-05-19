@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import DEFAULT_NEWS_FEEDS
 from app.models.agent_citation import AgentCitation
 from app.models.news_item import NewsItem
 from app.models.news_analysis import NewsAnalysis
@@ -51,6 +52,14 @@ def _complete_onboarding(
         },
     )
     assert questionnaire_response.status_code == 200
+
+
+def test_default_news_feeds_include_domestic_policy_and_finance_sources() -> None:
+    joined = "\n".join(DEFAULT_NEWS_FEEDS)
+
+    assert "pbc.gov.cn" in joined
+    assert "people.com.cn/rss/finance.xml" in joined
+    assert "chinanews.com.cn/rss/finance.xml" in joined
 
 
 def test_news_policy_analysis_updates_dashboard_and_coach_context(
@@ -135,7 +144,7 @@ def test_news_policy_analysis_updates_dashboard_and_coach_context(
     assert news_evidence
     assert news_evidence[0]["claim"] == item["title"]
     assert "新闻概括：" in news_evidence[0]["beginner_translation"]
-    assert "Agent 解读：" in news_evidence[0]["beginner_translation"]
+    assert "简要解读：" in news_evidence[0]["beginner_translation"]
     assert any(
         evidence["source_type"] == "news_policy"
         for evidence in dashboard_payload["daily_brief"]["evidence"]
@@ -281,3 +290,43 @@ def test_news_list_refreshes_real_feed_sources(
     payload = response.json()
     assert len(payload["items"]) == 1
     assert payload["items"][0]["title"] == "Live market structure update"
+
+
+def test_news_list_only_returns_latest_daily_items(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _complete_onboarding(client, email="daily-news@example.com")
+
+    feed_document = """
+    <feed xmlns="http://www.w3.org/2005/Atom">
+      <title>Daily Finance Feed</title>
+      <entry>
+        <id>tag:example.com,2026:today-market</id>
+        <title>Today market policy update</title>
+        <link href="https://example.com/today-market" />
+        <updated>2026-05-19T08:00:00Z</updated>
+        <summary>Latest daily market update.</summary>
+      </entry>
+      <entry>
+        <id>tag:example.com,2026:yesterday-market</id>
+        <title>Yesterday market policy update</title>
+        <link href="https://example.com/yesterday-market" />
+        <updated>2026-05-18T08:00:00Z</updated>
+        <summary>Previous daily market update.</summary>
+      </entry>
+    </feed>
+    """
+    with session_factory() as session:
+        ingest_feed_document(
+            session,
+            feed_url="https://example.com/daily-feed.xml",
+            content=feed_document,
+        )
+
+    response = client.get("/api/news")
+    assert response.status_code == 200
+    titles = [item["title"] for item in response.json()["items"]]
+
+    assert "Today market policy update" in titles
+    assert "Yesterday market policy update" not in titles

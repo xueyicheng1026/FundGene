@@ -11,11 +11,14 @@ from app.schemas.assistant import (
     AgentRunTraceResponse,
     AssistantConversationResponse,
     AssistantMessageRequest,
+    AssistantSessionListResponse,
 )
 from app.services.assistant import (
+    get_conversation_by_id,
     get_current_conversation as get_current_assistant_conversation,
 )
 from app.services.assistant import get_agent_run_trace
+from app.services.assistant import list_conversations
 from app.services.assistant import send_message
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
@@ -27,6 +30,23 @@ def read_current_conversation(
     user: Annotated[UserProfile, Depends(get_current_user)],
 ) -> AssistantConversationResponse:
     return get_current_assistant_conversation(db, user=user)
+
+
+@router.get("/sessions", response_model=AssistantSessionListResponse)
+def read_conversations(
+    db: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserProfile, Depends(get_current_user)],
+) -> AssistantSessionListResponse:
+    return list_conversations(db, user=user)
+
+
+@router.get("/sessions/{session_id}", response_model=AssistantConversationResponse)
+def read_conversation(
+    session_id: str,
+    db: Annotated[Session, Depends(get_db_session)],
+    user: Annotated[UserProfile, Depends(get_current_user)],
+) -> AssistantConversationResponse:
+    return get_conversation_by_id(db, user=user, session_id=session_id)
 
 
 @router.post("/messages", response_model=AssistantConversationResponse)

@@ -44,6 +44,7 @@ class AssistantMessageContext(BaseModel):
 
 class AssistantMessageRequest(BaseModel):
     session_id: str | None = Field(default=None, min_length=1, max_length=36)
+    start_new_session: bool = False
     message: str = Field(min_length=1, max_length=4000)
     context: AssistantMessageContext | None = None
 
@@ -92,6 +93,11 @@ class AssistantSessionSummary(BaseModel):
     context_type: str
     created_at: datetime
     updated_at: datetime
+    latest_intent: str | None = None
+    last_question: str | None = None
+    last_answer_preview: str | None = None
+    last_recommended_action: str | None = None
+    message_count: int = 0
 
 
 class AssistantConversationMessage(BaseModel):
@@ -107,6 +113,10 @@ class AssistantConversationMessage(BaseModel):
 class AssistantConversationResponse(BaseModel):
     session: AssistantSessionSummary | None = None
     messages: list[AssistantConversationMessage] = Field(default_factory=list)
+
+
+class AssistantSessionListResponse(BaseModel):
+    sessions: list[AssistantSessionSummary] = Field(default_factory=list)
 
 
 class AgentRunTraceRun(BaseModel):

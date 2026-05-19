@@ -463,7 +463,7 @@
 
 用途：
 
-- 获取当前登录用户最近一次 coach 会话与最小历史
+- 获取当前登录用户最近一次 coach 会话与完整消息
 
 认证：
 
@@ -475,10 +475,48 @@
 - `session.id`
 - `session.topic`
 - `session.context_type`
+- `session.latest_intent`
+- `session.last_question`
+- `session.last_answer_preview`
+- `session.last_recommended_action`
+- `session.message_count`
 - `messages[].role`
 - `messages[].message_type`
 - `messages[].content`
 - `messages[].advisor_response`
+
+### `GET /api/assistant/sessions`
+
+用途：
+
+- 获取当前登录用户可继续的 coach 历史会话列表，供前端像 ChatGPT 一样选择旧会话
+
+认证：
+
+- 需要有效 session cookie
+- 当前要求用户已完成 onboarding / profile 基线
+
+响应重点：
+
+- `sessions[]` 按 `updated_at` 倒序返回，当前限制最多 50 条
+- 每条 session 包含 `id`、`topic`、`latest_intent`、`last_question`、`last_answer_preview`、`last_recommended_action`、`message_count`、`created_at`、`updated_at`
+- 列表接口只返回摘要，不返回完整 messages
+
+### `GET /api/assistant/sessions/{session_id}`
+
+用途：
+
+- 读取当前登录用户指定 coach 历史会话的完整消息，用于点开历史会话后重新显示并继续聊天
+
+认证：
+
+- 需要有效 session cookie
+- 只能读取当前登录用户自己的 `coach` 会话
+
+响应重点：
+
+- 响应结构与 `GET /api/assistant/session` 相同
+- 如果 `session_id` 不属于当前用户或不存在，返回 `404`
 
 ### `POST /api/assistant/messages`
 
@@ -494,7 +532,8 @@
 请求：
 
 - `message`
-- `session_id`（可选；当前为空时会自动落到最近一次 coach 会话，没有则创建新会话）
+- `session_id`（可选；为空且 `start_new_session` 不为 true 时会自动落到最近一次 coach 会话，没有则创建新会话）
+- `start_new_session`（可选，默认 `false`；为 true 时忽略最近会话并创建新会话）
 - `context`（可选；页面深链进入 Coach 时保留上下文）
   - `context.from_route`
   - `context.focus`
@@ -852,7 +891,8 @@
 
 - RSS/Atom feed 条目是全局条目。
 - feed 客户端使用真实 User-Agent，并尊重系统代理环境，适配本地代理网络。
-- 当前默认 feeds 来自 `FUNDGENE_NEWS_FEEDS` 或后端默认列表：Federal Reserve press feed、SEC press releases、U.S. Treasury press releases。
+- 当前默认 feeds 来自 `FUNDGENE_NEWS_FEEDS` 或后端默认列表：Federal Reserve press feed、SEC press releases、U.S. Treasury press releases、中国人民银行新闻 RSS、人民网财经、中新网财经。
+- `GET /api/news` 只返回当前已同步数据中最近一个自然日的条目；如果需要更多历史资讯，应另行设计历史检索或分页接口，不要把旧新闻混入默认日常阅读面。
 - `news_watch` 自动任务运行前会同步一次真实 feeds，再生成站内通知和待确认 Safe Next Action。
 - 用户粘贴的手动新闻条目会写入 `news_items.user_id`，只会返回给当前用户。
 

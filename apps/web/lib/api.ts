@@ -286,6 +286,7 @@ export type AssistantSessionSummary = {
   lastQuestion: string | null;
   lastAnswerPreview: string | null;
   lastRecommendedAction: string | null;
+  messageCount: number;
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -308,6 +309,7 @@ export type AssistantConversationState = {
 export type AssistantMessageInput = {
   message: string;
   sessionId?: string | null;
+  startNewSession?: boolean;
   context?: {
     fromRoute?: string | null;
     focus?: string | null;
@@ -1472,6 +1474,7 @@ function parseAssistantSessionSummary(input: unknown): AssistantSessionSummary |
     lastQuestion: asString(source.last_question),
     lastAnswerPreview: asString(source.last_answer_preview),
     lastRecommendedAction: asString(source.last_recommended_action),
+    messageCount: asNumber(source.message_count) ?? 0,
     createdAt: asString(source.created_at),
     updatedAt: asString(source.updated_at),
   };
@@ -3068,6 +3071,23 @@ export async function getAssistantSession(): Promise<AssistantConversationState>
   return parseAssistantConversation(payload);
 }
 
+export async function getAssistantSessions(): Promise<AssistantSessionSummary[]> {
+  const payload = await request("/api/assistant/sessions", {});
+  return pickArray(asObject(payload), ["sessions"])
+    .map((item) => parseAssistantSessionSummary(item))
+    .filter((item): item is AssistantSessionSummary => item !== null);
+}
+
+export async function getAssistantConversation(
+  sessionId: string,
+): Promise<AssistantConversationState> {
+  const payload = await request(
+    `/api/assistant/sessions/${encodeURIComponent(sessionId)}`,
+    {},
+  );
+  return parseAssistantConversation(payload);
+}
+
 export async function sendAssistantMessage(
   input: AssistantMessageInput,
 ): Promise<AssistantConversationState> {
@@ -3076,6 +3096,7 @@ export async function sendAssistantMessage(
     body: {
       message: input.message.trim(),
       session_id: input.sessionId ?? undefined,
+      start_new_session: input.startNewSession ?? false,
       context: input.context
         ? {
             from_route: input.context.fromRoute ?? undefined,
@@ -3190,7 +3211,7 @@ export async function getSimulationReview(
 }
 
 export async function getNewsCatalog(
-  options: { refresh?: boolean } = { refresh: true },
+  options: { refresh?: boolean } = { refresh: false },
 ): Promise<NewsCatalogState> {
   const query = options.refresh === false ? "" : "?refresh=true&limit=20";
   const payload = await request(`/api/news${query}`, {});

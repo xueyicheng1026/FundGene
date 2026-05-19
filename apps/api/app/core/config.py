@@ -14,6 +14,9 @@ DEFAULT_NEWS_FEEDS = [
     "https://www.federalreserve.gov/feeds/press_all.xml",
     "https://www.sec.gov/news/pressreleases.rss",
     "https://home.treasury.gov/news/press-releases/rss",
+    "https://www.pbc.gov.cn/goutongjiaoliu/113456/2986536/index.html",
+    "http://www.people.com.cn/rss/finance.xml",
+    "https://www.chinanews.com.cn/rss/finance.xml",
 ]
 
 

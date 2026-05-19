@@ -25,6 +25,7 @@ import {
   updateLearningProgress,
 } from "@/lib/api";
 import { formatProductCopy } from "@/lib/display-labels";
+import { buildAgentPromptHref } from "@/lib/navigation";
 import { MetricCard } from "./metric-card";
 import { SectionBlock } from "./section-block";
 import { cn, ProgressBar, StatusPill } from "./ui/primitives";
@@ -252,7 +253,19 @@ function SectionLearningCard({
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/coach" className="action-button-secondary">
+              <Link
+                href={buildAgentPromptHref({
+                  focus: "learning",
+                  from: "learning",
+                  prompt:
+                    "请用一个简单例子帮我理解这节内容，并告诉我怎么用到我的基金决策里。",
+                  sourceIds: {
+                    course_slug: course.courseSlug,
+                    section_slug: section.slug,
+                  },
+                })}
+                className="action-button-secondary"
+              >
                 <MessageCircleQuestion aria-hidden="true" className="size-4" />
                 继续问教练
               </Link>
@@ -472,7 +485,19 @@ export function LearningCourseWorkspace() {
                 <GraduationCap aria-hidden="true" className="size-4" />
                 进入当前材料
               </a>
-              <Link href="/coach" className="action-button-secondary">
+              <Link
+                href={buildAgentPromptHref({
+                  focus: "learning",
+                  from: "learning",
+                  prompt:
+                    "请用一个简单例子帮我理解这节内容，并告诉我怎么用到我的基金决策里。",
+                  sourceIds: {
+                    course_slug: course.courseSlug,
+                    section_slug: activeSection?.slug,
+                  },
+                })}
+                className="action-button-secondary"
+              >
                 <MessageCircleQuestion aria-hidden="true" className="size-4" />
                 问教练
               </Link>

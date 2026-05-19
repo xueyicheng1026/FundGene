@@ -10,7 +10,6 @@ import {
   Bot,
   History,
   ListChecks,
-  PlusCircle,
   SendHorizontal,
   ShieldCheck,
   Sparkles,
@@ -19,7 +18,9 @@ import {
 import {
   ApiError,
   getAgentRunTrace,
+  getAssistantConversation,
   getAssistantSession,
+  getAssistantSessions,
   getBehaviorProfile,
   getDashboardState,
   getSessionUser,
@@ -28,8 +29,8 @@ import {
   type AgentRunTrace,
   type AssistantConversationMessage,
   type AssistantConversationState,
+  type AssistantSessionSummary,
   type AdvisorStructuredResponse,
-  type DashboardCoachActivity,
   type DashboardDailyBrief,
   type DashboardState,
   type SafeNextAction,
@@ -231,6 +232,32 @@ function getQueryValue(searchParams: URLSearchParams, keys: string[]): string | 
   return null;
 }
 
+function buildContextPrompt(searchParams: URLSearchParams): string | null {
+  const focus = getQueryValue(searchParams, ["focus"]);
+
+  if (focus === "news") {
+    return "请结合我的组合，解释这条资讯可能影响什么、哪些地方不能当成买卖信号？";
+  }
+
+  if (focus === "simulation") {
+    return "请帮我复盘这次模拟训练里最容易失守的节点，并告诉我下次行动前要先检查什么。";
+  }
+
+  if (focus === "learning") {
+    return "请用一个简单例子帮我理解这节内容，并告诉我怎么用到我的基金决策里。";
+  }
+
+  if (focus === "portfolio") {
+    return "请帮我先检查这份组合里最需要关注的风险来源，并说明下一步只该做什么安全检查。";
+  }
+
+  if (focus === "daily-brief") {
+    return "请解释今天这条判断为什么和我有关，以及我下一步应该先检查什么。";
+  }
+
+  return null;
+}
+
 function buildSafeActionHref(action: SafeNextAction): string {
   const routeAliases: Record<string, string> = {
     "/dashboard": "/today",
@@ -335,73 +362,43 @@ function RunStatusDot({ status }: { status: RunStepStatus }) {
 function SessionRail({
   dailyBrief,
   conversation,
-  latestActivity,
+  sessions,
+  activeSessionId,
   pending,
   onNewTask,
   onPromptFill,
+  onSelectSession,
 }: {
   dailyBrief: DashboardDailyBrief | null;
   conversation: AssistantConversationState;
-  latestActivity: DashboardCoachActivity | null;
+  sessions: AssistantSessionSummary[];
+  activeSessionId: string | null;
   pending: boolean;
   onNewTask: () => void;
   onPromptFill: (prompt: string) => void;
+  onSelectSession: (sessionId: string) => void;
 }) {
   const taskPrompts = buildDailyBriefCoachPrompts(dailyBrief);
-  const currentTopic =
-    conversation.session?.topic ?? latestActivity?.topic ?? "今日简报追问";
-  const currentPreview =
-    conversation.session?.lastQuestion ??
-    latestActivity?.question ??
-    dailyBrief?.headline ??
-    "从一个具体问题开始";
-  const recentQuestions = conversation.messages
-    .filter((item) => item.role === "user")
-    .slice(-3)
-    .reverse();
-  const historyItems = [
-    {
-      label: currentTopic,
-      detail: currentPreview,
-      meta: conversation.messages.length > 0 ? `${conversation.messages.length} 条消息` : "当前上下文",
-      active: true,
-    },
-    {
-      label: "今日简报追问",
-      detail: dailyBrief?.headline ?? "让 Agent 先解释今天最重要的判断",
-      meta: dailyBrief ? "可继续" : "待生成",
-      active: false,
-    },
-    ...recentQuestions.map((item) => ({
-      label: "历史提问",
-      detail: item.content,
-      meta: "继续问",
-      active: false,
-    })),
-  ];
+  const visibleSessions =
+    sessions.length > 0
+      ? sessions
+      : conversation.session
+        ? [conversation.session]
+        : [];
 
   return (
     <aside
       data-testid="agent-session-rail"
-      className="workbench-panel order-2 grid w-full min-w-0 max-w-[calc(100vw-2rem)] grid-cols-[minmax(0,1fr)] gap-5 overflow-hidden p-4 2xl:sticky 2xl:top-5 2xl:order-none 2xl:max-h-[calc(100svh-6rem)] 2xl:max-w-none 2xl:overflow-y-auto"
+      className="agent-context-strip workbench-panel order-2 flex w-full min-w-0 max-w-[calc(100vw-2rem)] flex-col gap-3 p-4 lg:order-none lg:max-w-none"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="section-kicker">任务参考</p>
-          <h2 className="mt-1 text-lg font-semibold">最近问题</h2>
+      <div className="agent-reference-header">
+        <div className="min-w-0">
+          <p className="section-kicker">历史会话</p>
+          <h2 className="mt-1 text-lg font-semibold">对话记录</h2>
           <p className="mt-1 text-xs leading-5 text-[color:var(--ink-muted)]">
-            选择最近问题或模板，快速填入输入框继续。
+            选择一段历史对话，重新显示消息并继续聊。
           </p>
         </div>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="新建任务"
-          onClick={onNewTask}
-          disabled={pending}
-        >
-          <PlusCircle aria-hidden="true" className="size-4" />
-        </button>
       </div>
 
       <button
@@ -411,53 +408,88 @@ function SessionRail({
         onClick={onNewTask}
         disabled={pending}
       >
-        新建任务
+        新会话
       </button>
 
-      <div className="grid gap-2">
-        {historyItems.map((item) => (
-          <button
-            key={`${item.label}-${item.meta}-${item.detail}`}
-            type="button"
-            className={
-              item.active
-                ? "rounded-lg border border-[rgba(0,113,227,0.24)] bg-[rgba(0,113,227,0.08)] px-3 py-3 text-left"
-                : "rounded-lg border border-[color:var(--line-soft)] bg-white/62 px-3 py-3 text-left transition hover:border-[rgba(0,113,227,0.2)] hover:bg-white"
-            }
-            onClick={() => onPromptFill(item.detail)}
-          >
-            <span className="flex items-center justify-between gap-2">
-              <span className="min-w-0 truncate text-sm font-semibold text-[color:var(--ink-strong)]">
-                {item.label}
-              </span>
-              <span className="shrink-0 text-[0.68rem] font-bold text-[color:var(--accent-teal)]">
-                {item.meta}
-              </span>
-            </span>
-            <span className="mt-1 line-clamp-2 block text-xs leading-5 text-[color:var(--ink-muted)]">
-              {item.detail}
-            </span>
-          </button>
-        ))}
-      </div>
+      <div className="agent-reference-scroll">
+        <section className="agent-context-brief rounded-lg border border-[rgba(0,113,227,0.16)] bg-[rgba(0,113,227,0.06)] px-3 py-3">
+          <p className="section-kicker">今日判断</p>
+          <p className="mt-2 line-clamp-3 text-sm font-semibold leading-6 text-[color:var(--ink-strong)]">
+            {dailyBrief?.headline ?? "先从一个具体问题开始，教练会整理依据和边界。"}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <StatusBadge tone={dailyBrief?.sourceCoverage.portfolio ? "positive" : "warning"}>
+              {dailyBrief?.sourceCoverage.portfolio ? "组合已检查" : "组合待补"}
+            </StatusBadge>
+            <StatusBadge tone={dailyBrief?.sourceCoverage.profile ? "positive" : "neutral"}>
+              画像已建立
+            </StatusBadge>
+            <StatusBadge tone={dailyBrief?.sourceCoverage.behavior ? "accent" : "neutral"}>
+              行为待观察
+            </StatusBadge>
+          </div>
+        </section>
 
-      <div>
-        <div className="mb-2 flex items-center gap-2">
-          <History aria-hidden="true" className="size-4 text-[color:var(--accent-teal)]" />
-          <p className="section-kicker">任务模板</p>
+        <div className="grid gap-2" aria-label="历史会话列表">
+          {visibleSessions.length > 0 ? (
+            visibleSessions.map((session) => {
+              const active = activeSessionId === session.id;
+              return (
+                <button
+                  key={session.id}
+                  type="button"
+                  className={
+                    active
+                      ? "rounded-lg border border-[rgba(0,113,227,0.24)] bg-[rgba(0,113,227,0.08)] px-3 py-3 text-left"
+                      : "rounded-lg border border-[color:var(--line-soft)] bg-white/62 px-3 py-3 text-left transition hover:border-[rgba(0,113,227,0.2)] hover:bg-white"
+                  }
+                  onClick={() => onSelectSession(session.id)}
+                  disabled={pending}
+                  aria-current={active ? "true" : undefined}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-sm font-semibold text-[color:var(--ink-strong)]">
+                      {session.topic}
+                    </span>
+                    <span className="shrink-0 text-[0.68rem] font-bold text-[color:var(--accent-teal)]">
+                      {session.messageCount > 0
+                        ? `${session.messageCount} 条`
+                        : formatTimestamp(session.updatedAt)}
+                    </span>
+                  </span>
+                  <span className="mt-1 line-clamp-2 block text-xs leading-5 text-[color:var(--ink-muted)]">
+                    {session.lastQuestion ??
+                      session.lastAnswerPreview ??
+                      "打开这段对话继续。"}
+                  </span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="rounded-lg border border-dashed border-[color:var(--line-soft)] px-3 py-4 text-xs leading-5 text-[color:var(--ink-muted)]">
+              还没有历史会话。发送第一条问题后，这里会保存记录。
+            </div>
+          )}
         </div>
-        <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
-          {taskPrompts.slice(0, 3).map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              className="w-[13rem] max-w-[75vw] flex-none rounded-full border border-[color:var(--line-soft)] bg-white/72 px-3 py-2 text-left text-xs font-semibold leading-5 text-[color:var(--ink-soft)] transition hover:bg-white lg:w-auto lg:max-w-none lg:flex-auto lg:rounded-lg"
-              onClick={() => onPromptFill(prompt)}
-              disabled={pending}
-            >
-              {prompt}
-            </button>
-          ))}
+
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <History aria-hidden="true" className="size-4 text-[color:var(--accent-teal)]" />
+            <p className="section-kicker">任务模板</p>
+          </div>
+          <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
+            {taskPrompts.slice(0, 3).map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                className="w-[13rem] max-w-[75vw] flex-none rounded-full border border-[color:var(--line-soft)] bg-white/72 px-3 py-2 text-left text-xs font-semibold leading-5 text-[color:var(--ink-soft)] transition hover:bg-white lg:w-auto lg:max-w-none lg:flex-auto lg:rounded-lg"
+                onClick={() => onPromptFill(prompt)}
+                disabled={pending}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </aside>
@@ -480,7 +512,7 @@ function AgentRunStatusPanel({
   const steps = getRunProgressSteps({ trace, pending });
   const coverageItems = [
     {
-      label: "每日简报",
+      label: "今日判断",
       detail: dailyBrief ? "已形成今日判断" : "等待画像和资料补齐",
       active: Boolean(dailyBrief),
     },
@@ -497,12 +529,17 @@ function AgentRunStatusPanel({
           dashboard.simulationStatus?.recommendedScenarioTitle,
       ),
     },
+    {
+      label: "资讯影响",
+      detail: dashboard.newsStatus?.latestTitle ?? "有问题时再读取相关资讯",
+      active: Boolean(dashboard.newsStatus?.hasAnalysis),
+    },
   ];
 
   return (
     <aside
       data-testid="agent-run-status"
-      className="workbench-panel order-3 grid w-full min-w-0 max-w-[calc(100vw-2rem)] grid-cols-[minmax(0,1fr)] gap-5 overflow-hidden p-4 2xl:sticky 2xl:top-5 2xl:order-none 2xl:max-h-[calc(100svh-6rem)] 2xl:max-w-none 2xl:overflow-y-auto"
+      className="agent-process-panel workbench-panel order-3 grid w-full min-w-0 max-w-[calc(100vw-2rem)] grid-cols-[minmax(0,1fr)] gap-4 overflow-hidden p-4 lg:order-none lg:max-w-none"
     >
       <div>
         <div className="flex flex-wrap items-center gap-2">
@@ -697,7 +734,7 @@ function StructuredAnswerCanvas({
             针对：{question}
           </span>
         </div>
-        <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
+        <p className="agent-answer-summary mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
           {formatUserVisibleCopy(response.answer)}
         </p>
       </div>
@@ -783,13 +820,17 @@ function StructuredAnswerCanvas({
 function AgentWorkspaceTopbar({
   contextPanelCollapsed,
   runPanelCollapsed,
+  pending,
   onToggleContextPanel,
   onToggleRunPanel,
+  onNewTask,
 }: {
   contextPanelCollapsed: boolean;
   runPanelCollapsed: boolean;
+  pending: boolean;
   onToggleContextPanel: () => void;
   onToggleRunPanel: () => void;
+  onNewTask: () => void;
 }) {
   const layoutSummary =
     contextPanelCollapsed && runPanelCollapsed
@@ -815,6 +856,17 @@ function AgentWorkspaceTopbar({
         </span>
       </div>
       <div className="agent-layout-text-controls" aria-label="教练工作区布局">
+        <button
+          type="button"
+          className="agent-layout-text-button"
+          onClick={onNewTask}
+          disabled={pending}
+        >
+          新会话
+        </button>
+        <span aria-hidden="true" className="text-[color:var(--ink-muted)]">
+          /
+        </span>
         <button
           type="button"
           className="agent-layout-text-button"
@@ -844,15 +896,72 @@ function AgentWorkspaceTopbar({
 export function CoachWorkspace() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const [draft, setDraft] = useState(
-    () => getQueryValue(searchParams, ["prompt", "q"]) ?? "",
-  );
+  const contextPrompt =
+    getQueryValue(searchParams, ["prompt", "q"]) ??
+    buildContextPrompt(searchParams) ??
+    "";
+  const [draft, setDraft] = useState(() => contextPrompt);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
-  const [contextPanelCollapsed, setContextPanelCollapsed] = useState(true);
-  const [runPanelCollapsed, setRunPanelCollapsed] = useState(true);
+  const [freshTaskMode, setFreshTaskMode] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [isCompactWorkspace, setIsCompactWorkspace] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 1399px)").matches,
+  );
+  const [contextPanelCollapsed, setContextPanelCollapsed] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 1399px)").matches,
+  );
+  const [runPanelCollapsed, setRunPanelCollapsed] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches,
+  );
   const messageScrollerRef = useRef<HTMLDivElement | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const appliedContextPromptRef = useRef(contextPrompt);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const compactQuery = window.matchMedia("(max-width: 1399px)");
+    const handleCompactChange = (event: MediaQueryListEvent | MediaQueryList) => {
+      setIsCompactWorkspace(event.matches);
+      if (event.matches) {
+        setContextPanelCollapsed(true);
+      }
+    };
+
+    handleCompactChange(compactQuery);
+    compactQuery.addEventListener("change", handleCompactChange);
+
+    return () => {
+      compactQuery.removeEventListener("change", handleCompactChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!contextPrompt) {
+      return;
+    }
+
+    if (contextPrompt !== appliedContextPromptRef.current) {
+      setDraft((currentDraft) => {
+        if (
+          currentDraft.trim().length > 0 &&
+          currentDraft !== appliedContextPromptRef.current
+        ) {
+          return currentDraft;
+        }
+        return contextPrompt;
+      });
+      appliedContextPromptRef.current = contextPrompt;
+      setSubmitError(null);
+    }
+
+    window.requestAnimationFrame(() => {
+      composerTextareaRef.current?.focus();
+    });
+  }, [contextPrompt]);
 
   const sessionQuery = useQuery({
     queryKey: ["session-user"],
@@ -877,8 +986,17 @@ export function CoachWorkspace() {
   });
 
   const coachQuery = useQuery({
-    queryKey: ["coach-session"],
-    queryFn: getAssistantSession,
+    queryKey: ["coach-session", selectedSessionId],
+    queryFn: () =>
+      selectedSessionId
+        ? getAssistantConversation(selectedSessionId)
+        : getAssistantSession(),
+    enabled: isOnboarded,
+    retry: false,
+  });
+  const coachSessionsQuery = useQuery({
+    queryKey: ["coach-sessions"],
+    queryFn: getAssistantSessions,
     enabled: isOnboarded,
     retry: false,
   });
@@ -904,7 +1022,8 @@ export function CoachWorkspace() {
 
       return sendAssistantMessage({
         message: trimmedMessage,
-        sessionId: coachQuery.data?.session?.id ?? null,
+        sessionId: freshTaskMode ? null : coachQuery.data?.session?.id ?? null,
+        startNewSession: freshTaskMode,
         context: {
           fromRoute: getQueryValue(searchParams, ["from", "from_route"]),
           focus: getQueryValue(searchParams, ["focus"]),
@@ -933,8 +1052,15 @@ export function CoachWorkspace() {
         currentDraft.trim() === submittedMessage.trim() ? "" : currentDraft,
       );
       setPendingQuestion(null);
+      setFreshTaskMode(false);
       setSubmitError(null);
-      queryClient.setQueryData(["coach-session"], conversation);
+      setSelectedSessionId(conversation.session?.id ?? null);
+      queryClient.setQueryData(
+        ["coach-session", conversation.session?.id ?? null],
+        conversation,
+      );
+      queryClient.setQueryData(["coach-session", null], conversation);
+      await queryClient.invalidateQueries({ queryKey: ["coach-sessions"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (error, submittedMessage) => {
@@ -950,15 +1076,18 @@ export function CoachWorkspace() {
       return;
     }
 
-    const frame = window.requestAnimationFrame(() => {
-      scroller.scrollTo({
-        top: scroller.scrollHeight,
-        behavior: pendingQuestion ? "smooth" : "auto",
-      });
-    });
+    const scrollToLatest = () => {
+      scroller.scrollTop = scroller.scrollHeight;
+    };
 
-    return () => window.cancelAnimationFrame(frame);
-  }, [coachQuery.data?.messages.length, pendingQuestion]);
+    const frame = window.requestAnimationFrame(scrollToLatest);
+    const timer = window.setTimeout(scrollToLatest, 80);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [coachQuery.data?.messages.length, pendingQuestion, freshTaskMode]);
 
   if (sessionQuery.isLoading) {
     return (
@@ -1050,11 +1179,17 @@ export function CoachWorkspace() {
     );
   }
 
-  if (behaviorQuery.error || dashboardQuery.error || coachQuery.error) {
+  if (
+    behaviorQuery.error ||
+    dashboardQuery.error ||
+    coachQuery.error ||
+    coachSessionsQuery.error
+  ) {
     const error =
       behaviorQuery.error?.message ??
       dashboardQuery.error?.message ??
       coachQuery.error?.message ??
+      coachSessionsQuery.error?.message ??
       "请求失败";
     return (
       <div className="space-y-4 rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -1070,8 +1205,9 @@ export function CoachWorkspace() {
     session: null,
     messages: [],
   };
-  const visibleMessageLimit = 16;
-  const visibleMessages = conversation.messages.slice(-visibleMessageLimit);
+  const sessionHistory = coachSessionsQuery.data ?? [];
+  const activeSessionId = selectedSessionId ?? conversation.session?.id ?? null;
+  const visibleMessages = freshTaskMode ? [] : conversation.messages;
   const hiddenMessageCount = Math.max(
     conversation.messages.length - visibleMessages.length,
     0,
@@ -1082,7 +1218,7 @@ export function CoachWorkspace() {
   const latestIntent = latestCoachActivity?.intent ?? null;
   const dailyBriefPrompts = buildDailyBriefCoachPrompts(dailyBrief);
   const workspaceGridClassName = cn(
-    "agent-workspace-grid grid max-w-full items-start gap-4 overflow-hidden 2xl:overflow-visible",
+    "agent-workspace-grid agent-command-grid grid max-w-full gap-4 overflow-hidden",
     !contextPanelCollapsed &&
       !runPanelCollapsed &&
       "agent-workspace-grid-three",
@@ -1114,12 +1250,38 @@ export function CoachWorkspace() {
     setDraft("");
     setSubmitError(null);
     setPendingQuestion(null);
+    setFreshTaskMode(true);
+    setSelectedSessionId(null);
     window.requestAnimationFrame(() => {
       composerTextareaRef.current?.focus();
-      composerTextareaRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+    });
+  }
+
+  function handleSelectSession(sessionId: string) {
+    setSelectedSessionId(sessionId);
+    setFreshTaskMode(false);
+    setDraft("");
+    setSubmitError(null);
+    setPendingQuestion(null);
+  }
+
+  function handleToggleContextPanel() {
+    setContextPanelCollapsed((collapsed) => {
+      const nextCollapsed = !collapsed;
+      if (isCompactWorkspace && !nextCollapsed) {
+        setRunPanelCollapsed(true);
+      }
+      return nextCollapsed;
+    });
+  }
+
+  function handleToggleRunPanel() {
+    setRunPanelCollapsed((collapsed) => {
+      const nextCollapsed = !collapsed;
+      if (isCompactWorkspace && !nextCollapsed) {
+        setContextPanelCollapsed(true);
+      }
+      return nextCollapsed;
     });
   }
 
@@ -1142,12 +1304,14 @@ export function CoachWorkspace() {
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="agent-command-dashboard grid gap-3">
       <AgentWorkspaceTopbar
         contextPanelCollapsed={contextPanelCollapsed}
         runPanelCollapsed={runPanelCollapsed}
-        onToggleContextPanel={() => setContextPanelCollapsed((value) => !value)}
-        onToggleRunPanel={() => setRunPanelCollapsed((value) => !value)}
+        pending={coachMutation.isPending}
+        onToggleContextPanel={handleToggleContextPanel}
+        onToggleRunPanel={handleToggleRunPanel}
+        onNewTask={handleNewTask}
       />
 
       <div className={workspaceGridClassName}>
@@ -1155,22 +1319,24 @@ export function CoachWorkspace() {
           <SessionRail
             dailyBrief={dailyBrief}
             conversation={conversation}
-            latestActivity={latestCoachActivity}
+            sessions={sessionHistory}
+            activeSessionId={activeSessionId}
             pending={coachMutation.isPending}
             onNewTask={handleNewTask}
             onPromptFill={handlePromptFill}
+            onSelectSession={handleSelectSession}
           />
         ) : null}
 
         <section
           data-testid="agent-active-session"
-          className="workbench-panel coach-chat-panel order-1 min-w-0 min-h-[42rem] max-w-[calc(100vw-2rem)] overflow-hidden 2xl:order-none 2xl:h-[calc(100svh-6rem)] 2xl:max-w-none"
+          className="workbench-panel coach-chat-panel agent-active-panel order-1 min-w-0 max-w-[calc(100vw-2rem)] overflow-hidden lg:order-none lg:max-w-none"
         >
           <DailyBriefCoachHeader
             brief={dailyBrief}
             latestIntent={latestIntent}
             onPromptFill={handlePromptFill}
-        />
+          />
 
         <div
           ref={messageScrollerRef}
@@ -1182,7 +1348,7 @@ export function CoachWorkspace() {
           {visibleMessages.length > 0 || pendingQuestion ? (
             <>
               {hiddenMessageCount > 0 ? (
-                <div className="mx-auto w-fit rounded-full border border-[color:var(--line-soft)] bg-white/[0.04] px-3 py-1 text-xs font-bold text-[color:var(--ink-muted)]">
+                <div className="coach-history-pill mx-auto w-fit rounded-full border border-[color:var(--line-soft)] bg-white/[0.04] px-3 py-1 text-xs font-bold text-[color:var(--ink-muted)]">
                   已显示最近 {visibleMessages.length} 条消息，历史对话已保存。
                 </div>
               ) : null}
@@ -1314,7 +1480,7 @@ export function CoachWorkspace() {
           onSubmit={handleSubmit}
         >
           {visibleMessages.length > 0 ? (
-            <div className="mb-2 flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="agent-composer-suggestions mb-2 flex items-center gap-2 overflow-x-auto pb-1">
               <span className="shrink-0 text-xs font-semibold text-[color:var(--ink-muted)]">
                 接着问
               </span>
@@ -1349,7 +1515,7 @@ export function CoachWorkspace() {
             />
           </label>
 
-          <div className="mt-2.5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="agent-composer-actions mt-2.5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="submit"
@@ -1368,7 +1534,7 @@ export function CoachWorkspace() {
                 清空
               </button>
             </div>
-            <span className="text-xs leading-5 text-[color:var(--ink-muted)] sm:max-w-[21rem] sm:text-right">
+            <span className="agent-composer-hint text-xs leading-5 text-[color:var(--ink-muted)] sm:max-w-[21rem] sm:text-right">
               {coachMutation.isPending
                 ? "正在生成上一条回答；你可以先整理下一句。"
                 : "回答会自动保留风险边界，并把建议转成下一步动作。"}

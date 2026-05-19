@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import html
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlparse
 
@@ -34,6 +34,7 @@ from app.schemas.news import (
 from app.services.ai_enhancement import enhance_news_analysis_payload
 
 NEWS_ANALYSIS_VERSION = "news_policy_analysis_v1"
+CHINA_NEWS_TIMEZONE = timezone(timedelta(hours=8))
 NEWS_RISK_NOTICE = (
     "FundGene 对新闻和政策的解读只用于学习与决策支持，不构成收益承诺、买卖建议或交易指令。"
 )
@@ -506,32 +507,52 @@ def _sort_timestamp(item: NewsItem | PolicyItem) -> datetime:
     return item.published_at or item.fetched_at
 
 
+def _sort_date(item: NewsItem | PolicyItem) -> date:
+    return _sort_timestamp(item).astimezone(CHINA_NEWS_TIMEZONE).date()
+
+
+def _latest_daily_rows(
+    rows: list[tuple[NewsItemType, NewsItem | PolicyItem]],
+) -> list[tuple[NewsItemType, NewsItem | PolicyItem]]:
+    if not rows:
+        return rows
+
+    latest_date = max(_sort_date(item) for _, item in rows)
+    return [row for row in rows if _sort_date(row[1]) == latest_date]
+
+
 def list_news_items(
     db: Session,
     *,
     user_id: str,
     limit: int = 20,
 ) -> NewsListResponse:
+    candidate_limit = max(limit * 6, 100)
     news_items = list(
         db.scalars(
             select(NewsItem)
             .where(or_(NewsItem.user_id.is_(None), NewsItem.user_id == user_id))
             .order_by(NewsItem.fetched_at.desc())
-            .limit(limit)
+            .limit(candidate_limit)
         )
     )
     policy_items = list(
-        db.scalars(select(PolicyItem).order_by(PolicyItem.fetched_at.desc()).limit(limit))
+        db.scalars(
+            select(PolicyItem)
+            .order_by(PolicyItem.fetched_at.desc())
+            .limit(candidate_limit)
+        )
     )
     combined: list[tuple[NewsItemType, NewsItem | PolicyItem]] = [
         ("news", item) for item in news_items
     ] + [("policy", item) for item in policy_items]
     combined.sort(key=lambda row: _sort_timestamp(row[1]), reverse=True)
+    latest_daily_combined = _latest_daily_rows(combined)
 
     return NewsListResponse(
         items=[
             _serialize_item(db, user_id=user_id, item=item, item_type=item_type)
-            for item_type, item in combined[:limit]
+            for item_type, item in latest_daily_combined[:limit]
         ]
     )
 

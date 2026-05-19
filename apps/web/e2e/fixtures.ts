@@ -91,7 +91,7 @@ const dashboardState = {
         safety_note: "追问用于理解证据和边界，不会触发账户操作。",
       },
     ],
-    do_not_do: "不要把今日简报理解成直接操作账户的指令。",
+    do_not_do: "先把今天的判断用于理解和检查，需要保存的变化会再请你确认。",
     source_coverage: {
       profile: true,
       portfolio: true,
@@ -180,6 +180,7 @@ const assistantSession = {
     last_question: "基金回撤是什么意思？",
     last_answer_preview: "回撤是从阶段高点到低点的下跌幅度。",
     last_recommended_action: "继续学习风险基础课程。",
+    message_count: 2,
     created_at: "2026-04-26T08:00:00Z",
     updated_at: "2026-04-26T08:30:00Z",
   },
@@ -222,6 +223,123 @@ const assistantSession = {
           },
         ],
         follow_up_questions: ["我该怎样判断自己能承受多大回撤？"],
+      },
+    },
+  ],
+};
+
+const assistantHistorySession = {
+  session: {
+    id: "session_history_e2e",
+    topic: "热门基金要不要追",
+    context_type: "advisor",
+    latest_intent: "behavior",
+    last_question: "那我看到热门基金连续上涨时应该怎么处理？",
+    last_answer_preview: "先把它拆成事实、自己的组合暴露和情绪冲动三部分。",
+    last_recommended_action: "写下追热点前的三步检查。",
+    message_count: 4,
+    created_at: "2026-04-25T08:00:00Z",
+    updated_at: "2026-04-25T08:40:00Z",
+  },
+  messages: [
+    {
+      id: "history_msg_user_1",
+      role: "user",
+      content: "我总想追最近涨得多的基金，怎么办？",
+      message_type: "text",
+      created_at: "2026-04-25T08:29:00Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "history_msg_assistant_1",
+      role: "assistant",
+      content: "先不要把涨幅当成行动理由，要先检查它涨的来源和你已经持有什么。",
+      message_type: "advisor_response",
+      created_at: "2026-04-25T08:30:00Z",
+      agent_run_id: "run_history_e2e",
+      advisor_response: {
+        answer:
+          "先不要把涨幅当成行动理由。你可以先问三件事：它为什么涨、你的组合里是否已经有类似主题、如果回撤 10% 你是否还能按计划持有。",
+        intent: "behavior",
+        citations: ["behavior_profile"],
+        risk_notice: "热门基金讨论不能直接变成买入建议。",
+        recommended_actions: ["把追热点前的三步检查写下来。"],
+        recommended_action_targets: [
+          {
+            label: "做一次情境训练",
+            href: "/simulation",
+            intent: "simulation",
+            kind: "internal_link",
+          },
+        ],
+        follow_up_questions: ["怎么判断我是不是已经持有类似主题？"],
+      },
+    },
+    {
+      id: "history_msg_user_2",
+      role: "user",
+      content: "那我看到热门基金连续上涨时应该怎么处理？",
+      message_type: "text",
+      created_at: "2026-04-25T08:39:00Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "history_msg_assistant_2",
+      role: "assistant",
+      content: "先把它拆成事实、自己的组合暴露和情绪冲动三部分。",
+      message_type: "advisor_response",
+      created_at: "2026-04-25T08:40:00Z",
+      agent_run_id: "run_history_followup_e2e",
+      advisor_response: {
+        answer:
+          "先把它拆成三部分：事实是它为什么上涨；组合暴露是你是否已经有同类基金；情绪冲动是你是不是因为怕错过才想立刻行动。",
+        intent: "behavior",
+        citations: ["behavior_profile"],
+        risk_notice: "这里是行为检查，不是账户操作指令。",
+        recommended_actions: ["写下追热点前的三步检查。"],
+        recommended_action_targets: [],
+        follow_up_questions: ["帮我把三步检查写成一句话。"],
+      },
+    },
+  ],
+};
+
+const continuedAssistantHistorySession = {
+  ...assistantHistorySession,
+  session: {
+    ...assistantHistorySession.session,
+    message_count: 6,
+    updated_at: "2026-04-25T08:50:00Z",
+    last_question: "继续这段历史对话。",
+  },
+  messages: [
+    ...assistantHistorySession.messages,
+    {
+      id: "history_msg_user_3",
+      role: "user",
+      content: "继续这段历史对话。",
+      message_type: "text",
+      created_at: "2026-04-25T08:49:00Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "history_msg_assistant_3",
+      role: "assistant",
+      content: "可以，我们接着用同一套三步检查来看这次冲动。",
+      message_type: "advisor_response",
+      created_at: "2026-04-25T08:50:00Z",
+      agent_run_id: "run_history_continue_e2e",
+      advisor_response: {
+        answer: "可以，我们接着用同一套三步检查来看这次冲动。",
+        intent: "behavior",
+        citations: ["behavior_profile"],
+        risk_notice: "继续对话仍然只做解释和训练，不替你下账户决定。",
+        recommended_actions: ["先写下这次想追涨的触发点。"],
+        recommended_action_targets: [],
+        follow_up_questions: ["帮我检查这次触发点。"],
       },
     },
   ],
@@ -368,12 +486,12 @@ const simulationCatalog = {
     {
       id: "scenario_e2e",
       slug: "drawdown-discipline",
-      title: "回撤纪律训练",
-      synopsis: "在连续下跌中练习先复盘再行动。",
+      title: "市场急跌",
+      synopsis: "突发利空引发市场快速下跌，考验风险应对与仓位管理。",
       market_phase: "震荡回撤",
       difficulty: "beginner",
       estimated_duration_minutes: 12,
-      decision_count: 2,
+      decision_count: 4,
       starting_year: 2018,
       headline: "当市场连续下跌时，先稳住判断顺序。",
       description: "这个场景训练回撤中的行动纪律。",
@@ -381,28 +499,265 @@ const simulationCatalog = {
       objective: "记录你是否能先检查计划而不是马上卖出。",
       bias_focus: ["恐慌卖出"],
       tags: ["回撤", "纪律"],
-      timeline_preview: ["第一轮下跌", "反弹诱惑"],
+      timeline_preview: ["事件出现", "市场发酵", "恐慌扩散", "逐步企稳"],
       recommended: true,
+      completed: false,
+    },
+    {
+      id: "scenario_theme_e2e",
+      slug: "theme-chasing",
+      title: "热门主题上涨",
+      synopsis: "资金集中涌入热门赛道，考验追涨冲动与节奏把握。",
+      market_phase: "主题升温",
+      difficulty: "beginner",
+      estimated_duration_minutes: 10,
+      decision_count: 3,
+      starting_year: 2020,
+      headline: "当朋友都在晒收益时，先看风险是否被低估。",
+      description: "这个场景训练热门主题里的追涨克制。",
+      setup: "单一主题基金连续上涨，社交讨论明显升温。",
+      objective: "记录你是否会先检查集中度，而不是直接加仓。",
+      bias_focus: ["追涨冲动"],
+      tags: ["主题", "追涨"],
+      timeline_preview: ["主题升温", "资金拥挤", "波动放大"],
+      recommended: false,
+      completed: false,
+    },
+    {
+      id: "scenario_policy_e2e",
+      slug: "policy-shock",
+      title: "政策冲击",
+      synopsis: "重要政策突然发布，考验信息消化与应对顺序。",
+      market_phase: "政策扰动",
+      difficulty: "beginner",
+      estimated_duration_minutes: 10,
+      decision_count: 3,
+      starting_year: 2021,
+      headline: "当政策新闻密集出现时，先分清事实和情绪。",
+      description: "这个场景训练政策冲击下的冷静判断。",
+      setup: "监管与产业政策密集变化，相关基金短期波动加大。",
+      objective: "记录你是否能把政策事实、持仓暴露和情绪反应拆开。",
+      bias_focus: ["标题驱动"],
+      tags: ["政策", "波动"],
+      timeline_preview: ["政策发布", "市场反应", "预期修正"],
+      recommended: false,
       completed: false,
     },
   ],
   recommended_scenario_id: "scenario_e2e",
-  active_session_id: null,
+  active_session_id: "sim_session_e2e",
+};
+
+const activeSimulationSession = {
+  id: "sim_session_e2e",
+  scenario_id: "scenario_e2e",
+  scenario_title: "市场急跌",
+  status: "in_progress",
+  stage_label: "市场发酵",
+  current_step: 2,
+  total_steps: 4,
+  started_at: "2026-04-26T08:35:00Z",
+  completed_at: null,
+  opening_brief: "海外市场大幅下跌，部分行业基金低于预期，市场情绪快速转弱。",
+  reflection_prompt: "请结合当前信息，说明你的判断依据和考虑。",
+  active_event: {
+    id: "event_e2e_2",
+    index: 2,
+    title: "市场发酵",
+    date_label: "2024-03-13 10:35",
+    market_context:
+      "海外市场大幅下跌。部分行业基金低于预期。市场销售快速转弱。",
+    prompt: "基于当前阶段的信息，做出你的决策并说明理由。",
+    decision_focus: ["指数走势", "板块涨跌", "资金流向", "新闻资讯"],
+    available_actions: [
+      {
+        id: "increase",
+        label: "加仓",
+        description: "看好后市，增加持仓",
+        bias_signal: "performance_chasing_risk",
+      },
+      {
+        id: "hold",
+        label: "持有",
+        description: "保持现有仓位不变",
+        bias_signal: null,
+      },
+      {
+        id: "reduce",
+        label: "减仓",
+        description: "降低仓位，控制风险",
+        bias_signal: "panic_selling_risk",
+      },
+      {
+        id: "clear",
+        label: "清仓",
+        description: "全部卖出，观望为主",
+        bias_signal: "panic_selling_risk",
+      },
+    ],
+  },
+  actions: [
+    {
+      event_id: "event_e2e_1",
+      step_index: 1,
+      choice_key: "hold",
+      choice_label: "持有",
+      reflection: "基本面没有明显恶化，短期回调可能是情绪释放，打算先观察。",
+      is_recommended: true,
+      created_at: "2026-04-26T08:42:00Z",
+    },
+  ],
+};
+
+const completedSimulationSession = {
+  ...activeSimulationSession,
+  status: "completed",
+  current_step: 4,
+  completed_at: "2026-04-26T09:05:00Z",
+  active_event: null,
+  actions: [
+    ...activeSimulationSession.actions,
+    {
+      event_id: "event_e2e_2",
+      step_index: 2,
+      choice_key: "hold",
+      choice_label: "持有",
+      reflection: "我先保留仓位，等风险信息更清楚再决定。",
+      is_recommended: true,
+      created_at: "2026-04-26T08:48:00Z",
+    },
+  ],
+};
+
+const simulationReview = {
+  session_id: "sim_session_e2e",
+  scenario_slug: "scenario_e2e",
+  scenario_title: "市场急跌",
+  bias_focus: "回撤焦虑",
+  decision_summary: "你在波动阶段选择先观察，没有把短期下跌直接等同于必须卖出。",
+  bias_observations: ["出现回撤压力时，你开始检查信息是否充分。"],
+  strengths: ["先写下理由，再做动作。", "没有把单日波动当成完整结论。"],
+  improvement_areas: ["下一次可以更明确写出仓位边界。"],
+  coach_feedback: "这次训练更像一次纪律确认，而不是追涨杀跌。",
+  recommended_next_actions: ["回到组合页检查第一大持仓比例。"],
+  reflection_questions: ["当你看到快速下跌时，真正担心的是什么？"],
+  behavior_evidence_candidates: [
+    {
+      behavior_evidence_id: "behavior_e2e_review",
+      bias_type: "回撤焦虑",
+      observed_signal: "下跌时主动检查信息充分性。",
+      source_event: "event_e2e_2",
+      confidence: "medium",
+      pending_state_proposal_id: "proposal_e2e_review",
+    },
+  ],
+  pending_state_proposal: {
+    id: "proposal_e2e_review",
+    description: "建议记录一次回撤压力下的观察行为。",
+  },
+  generated_at: "2026-04-26T09:06:00Z",
+  actions: completedSimulationSession.actions,
 };
 
 const newsCatalog = {
   items: [
     {
       id: "news_e2e",
-      title: "长期资金入市政策继续推进",
-      source: "FundGene fixture",
+      item_type: "policy",
+      title: "央行：下一阶段将坚持支持性的货币政策立场",
+      source: "新华社",
       category: "policy",
-      summary: "政策强调长期资金和资本市场稳定，但具体节奏仍需观察。",
+      summary:
+        "中国人民银行召开货币政策委员会例会，会议指出当前外部环境复杂严峻，国内有效需求仍显不足。后续政策将继续保持支持性立场，加大逆周期调节力度。保持流动性合理充裕，推动社会融资成本稳中有降。",
       url: "https://example.com/news",
       published_at: "2026-04-26T07:00:00Z",
-      impact_areas: ["宏观政策", "权益基金"],
-      tags: ["政策", "长期资金"],
-      relevance_score: 0.82,
+      impact_areas: ["宏观政策", "债券基金", "权益基金"],
+      tags: ["政策", "货币政策"],
+      relevance_score: 92,
+    },
+    {
+      id: "news_market_e2e",
+      item_type: "news",
+      title: "北向资金净流入超百亿元 科技板块获加仓",
+      source: "中国证券报",
+      category: "market",
+      summary:
+        "市场资金风险偏好回升，科技成长方向获得更多关注。但资金流向变化更适合作为情绪观察，不应直接替代组合纪律。",
+      url: "https://example.com/market",
+      published_at: "2026-04-26T06:00:00Z",
+      impact_areas: ["市场情绪", "权益基金", "科技主题"],
+      tags: ["市场", "资金流向"],
+      relevance_score: 76,
+    },
+    {
+      id: "news_fund_e2e",
+      item_type: "news",
+      title: "公募基金一季报披露收官 关注结构性机会",
+      source: "上海证券报",
+      category: "fund",
+      summary:
+        "一季报显示基金经理对高股息、科技成长和海外配置的分歧仍然存在。投资者需要先看自己已有暴露，再判断是否需要学习配置原则。",
+      url: "https://example.com/fund",
+      published_at: "2026-04-25T12:15:00Z",
+      impact_areas: ["基金配置", "权益基金", "海外基金"],
+      tags: ["基金", "配置"],
+      relevance_score: 68,
+    },
+    {
+      id: "news_realestate_e2e",
+      item_type: "policy",
+      title: "多地优化房地产政策 支持合理住房需求",
+      source: "第一财经",
+      category: "policy",
+      summary:
+        "房地产政策继续边际调整，可能影响地产链、银行和宽基指数情绪。对基金组合的实际影响取决于持仓行业和指数权重。",
+      url: "https://example.com/realestate",
+      published_at: "2026-04-25T10:30:00Z",
+      impact_areas: ["宏观政策", "地产链", "宽基基金"],
+      tags: ["政策", "地产"],
+      relevance_score: 48,
+    },
+    {
+      id: "news_macro_e2e",
+      item_type: "news",
+      title: "PMI连续两月回升 显示经济景气度改善",
+      source: "经济日报",
+      category: "market",
+      summary:
+        "制造业景气指标改善，可能提振顺周期资产预期。但单月数据仍需和盈利、估值、政策节奏一起观察。",
+      url: "https://example.com/pmi",
+      published_at: "2026-04-25T09:45:00Z",
+      impact_areas: ["宏观数据", "顺周期基金"],
+      tags: ["市场", "宏观"],
+      relevance_score: 55,
+    },
+    {
+      id: "news_overseas_e2e",
+      item_type: "news",
+      title: "海外市场波动加大 QDII基金短期净值承压",
+      source: "财新网",
+      category: "market",
+      summary:
+        "海外利率预期反复，部分 QDII 基金短期净值波动扩大。已有海外仓位的用户应优先核对风险预算。",
+      url: "https://example.com/qdii",
+      published_at: "2026-04-24T13:20:00Z",
+      impact_areas: ["海外基金", "QDII", "风险预算"],
+      tags: ["市场", "基金"],
+      relevance_score: 64,
+    },
+    {
+      id: "news_consumer_e2e",
+      item_type: "news",
+      title: "消费板块估值修复 机构提示盈利验证仍关键",
+      source: "证券时报",
+      category: "market",
+      summary:
+        "消费主题基金关注度回升，但估值修复并不等于趋势确认。需要继续看盈利恢复和组合集中度。",
+      url: "https://example.com/consumer",
+      published_at: "2026-04-24T08:30:00Z",
+      impact_areas: ["消费主题", "权益基金"],
+      tags: ["市场", "基金"],
+      relevance_score: 58,
     },
   ],
   policy_items: [],
@@ -430,7 +785,7 @@ function buildAutomationState() {
           { key: "workday_0830", label: "工作日 08:30" },
         ],
         read_scope: ["风险画像", "最近组合报告", "资讯/政策分析", "学习与训练状态"],
-        output_scope: ["今日判断", "最多三条证据", "安全下一步", "今天不要做什么"],
+        output_scope: ["今日判断", "最多三条证据", "安全下一步", "确认边界"],
         confirmation_boundary: "画像、计划或长期偏好写回前必须确认。",
         safety_boundary: "不会生成买卖、清仓、满仓或收益确定语言。",
         status: "ready",
@@ -804,10 +1159,30 @@ export async function mockFundGeneApi(
     if (path === "/api/assistant/session") {
       return json(route, assistantSession);
     }
+    if (path === "/api/assistant/sessions") {
+      return json(route, {
+        sessions: [assistantSession.session, assistantHistorySession.session],
+      });
+    }
+    if (path === "/api/assistant/sessions/session_e2e") {
+      return json(route, assistantSession);
+    }
+    if (path === "/api/assistant/sessions/session_history_e2e") {
+      return json(route, assistantHistorySession);
+    }
     if (path.startsWith("/api/assistant/runs/") && path.endsWith("/trace")) {
       return json(route, agentRunTrace);
     }
     if (path === "/api/assistant/messages") {
+      let payload: Record<string, unknown> = {};
+      try {
+        payload = route.request().postDataJSON() as Record<string, unknown>;
+      } catch {
+        payload = {};
+      }
+      if (payload.session_id === "session_history_e2e") {
+        return json(route, continuedAssistantHistorySession);
+      }
       return json(route, assistantSession);
     }
     if (path === "/api/learning/path") {
@@ -861,6 +1236,26 @@ export async function mockFundGeneApi(
     if (path === "/api/simulations/scenarios") {
       return json(route, simulationCatalog);
     }
+    if (path === "/api/simulations/sessions/sim_session_e2e") {
+      return json(route, activeSimulationSession);
+    }
+    if (path === "/api/simulations/actions") {
+      return json(route, {
+        session: completedSimulationSession,
+        feedback: {
+          summary: "已记录这次动作，复盘已生成。",
+          action_label: "持有",
+          bias_signal: null,
+          impact: "保持观察，避免冲动动作。",
+          discipline_signals: ["先写理由", "控制冲动"],
+          next_prompt: null,
+        },
+        review_ready: true,
+      });
+    }
+    if (path === "/api/simulations/review/sim_session_e2e") {
+      return json(route, simulationReview);
+    }
     if (path === "/api/news") {
       return json(route, newsCatalog);
     }
@@ -869,11 +1264,20 @@ export async function mockFundGeneApi(
         analysis: {
           id: "analysis_e2e",
           item: newsCatalog.items[0],
-          fact_summary: "政策信息强调长期资金入市，但落地节奏仍需继续跟踪。",
-          impact_path: ["可能影响权益基金风险偏好。", "对个人组合的影响取决于持仓结构。"],
-          uncertainties: ["政策执行节奏不确定。", "市场短期反应可能和长期影响不同。"],
+          fact_summary:
+            "央行继续强调支持性的货币政策立场。会议提到保持流动性合理充裕，推动社会融资成本稳中有降。当前外部环境复杂，国内有效需求仍需继续修复。",
+          impact_path: [
+            "如果利率中枢继续下行，债券基金的长期配置价值可能提升。",
+            "流动性宽松通常有利于权益市场估值修复，但成长风格未必持续占优。",
+            "对个人组合的影响取决于权益基金、债券基金和现金的实际比例。",
+          ],
+          uncertainties: [
+            "后续政策力度和节奏仍可能受经济修复、通胀和外部利率影响。",
+            "市场短期反应可能领先基本面，不能把政策新闻直接等同于买入信号。",
+            "如果组合已经集中在单一主题，利好也可能放大波动。",
+          ],
           risk_notice: "资讯解读不构成买卖建议。",
-          recommended_actions: ["先回看自己的权益基金比例。"],
+          recommended_actions: ["先回看自己的权益基金比例。", "检查债券基金是否承担缓冲作用。"],
           related_learning: ["风险和回撤基础"],
           citations: ["news_e2e"],
           model_status: "enhanced",
@@ -897,12 +1301,24 @@ export async function mockFundGeneApi(
       return json(route, {
         id: "analysis_e2e",
         item: newsCatalog.items[0],
-        facts: ["政策信息强调长期资金入市。", "落地节奏仍需继续跟踪。"],
-        impact_paths: ["可能影响权益基金风险偏好。", "对个人组合的影响取决于持仓结构。"],
-        uncertainty_notes: ["政策执行节奏不确定。", "市场短期反应可能和长期影响不同。"],
+        facts: [
+          "央行继续强调支持性的货币政策立场。",
+          "会议提到保持流动性合理充裕，推动社会融资成本稳中有降。",
+          "当前外部环境复杂，国内有效需求仍需继续修复。",
+        ],
+        impact_paths: [
+          "如果利率中枢继续下行，债券基金的长期配置价值可能提升。",
+          "流动性宽松通常有利于权益市场估值修复，但成长风格未必持续占优。",
+          "对个人组合的影响取决于权益基金、债券基金和现金的实际比例。",
+        ],
+        uncertainty_notes: [
+          "后续政策力度和节奏仍可能受经济修复、通胀和外部利率影响。",
+          "市场短期反应可能领先基本面，不能把政策新闻直接等同于买入信号。",
+          "如果组合已经集中在单一主题，利好也可能放大波动。",
+        ],
         beginner_translation: "先理解政策影响路径，再回看自己的权益基金比例。",
         related_learning_topics: ["风险和回撤基础"],
-        recommended_next_actions: ["先回看自己的权益基金比例。"],
+        recommended_next_actions: ["先回看自己的权益基金比例。", "检查债券基金是否承担缓冲作用。"],
         risk_notice: "资讯解读不构成买卖建议。",
         citations: [],
         model_status: "enhanced",

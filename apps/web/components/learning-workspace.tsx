@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   BookOpenCheck,
-  CheckCircle2,
   ClipboardList,
   Target,
 } from "lucide-react";
@@ -17,6 +16,7 @@ import {
   type LearningCourseSummary,
 } from "@/lib/api";
 import { formatProductCopy } from "@/lib/display-labels";
+import { buildAgentPromptHref } from "@/lib/navigation";
 import { MetricCard } from "./metric-card";
 import { SectionBlock } from "./section-block";
 import { ProgressBar, StatusPill } from "./ui/primitives";
@@ -152,7 +152,15 @@ export function LearningWorkspace() {
           <Link href="/onboarding" className="action-button">
             去建立基础画像
           </Link>
-          <Link href="/coach" className="action-button-secondary">
+          <Link
+            href={buildAgentPromptHref({
+              focus: "learning",
+              from: "learning",
+              prompt:
+                "请用一个简单例子帮我理解这节内容，并告诉我怎么用到我的基金决策里。",
+            })}
+            className="action-button-secondary"
+          >
             先去教练提问
           </Link>
         </div>
@@ -179,215 +187,272 @@ export function LearningWorkspace() {
   const learningPath = learningPathQuery.data;
   const activeTrainingCourse = getActiveTrainingCourse(learningPath.courses);
   const recommendedCourse = activeTrainingCourse ?? learningPath.courses[0] ?? null;
+  const totalSectionCount = learningPath.courses.reduce(
+    (sum, course) => sum + course.sectionCount,
+    0,
+  );
+  const completedSectionCount = learningPath.courses.reduce(
+    (sum, course) => sum + course.completedSectionCount,
+    0,
+  );
+  const activeSectionTitle =
+    recommendedCourse?.nextSectionTitle ??
+    learningPath.recommendedCourseTitle ??
+    "复盘今天的真实问题";
+  const actionCards = [
+    {
+      title: "相关组合检查",
+      detail: "把今天的知识点放回持仓、风险和现金比例里看。",
+      href: "/portfolio",
+      label: "查看组合",
+    },
+    {
+      title: "相关资讯影响",
+      detail: "看当天新闻有没有触发同一类风险或行为冲动。",
+      href: "/news",
+      label: "看资讯",
+    },
+    {
+      title: "向教练提问",
+      detail: "把不懂的概念转成一个具体投资判断问题。",
+      href: "/agent?focus=learning",
+      label: "问教练",
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <section className="agent-hero overflow-hidden px-5 py-6 sm:px-6">
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.42fr)] xl:items-stretch">
-          <div className="max-w-4xl">
-            <p className="section-kicker">今日训练任务</p>
-            <h1 className="mt-3 text-3xl font-semibold leading-tight text-[color:var(--ink-strong)] sm:text-4xl">
-              {getTrainingObjective(activeTrainingCourse)}
-            </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-[color:var(--ink-soft)]">
-              {getTrainingReason(activeTrainingCourse)}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {recommendedCourse ? (
-                <Link
-                  href={`/learning/${recommendedCourse.slug}`}
-                  className="action-button"
-                >
-                  <BookOpenCheck aria-hidden="true" className="size-4" />
-                  {activeTrainingCourse ? "开始今日训练" : "复盘训练材料"}
-                </Link>
-              ) : null}
-              <Link href="/coach" className="action-button-secondary">
-                带着问题问教练
-              </Link>
+    <div className="learning-command-page command-single-page">
+      <header className="learning-command-topbar command-page-heading">
+        <div>
+          <p className="section-kicker">今日训练任务</p>
+          <h1>{getTrainingObjective(activeTrainingCourse)}</h1>
+          <p>{getTrainingReason(activeTrainingCourse)}</p>
+        </div>
+        <StatusPill tone="accent">
+          {completedSectionCount}/{totalSectionCount || completedSectionCount} 小节
+        </StatusPill>
+      </header>
+
+      <section className="learning-command-grid">
+        <aside className="learning-path-panel paper-panel-strong">
+          <div className="learning-panel-heading">
+            <div>
+              <p className="section-kicker">我的学习路径</p>
+              <h2>{formatProductCopy(learningPath.title)}</h2>
             </div>
-            <div className="mt-6 grid gap-3 lg:grid-cols-3">
-              <div className="workbench-panel-flat p-4">
-                <div className="flex items-center gap-2">
-                  <Target
-                    aria-hidden="true"
-                    className="size-4 text-[color:var(--accent-teal)]"
-                  />
-                  <p className="text-sm font-semibold text-[color:var(--ink-strong)]">
-                    训练目标
-                  </p>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                  {getTrainingObjective(activeTrainingCourse)}
-                </p>
-              </div>
-              <div className="workbench-panel-flat p-4">
-                <div className="flex items-center gap-2">
-                  <ClipboardList
-                    aria-hidden="true"
-                    className="size-4 text-[color:var(--accent-teal)]"
-                  />
-                  <p className="text-sm font-semibold text-[color:var(--ink-strong)]">
-                    训练材料
-                  </p>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                  {recommendedCourse
-                    ? formatProductCopy(recommendedCourse.title)
-                    : "已完成全部基础材料"}
-                </p>
-              </div>
-              <div className="workbench-panel-flat p-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2
-                    aria-hidden="true"
-                    className="size-4 text-[color:var(--accent-teal)]"
-                  />
-                  <p className="text-sm font-semibold text-[color:var(--ink-strong)]">
-                    应用动作
-                  </p>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                  {getTrainingApplication(activeTrainingCourse)}
-                </p>
-              </div>
+            <span>{learningPath.overallProgressPercentage}%</span>
+          </div>
+          <ProgressBar
+            className="mt-4"
+            value={learningPath.overallProgressPercentage}
+            label="学习路径总进度"
+          />
+          <div className="learning-path-counts">
+            <div>
+              <span>已完成</span>
+              <strong>{learningPath.completedCoursesCount}</strong>
+            </div>
+            <div>
+              <span>总课程</span>
+              <strong>{learningPath.totalCourses}</strong>
+            </div>
+            <div>
+              <span>已记录小节</span>
+              <strong>{completedSectionCount}</strong>
             </div>
           </div>
+          <div className="learning-course-list" id="learning-course-list">
+            {learningPath.courses.map((course, index) => (
+              <Link
+                key={course.slug}
+                href={`/learning/${course.slug}`}
+                className={
+                  course.slug === recommendedCourse?.slug
+                    ? "learning-course-row learning-course-row-active"
+                    : "learning-course-row"
+                }
+              >
+                <span className="learning-course-index">{index + 1}</span>
+                <span className="min-w-0">
+                  <strong>{formatProductCopy(course.title)}</strong>
+                  <em>
+                    {course.nextSectionTitle
+                      ? formatProductCopy(course.nextSectionTitle)
+                      : formatCourseStatus(course.status)}
+                  </em>
+                </span>
+                <small>
+                  {course.completedSectionCount}/{course.sectionCount}
+                </small>
+              </Link>
+            ))}
+          </div>
+        </aside>
 
-          <div className="workbench-panel-flat flex flex-col justify-between px-4 py-4">
+        <main className="learning-task-panel paper-panel-strong">
+          <div className="learning-task-head">
             <div>
-              <p className="section-kicker">任务进度</p>
-              <h2 className="mt-2 text-2xl font-semibold text-[color:var(--ink-strong)]">
-                {recommendedCourse?.title ??
-                  (learningPath.recommendedCourseTitle
-                    ? formatProductCopy(learningPath.recommendedCourseTitle)
-                    : "全部完成")}
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusPill tone="accent">
+                  {recommendedCourse
+                    ? formatCourseStatus(recommendedCourse.status)
+                    : "复盘"}
+                </StatusPill>
+                <span>{recommendedCourse?.estimatedDurationMinutes ?? 10} 分钟</span>
+              </div>
+              <h2>
+                {recommendedCourse
+                  ? formatProductCopy(recommendedCourse.title)
+                  : "今天不再堆新课，先做一次复盘"}
               </h2>
-              <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                {recommendedCourse?.nextSectionTitle
-                  ? `下一节：${formatProductCopy(recommendedCourse.nextSectionTitle)}`
-                  : "完成后回工作台看下一步训练动作。"}
+              <p>
+                {recommendedCourse
+                  ? formatProductCopy(recommendedCourse.focus)
+                  : "基础训练完成后，把知识转回真实组合、新闻或一次教练追问。"}
               </p>
             </div>
-            <ProgressBar
-              className="mt-5"
-              value={learningPath.overallProgressPercentage}
-              label="基础训练总进度"
-            />
-            <a
-              href="#learning-course-list"
-              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[color:var(--accent-teal)]"
-            >
-              查看全部训练材料
+            {recommendedCourse ? (
+              <Link
+                href={`/learning/${recommendedCourse.slug}`}
+                className="action-button"
+              >
+                <BookOpenCheck aria-hidden="true" className="size-4" />
+                开始训练
+              </Link>
+            ) : (
+                <Link
+                  href={buildAgentPromptHref({
+                    focus: "learning",
+                    from: "learning",
+                    prompt:
+                      "请用一个简单例子帮我理解这节内容，并告诉我怎么用到我的基金决策里。",
+                  })}
+                  className="action-button"
+                >
+                  带问题复盘
+                </Link>
+            )}
+          </div>
+
+          <div className="learning-step-track" aria-label="今日学习步骤">
+            {["核心概念", "案例理解", "自我检查", "应用思考"].map((step, index) => (
+              <div
+                key={step}
+                className={index < 2 ? "learning-step learning-step-done" : "learning-step"}
+              >
+                <span>{index + 1}</span>
+                <strong>{step}</strong>
+                <em>{index < 2 ? "已准备" : index === 2 ? "进行中" : "待完成"}</em>
+              </div>
+            ))}
+          </div>
+
+          <div className="learning-focus-grid">
+            <section>
+              <div className="learning-mini-heading">
+                <Target aria-hidden="true" className="size-4" />
+                <h3>关键概念笔记</h3>
+              </div>
+              <ul>
+                <li>{getTrainingApplication(activeTrainingCourse)}</li>
+                <li>先分清“波动”“回撤”和“风险承受”，再判断是否需要行动。</li>
+                <li>学习结果要回到一次具体问题，而不是停在术语记忆。</li>
+              </ul>
+            </section>
+            <section>
+              <div className="learning-mini-heading">
+                <ClipboardList aria-hidden="true" className="size-4" />
+                <h3>微型自检</h3>
+              </div>
+              <div className="learning-check-list">
+                <label>
+                  <input type="radio" name="learning-check" readOnly />
+                  我能解释今天的概念
+                </label>
+                <label>
+                  <input type="radio" name="learning-check" readOnly checked />
+                  我能把它用于一次基金判断
+                </label>
+                <label>
+                  <input type="radio" name="learning-check" readOnly />
+                  我还需要问教练
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <div className="learning-next-strip">
+            <div>
+              <p className="section-kicker">当前材料</p>
+              <strong>{formatProductCopy(activeSectionTitle)}</strong>
+            </div>
+            <a href="#learning-course-list">
+              查看全部路径
               <ArrowRight aria-hidden="true" className="size-4" />
             </a>
           </div>
-        </div>
-      </section>
+          <div className="learning-task-footer">
+            <section>
+              <p className="section-kicker">应用顺序</p>
+              <strong>先解释概念，再回到组合，最后问教练。</strong>
+              <span>学习页只保留今天要推进的一步，避免被课程列表拖走。</span>
+            </section>
+            <section>
+              <p className="section-kicker">完成标准</p>
+              <strong>能说清“我下一次会先看什么”。</strong>
+              <span>不是背完术语，而是形成一个可复用的判断顺序。</span>
+            </section>
+          </div>
+        </main>
 
-      <SectionBlock
-        eyebrow="训练材料"
-        title="课程只是今天任务的材料，不是终点。"
-        description="每门课都要落到一个可执行的判断动作：看懂风险语言、识别行为冲动、或把组合问题讲清楚。"
-        className="scroll-mt-6"
-      >
-        <div id="learning-course-list" className="grid gap-4 xl:grid-cols-3">
-          {learningPath.courses.map((course) => (
-            <Link
-              key={course.slug}
-              href={`/learning/${course.slug}`}
-              className="paper-panel-strong group p-4 transition-transform duration-200 hover:-translate-y-0.5"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="section-kicker">训练材料</span>
-                    <StatusPill
-                      tone={course.status === "completed" ? "positive" : "accent"}
-                    >
-                      {formatCourseStatus(course.status)}
-                    </StatusPill>
-                  </div>
-                  <h2 className="mt-2 text-xl font-semibold">{course.title}</h2>
-                </div>
-                <span className="rounded-full border border-[color:var(--line-soft)] bg-white/75 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
-                  {course.estimatedDurationMinutes} 分钟
-                </span>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-[color:var(--ink-soft)]">
-                {course.focus}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                {course.description}
-              </p>
-              <div
-                className="mt-5 overflow-hidden rounded-full bg-white/65"
-                role="progressbar"
-                aria-label={`${course.title} 课程进度`}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={course.progressPercentage}
-              >
-                <div
-                  className="h-2 rounded-full bg-[linear-gradient(90deg,var(--accent-teal),var(--accent-cyan))] transition-all duration-300"
-                  style={{ width: `${course.progressPercentage}%` }}
-                />
-              </div>
-              <div className="mt-4 flex items-center justify-between gap-3 text-sm text-[color:var(--ink-soft)]">
+        <aside className="learning-action-panel paper-panel-strong">
+          <div className="learning-panel-heading">
+            <div>
+              <p className="section-kicker">从学习到行动</p>
+              <h2>学完立刻连回真实判断</h2>
+            </div>
+          </div>
+          <div className="learning-action-list">
+            {actionCards.map((card) => (
+              <Link key={card.title} href={card.href} className="learning-action-row">
                 <span>
-                  {course.completedSectionCount}/{course.sectionCount} 小节
+                  {card.title === "相关组合检查" ? (
+                    <Target aria-hidden="true" className="size-4" />
+                  ) : card.title === "相关资讯影响" ? (
+                    <ClipboardList aria-hidden="true" className="size-4" />
+                  ) : (
+                    <BookOpenCheck aria-hidden="true" className="size-4" />
+                  )}
                 </span>
-                <span>{course.progressPercentage}%</span>
-              </div>
-              <div className="mt-4 rounded-lg border border-[color:var(--line-soft)] bg-white/55 px-4 py-3 text-sm leading-6 text-[color:var(--ink-soft)]">
-                <span className="block font-semibold text-[color:var(--ink-strong)]">
-                  {course.nextSectionTitle ? "当前任务材料" : "材料状态"}
+                <span>
+                  <strong>{card.title}</strong>
+                  <em>{card.detail}</em>
+                  <small>{card.label}</small>
                 </span>
-                <span className="mt-1 block">
-                  {course.nextSectionTitle
-                    ? formatProductCopy(course.nextSectionTitle)
-                    : "本课程已全部完成，可以回到工作台看下一步动作。"}
-                </span>
-              </div>
-              <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-[color:var(--accent-teal)]">
-                进入训练材料
-                <span aria-hidden="true">→</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </SectionBlock>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="主路径"
-          value={formatProductCopy(learningPath.title)}
-          detail={learningPath.description}
-          accent="moss"
-        />
-        <MetricCard
-          label="总进度"
-          value={`${learningPath.overallProgressPercentage}%`}
-          detail="按小节完成度聚合。"
-          accent="gold"
-        />
-        <MetricCard
-          label="已完成课程"
-          value={`${learningPath.completedCoursesCount}/${learningPath.totalCourses}`}
-          detail="完成一节就推进一次路径。"
-          accent="clay"
-        />
-        <MetricCard
-          label="推荐下一门"
-          value={
-            learningPath.recommendedCourseTitle
-              ? formatProductCopy(learningPath.recommendedCourseTitle)
-              : "全部完成"
-          }
-          detail="当前推荐会同步影响工作台的下一步动作。"
-          accent="moss"
-        />
-      </div>
+              </Link>
+            ))}
+          </div>
+          <div className="learning-summary-panel">
+            <p className="section-kicker">学习数据概览</p>
+            <div>
+              <span>路径进度</span>
+              <strong>{learningPath.overallProgressPercentage}%</strong>
+            </div>
+            <div>
+              <span>本次推荐</span>
+              <strong>
+                {learningPath.recommendedCourseTitle
+                  ? formatProductCopy(learningPath.recommendedCourseTitle)
+                  : "已完成"}
+              </strong>
+            </div>
+            <div>
+              <span>下一步</span>
+              <strong>{formatProductCopy(activeSectionTitle)}</strong>
+            </div>
+          </div>
+        </aside>
+      </section>
     </div>
   );
 }

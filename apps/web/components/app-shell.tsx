@@ -24,7 +24,11 @@ import {
 } from "lucide-react";
 
 import { ApiError, getSessionUser, logoutAuthSession } from "@/lib/api";
-import { navigationItems } from "@/lib/navigation";
+import {
+  navigationItems,
+  toolNavigationItems,
+  workspaceNavigationItems,
+} from "@/lib/navigation";
 import { cn, InlineNotice, Panel, StatusPill } from "./ui/primitives";
 
 const navIcons: Record<string, LucideIcon> = {
@@ -43,7 +47,7 @@ const navIcons: Record<string, LucideIcon> = {
 };
 
 function getWorkspaceItem(pathname: string) {
-  return navigationItems.find((item) => {
+  return workspaceNavigationItems.find((item) => {
     return item.href === "/"
       ? pathname === "/"
       : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -57,6 +61,15 @@ function getWorkspaceTitle(pathname: string) {
   if (pathname === "/start") {
     return "开始";
   }
+  if (pathname === "/news") {
+    return "资讯";
+  }
+  if (pathname === "/simulation") {
+    return "模拟训练";
+  }
+  if (pathname.startsWith("/learning")) {
+    return "学习";
+  }
   return getWorkspaceItem(pathname)?.title ?? "工作区";
 }
 
@@ -66,6 +79,15 @@ function getWorkspaceDescription(pathname: string) {
   }
   if (pathname === "/start") {
     return "创建账号并开始建档。";
+  }
+  if (pathname === "/news") {
+    return "聚焦重要政策与市场动态，连接您的组合。";
+  }
+  if (pathname === "/simulation") {
+    return "用历史情境练一次不冲动的判断。";
+  }
+  if (pathname.startsWith("/learning")) {
+    return "把基金知识转成今天能执行的判断动作。";
   }
   return getWorkspaceItem(pathname)?.description ?? "继续完成本次投资判断训练。";
 }
@@ -109,6 +131,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }, [sidebarCollapsed]);
 
+  const loginHref = `/start?next=${encodeURIComponent(pathname)}`;
+
   if (!isPublicOverview && sessionQuery.isLoading) {
     return (
       <div className="figma-app-shell grid min-h-screen place-items-center px-4">
@@ -138,12 +162,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href={`/start?next=${encodeURIComponent(pathname)}`}
+              href={loginHref}
               className="action-button"
+              onClick={(event) => {
+                event.preventDefault();
+                window.location.assign(loginHref);
+              }}
             >
               去登录 / 注册
             </Link>
-            <Link href="/" className="action-button-secondary">
+            <Link
+              href="/"
+              className="action-button-secondary"
+              onClick={(event) => {
+                event.preventDefault();
+                window.location.assign("/");
+              }}
+            >
               回到总览
             </Link>
           </div>
@@ -166,7 +201,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const workspaceTitle = getWorkspaceTitle(pathname);
   const workspaceItem = getWorkspaceItem(pathname);
   const workspaceDescription = getWorkspaceDescription(pathname);
-  const compactPageChrome = pathname === "/agent";
+  const compactPageChrome =
+    pathname === "/agent" ||
+    pathname === "/today" ||
+    pathname === "/automations" ||
+    pathname === "/profile" ||
+    pathname === "/news" ||
+    pathname === "/simulation" ||
+    pathname.startsWith("/learning");
   const hideMobileSidebar = pathname === "/onboarding";
 
   return (
@@ -248,6 +290,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </Link>
                 );
               })}
+              <div
+                className={cn(
+                  "app-sidebar-section-label",
+                  sidebarCollapsed && "lg:sr-only",
+                )}
+                aria-hidden="true"
+              >
+                工具入口
+              </div>
+              {toolNavigationItems.map((item) => {
+                const active =
+                  pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(item.href));
+                const Icon = navIcons[item.href] ?? Compass;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.title}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "figma-nav-item",
+                      active && "figma-nav-item-active",
+                    )}
+                  >
+                    <Icon aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                    <span
+                      className={cn(
+                        "figma-nav-label",
+                        sidebarCollapsed && "lg:sr-only",
+                      )}
+                    >
+                      {item.title}
+                    </span>
+                  </Link>
+                );
+              })}
               {sessionUser ? (
                 <button
                   type="button"
@@ -291,7 +371,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="flex min-w-0 items-center justify-end gap-3">
                 <div className="hidden h-9 max-w-[460px] items-center gap-2 rounded-full border border-[color:var(--line-soft)] bg-white/70 px-3 text-xs font-medium text-[color:var(--ink-soft)] shadow-sm backdrop-blur-2xl xl:flex">
                   <Compass aria-hidden="true" className="size-4 text-[color:var(--ink-muted)]" />
-                  <span className="truncate">把问题交给 Agent，查看它如何整理依据</span>
+                  <span className="truncate">把问题交给教练，查看它如何整理依据</span>
                 </div>
                 {sessionUser ? (
                   <div className="flex h-9 min-w-0 items-center gap-2 rounded-full border border-[color:var(--line-soft)] bg-white/76 px-2.5 text-[color:var(--ink-strong)] shadow-sm backdrop-blur-2xl">

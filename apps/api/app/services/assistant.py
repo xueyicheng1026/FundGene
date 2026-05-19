@@ -27,6 +27,7 @@ from app.schemas.assistant import (
     AssistantConversationMessage,
     AssistantConversationResponse,
     AssistantMessageRequest,
+    AssistantSessionListResponse,
     AssistantSessionSummary,
 )
 from app.services.behavior import get_behavior_profile
@@ -104,9 +105,37 @@ def _serialize_message(message: ChatMessage) -> AssistantConversationMessage:
     )
 
 
-def _serialize_session(session: ChatSession | None) -> AssistantSessionSummary | None:
+def _serialize_session(
+    session: ChatSession | None,
+    *,
+    messages: list[ChatMessage] | None = None,
+) -> AssistantSessionSummary | None:
     if session is None:
         return None
+
+    latest_intent = None
+    last_question = None
+    last_answer_preview = None
+    last_recommended_action = None
+    message_count = 0
+
+    if messages is not None:
+        message_count = len(messages)
+        for message in reversed(messages):
+            if message.role == "user" and last_question is None:
+                last_question = message.content
+            if message.role == "assistant" and last_answer_preview is None:
+                last_answer_preview = message.content[:120]
+                if message.structured_payload:
+                    advisor = AdvisorResponse.model_validate(message.structured_payload)
+                    latest_intent = advisor.intent
+                    last_recommended_action = (
+                        advisor.recommended_actions[0]
+                        if advisor.recommended_actions
+                        else None
+                    )
+            if last_question and last_answer_preview:
+                break
 
     return AssistantSessionSummary(
         id=session.id,
@@ -114,6 +143,11 @@ def _serialize_session(session: ChatSession | None) -> AssistantSessionSummary |
         context_type=session.context_type,
         created_at=session.created_at,
         updated_at=session.updated_at,
+        latest_intent=latest_intent,
+        last_question=last_question,
+        last_answer_preview=last_answer_preview,
+        last_recommended_action=last_recommended_action,
+        message_count=message_count,
     )
 
 
@@ -157,6 +191,20 @@ def _get_owned_session(
             detail="Requested coach session does not exist for the current user.",
         )
     return session
+
+
+def _list_owned_sessions(db: Session, *, user_id: str) -> list[ChatSession]:
+    return list(
+        db.scalars(
+            select(ChatSession)
+            .where(
+                ChatSession.user_id == user_id,
+                ChatSession.context_type == COACH_CONTEXT_TYPE,
+            )
+            .order_by(ChatSession.updated_at.desc(), ChatSession.created_at.desc())
+            .limit(50)
+        )
+    )
 
 
 def _build_user_context_payload(
@@ -217,7 +265,38 @@ def get_current_conversation(
 
     messages = _list_session_messages(db, session_id=session.id)
     return AssistantConversationResponse(
-        session=_serialize_session(session),
+        session=_serialize_session(session, messages=messages),
+        messages=[_serialize_message(message) for message in messages],
+    )
+
+
+def list_conversations(
+    db: Session, *, user: UserProfile
+) -> AssistantSessionListResponse:
+    sessions = _list_owned_sessions(db, user_id=user.id)
+    summaries: list[AssistantSessionSummary] = []
+    for session in sessions:
+        messages = _list_session_messages(db, session_id=session.id)
+        summary = _serialize_session(session, messages=messages)
+        if summary is not None:
+            summaries.append(summary)
+
+    return AssistantSessionListResponse(sessions=summaries)
+
+
+def get_conversation_by_id(
+    db: Session, *, user: UserProfile, session_id: str
+) -> AssistantConversationResponse:
+    session = _get_owned_session(db, user_id=user.id, session_id=session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Requested coach session does not exist for the current user.",
+        )
+
+    messages = _list_session_messages(db, session_id=session.id)
+    return AssistantConversationResponse(
+        session=_serialize_session(session, messages=messages),
         messages=[_serialize_message(message) for message in messages],
     )
 
@@ -232,7 +311,11 @@ async def send_message(
     started_at = datetime.now(timezone.utc)
     user_context = build_advisor_user_context(db, user=user)
     page_context = _build_page_context_payload(payload)
-    session = _get_owned_session(db, user_id=user.id, session_id=payload.session_id)
+    session = (
+        None
+        if payload.start_new_session
+        else _get_owned_session(db, user_id=user.id, session_id=payload.session_id)
+    )
 
     if session is None:
         session = ChatSession(
@@ -266,6 +349,7 @@ async def send_message(
         input_payload={
             "message": payload.message,
             "session_id": session.id,
+            "start_new_session": payload.start_new_session,
             "context_type": COACH_CONTEXT_TYPE,
             "page_context": page_context,
             "user_message_id": user_message.id,

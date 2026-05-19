@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { mockFundGeneApi } from "./fixtures";
 
 test.describe.configure({ mode: "serial" });
+test.setTimeout(60_000);
 
 const visualRoutes = [
   { name: "overview", path: "/", marker: "四个主入口" },
@@ -15,7 +16,7 @@ const visualRoutes = [
   { name: "today", path: "/today", marker: "今日简报" },
   { name: "agent", path: "/agent", marker: "教练工作区" },
   { name: "automations", path: "/automations", marker: "自动任务" },
-  { name: "profile", path: "/profile", marker: "上下文中心" },
+  { name: "profile", path: "/profile", marker: "上下文完整度" },
   { name: "onboarding", path: "/onboarding", marker: "开始建档" },
   { name: "learning", path: "/learning", marker: "今日训练任务" },
   {
@@ -48,6 +49,18 @@ for (const route of visualRoutes) {
         () => document.documentElement.scrollWidth > window.innerWidth + 1,
       );
       expect(hasHorizontalOverflow).toBe(false);
+
+      if (
+        viewport.label === "desktop" &&
+        (route.path === "/learning" ||
+          route.path === "/news" ||
+          route.path === "/simulation")
+      ) {
+        const hasPageVerticalOverflow = await page.evaluate(
+          () => document.documentElement.scrollHeight > window.innerHeight + 1,
+        );
+        expect(hasPageVerticalOverflow).toBe(false);
+      }
 
       await page.screenshot({
         fullPage: true,

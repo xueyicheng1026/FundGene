@@ -3,7 +3,7 @@ export const navigationItems = [
     href: "/today",
     eyebrow: "今日",
     title: "今日",
-    description: "先看今日判断和一个安全下一步",
+    description: "先看今日判断和一个下一步",
   },
   {
     href: "/agent",
@@ -24,3 +24,57 @@ export const navigationItems = [
     description: "管理判断所依赖的个人上下文",
   },
 ];
+
+export const toolNavigationItems = [
+  {
+    href: "/learning",
+    eyebrow: "学习",
+    title: "学习训练",
+    description: "按今日任务推进基金基础判断能力",
+  },
+  {
+    href: "/news",
+    eyebrow: "资讯",
+    title: "资讯解读",
+    description: "查看政策与市场动态如何影响组合",
+  },
+  {
+    href: "/simulation",
+    eyebrow: "训练",
+    title: "模拟训练",
+    description: "进入历史情境，练习不冲动决策",
+  },
+];
+
+export const workspaceNavigationItems = [
+  ...navigationItems,
+  ...toolNavigationItems,
+];
+
+export function buildAgentPromptHref({
+  focus,
+  prompt,
+  from,
+  sourceIds = {},
+}: {
+  focus: string;
+  prompt: string;
+  from?: string | null;
+  sourceIds?: Record<string, string | null | undefined>;
+}): string {
+  const params = new URLSearchParams();
+  params.set("focus", focus);
+  params.set("prompt", prompt);
+
+  if (from) {
+    params.set("from", from);
+  }
+
+  Object.entries(sourceIds).forEach(([key, value]) => {
+    if (value) {
+      params.set(key, value);
+    }
+  });
+
+  return `/agent?${params.toString()}`;
+}

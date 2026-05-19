@@ -3,6 +3,17 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  ClipboardCheck,
+  Info,
+  LineChart,
+  ShieldCheck,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 
 import {
   ApiError,
@@ -15,11 +26,12 @@ import {
   submitSimulationAction,
   type BehaviorProfile,
   type SimulationFeedback,
+  type SimulationReview,
   type SimulationScenario,
   type SimulationSession,
-  type SimulationSessionActionChoice,
 } from "@/lib/api";
 import { formatBiasTag, formatBiasTags, formatProductCopy } from "@/lib/display-labels";
+import { buildAgentPromptHref } from "@/lib/navigation";
 import { MetricCard } from "./metric-card";
 import { SectionBlock } from "./section-block";
 
@@ -44,29 +56,6 @@ function formatRiskLevel(level: BehaviorProfile["riskLevel"]): string {
   return "待评估";
 }
 
-function formatDifficulty(value: string | null): string {
-  if (!value) {
-    return "基础";
-  }
-
-  const normalized = value.toLowerCase();
-  if (normalized === "starter" || normalized === "beginner" || normalized === "初级") {
-    return "初级";
-  }
-  if (
-    normalized === "intermediate" ||
-    normalized === "medium" ||
-    normalized === "中等"
-  ) {
-    return "中级";
-  }
-  if (normalized === "advanced" || normalized === "高级") {
-    return "高级";
-  }
-
-  return value;
-}
-
 function formatTimestamp(value: string | null): string {
   if (!value) {
     return "待生成";
@@ -85,12 +74,9 @@ function formatTimestamp(value: string | null): string {
   }).format(date);
 }
 
-function formatDuration(value: number | null): string {
-  if (value === null || value <= 0) {
-    return "待定";
-  }
-
-  return `${value} 分钟`;
+function splitInsightText(value: string): string[] {
+  const parts = value.match(/[^。！？；]+[。！？；]?/g) ?? [value];
+  return parts.map((part) => part.trim()).filter(Boolean);
 }
 
 function isSessionCompleted(session: SimulationSession | null): boolean {
@@ -114,16 +100,103 @@ function getProgressValue(session: SimulationSession | null): number {
   return Math.max(0, Math.min(100, Math.round((cappedStep / session.totalSteps) * 100)));
 }
 
-function buildScenarioBadge(scenario: SimulationScenario): string {
-  if (scenario.marketPhase) {
-    return scenario.marketPhase;
+function scenarioIcon(index: number) {
+  if (index === 0) {
+    return TrendingDown;
   }
-
-  if (scenario.startingYear) {
-    return `${scenario.startingYear} 情境`;
+  if (index === 1) {
+    return TrendingUp;
   }
+  return ClipboardCheck;
+}
 
-  return "历史训练";
+function scenarioStatusLabel(
+  scenario: SimulationScenario,
+  selectedScenario: SimulationScenario | null,
+  activeSession: SimulationSession | null,
+) {
+  if (activeSession?.scenarioId === scenario.id && !isSessionCompleted(activeSession)) {
+    return "当前进行中";
+  }
+  if (scenario.id === selectedScenario?.id) {
+    return "已选中";
+  }
+  if (scenario.completed) {
+    return "已完成";
+  }
+  return "未开始";
+}
+
+function ScenarioMiniChart() {
+  return (
+    <svg
+      className="simulation-market-chart"
+      viewBox="0 0 620 250"
+      role="img"
+      aria-label="历史市场回放曲线"
+    >
+      {[0, 1, 2, 3].map((line) => (
+        <line
+          key={line}
+          x1="28"
+          x2="592"
+          y1={46 + line * 48}
+          y2={46 + line * 48}
+          className="simulation-chart-grid"
+        />
+      ))}
+      <polyline
+        className="simulation-chart-line"
+        points="30,108 70,92 112,116 150,101 190,88 230,72 270,104 310,122 350,160 390,188 430,206 470,152 510,132 552,142 590,118"
+      />
+      <line x1="350" x2="350" y1="36" y2="220" className="simulation-chart-now" />
+      <circle cx="350" cy="160" r="8" className="simulation-chart-dot" />
+      <text x="310" y="28" className="simulation-chart-label">
+        当前时间点
+      </text>
+      <text x="28" y="236" className="simulation-chart-axis">
+        03-01
+      </text>
+      <text x="290" y="236" className="simulation-chart-axis">
+        03-17
+      </text>
+      <text x="552" y="236" className="simulation-chart-axis">
+        03-29
+      </text>
+    </svg>
+  );
+}
+
+function StageTimeline({
+  session,
+  scenario,
+}: {
+  session: SimulationSession | null;
+  scenario: SimulationScenario | null;
+}) {
+  const total = session?.totalSteps && session.totalSteps > 0 ? session.totalSteps : 4;
+  const current = session ? Math.min(Math.max(session.currentStep, 1), total) : 2;
+  const labels =
+    scenario?.timelinePreview && scenario.timelinePreview.length >= total
+      ? scenario.timelinePreview.slice(0, total)
+      : ["事件出现", "市场发酵", "恐慌扩散", "逐步企稳"].slice(0, total);
+
+  return (
+    <ol className="simulation-stage-line" aria-label="情境进程">
+      {labels.map((label, index) => {
+        const step = index + 1;
+        const done = step < current;
+        const active = step === current;
+        return (
+          <li key={`${label}-${step}`} className={active ? "simulation-stage-active" : ""}>
+            <span>{done ? <CheckCircle2 aria-hidden="true" className="size-4" /> : step}</span>
+            <strong>阶段 {step}</strong>
+            <p>{label}</p>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 function getTrainingBiasLabels(
@@ -138,120 +211,163 @@ function getTrainingBiasLabels(
   return labels.length > 0 ? labels.slice(0, 3) : ["情绪反应", "风险纪律"];
 }
 
-function buildRecommendationReason(
-  scenario: SimulationScenario | null,
-  behavior: BehaviorProfile,
-): string {
-  if (!scenario) {
-    return "场景同步完成后，会优先把训练和你的行为画像、风险等级对齐。";
+function formatReviewEvidence(value: string): string {
+  const [rawBias, ...rest] = value.split("：");
+  if (rest.length > 0) {
+    return `${formatBiasTag(rawBias)}：${formatProductCopy(rest.join("："))}`;
   }
 
-  const matchedBias = scenario.biasFocus.find((item) =>
-    behavior.biasTags.includes(item),
-  );
-  if (matchedBias) {
-    return `它命中了你当前画像里的「${formatBiasTag(matchedBias)}」，适合先练波动中如何停下来写理由。`;
-  }
-
-  if (scenario.recommended) {
-    return "这是系统推荐的下一段训练，用来把工作台里的行为提醒转成一次可记录的决策练习。";
-  }
-
-  return "这个场景适合用历史节点练习“先解释、再行动、最后复盘”的决策顺序。";
+  return formatProductCopy(value);
 }
 
-function DeskMetric({
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  tone: "moss" | "gold" | "clay" | "ink";
-}) {
-  const toneMap = {
-    moss: "from-[rgba(0,113,227,0.12)] via-[rgba(255,255,255,0.06)] to-transparent",
-    gold: "from-[rgba(255,159,10,0.12)] via-[rgba(255,255,255,0.06)] to-transparent",
-    clay: "from-[rgba(255,59,48,0.1)] via-[rgba(255,255,255,0.06)] to-transparent",
-    ink: "from-[rgba(118,118,128,0.1)] via-[rgba(255,255,255,0.05)] to-transparent",
-  } as const;
+function buildReviewFallbackAction(review: SimulationReview): string {
+  const firstBias = review.biasSignals[0] ? formatBiasTag(review.biasSignals[0]) : "冲动触发点";
+  return `下次遇到类似场景时，先停下来检查一次${firstBias}，再决定是否继续动作。`;
+}
 
-  return (
-    <div className="relative overflow-hidden rounded-lg border border-[color:var(--line-soft)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,247,251,0.86))] p-4 shadow-[0_16px_38px_rgba(29,29,31,0.065)] backdrop-blur-2xl">
-      <div
-        className={joinClasses(
-          "pointer-events-none absolute inset-0 bg-gradient-to-br",
-          toneMap[tone],
-        )}
-      />
-      <div className="relative">
-        <p className="section-kicker">{label}</p>
-        <p className="mt-2 text-2xl font-semibold text-[color:var(--ink-strong)]">{value}</p>
-        <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">{detail}</p>
+function SimulationReviewRoom({
+  review,
+  reviewError,
+  isLoading,
+  session,
+  onBack,
+  onRestart,
+}: {
+  review: SimulationReview | null;
+  reviewError: Error | null;
+  isLoading: boolean;
+  session: SimulationSession;
+  onBack: () => void;
+  onRestart: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <div className="simulation-review-room">
+        <div className="simulation-inline-state">正在读取最终复盘...</div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-function ReviewColumn({
-  title,
-  items,
-  emptyText,
-}: {
-  title: string;
-  items: string[];
-  emptyText: string;
-}) {
-  return (
-    <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/72 p-4">
-      <p className="section-kicker">{title}</p>
-      <div className="mt-3 space-y-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-        {items.length > 0 ? items.map((item) => <div key={item}>{item}</div>) : emptyText}
-      </div>
-    </div>
-  );
-}
-
-function ChoiceCard({
-  choice,
-  active,
-  onSelect,
-}: {
-  choice: SimulationSessionActionChoice;
-  active: boolean;
-  onSelect: (choiceId: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={joinClasses(
-        "group w-full rounded-lg border px-4 py-3 text-left transition duration-200",
-        active
-          ? "border-[rgba(0,113,227,0.28)] bg-[linear-gradient(135deg,rgba(0,113,227,0.09),rgba(255,255,255,0.94))] shadow-[0_16px_32px_rgba(0,113,227,0.1)]"
-          : "border-[color:var(--line-soft)] bg-white/78 hover:-translate-y-0.5 hover:border-[rgba(0,113,227,0.18)]",
-      )}
-      onClick={() => onSelect(choice.id)}
-      aria-pressed={active}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="section-kicker">可选动作</p>
-          <h3 className="mt-2 text-base font-semibold">{choice.label}</h3>
+  if (reviewError) {
+    return (
+      <div className="simulation-review-room">
+        <div className="simulation-inline-state simulation-inline-error">
+          复盘读取失败：{reviewError.message}
         </div>
-        {choice.biasSignal ? (
-          <span className="rounded-full border border-[rgba(0,113,227,0.16)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-[11px] text-[color:var(--accent-teal)]">
-            {formatBiasTag(choice.biasSignal)}
-          </span>
-        ) : null}
+        <button type="button" className="action-button-secondary" onClick={onBack}>
+          返回训练室
+        </button>
       </div>
-      {choice.description ? (
-        <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
-          {choice.description}
-        </p>
-      ) : null}
-    </button>
+    );
+  }
+
+  if (!review) {
+    return (
+      <div className="simulation-review-room">
+        <div className="simulation-inline-state">当前训练已完成，但复盘结果尚未可用。</div>
+        <button type="button" className="action-button-secondary" onClick={onBack}>
+          返回训练室
+        </button>
+      </div>
+    );
+  }
+
+  const focusItems =
+    review.improvementAreas.length > 0
+      ? review.improvementAreas
+      : review.biasSignals.map((item) => `${formatBiasTag(item)}需要继续观察。`);
+  const nextActions =
+    review.recommendedNextActions.length > 0
+      ? review.recommendedNextActions.map((item) => formatProductCopy(item))
+      : [buildReviewFallbackAction(review)];
+  const evidenceItems = review.behaviorEvidenceCandidates.map(formatReviewEvidence);
+  const reflectionItems =
+    review.reflectionQuestions.length > 0
+      ? review.reflectionQuestions
+      : ["这次最容易让你失守的是哪个信息点？", "下一次行动前，你要先检查哪条计划边界？"];
+
+  return (
+    <div className="simulation-review-room" data-testid="simulation-review-room">
+      <div className="simulation-review-summary">
+        <div>
+          <p className="section-kicker">最终复盘</p>
+          <h2>这次训练先记住一件事</h2>
+          <p>{formatProductCopy(review.overallAssessment)}</p>
+        </div>
+        <dl>
+          <div>
+            <dt>情境</dt>
+            <dd>{review.scenarioTitle ?? session.scenarioTitle ?? "历史情境训练"}</dd>
+          </div>
+          <div>
+            <dt>完成时间</dt>
+            <dd>{formatTimestamp(review.completedAt)}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="simulation-review-grid">
+        <section>
+          <p className="section-kicker">暴露的触发点</p>
+          <ul>
+            {(focusItems.length > 0 ? focusItems : ["这次没有形成明确触发点，建议回到教练继续拆解。"])
+              .slice(0, 3)
+              .map((item) => (
+                <li key={item}>{formatProductCopy(item)}</li>
+              ))}
+          </ul>
+        </section>
+        <section>
+          <p className="section-kicker">下一次先做什么</p>
+          <ul>
+            {nextActions.slice(0, 3).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+        <section>
+          <p className="section-kicker">待确认线索</p>
+          <ul>
+            {(evidenceItems.length > 0 ? evidenceItems : ["这次只作为训练记录，不自动改写你的行为画像。"])
+              .slice(0, 2)
+              .map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+          </ul>
+          <small>这些只是候选线索，需要你确认或用后续训练继续验证。</small>
+        </section>
+      </div>
+
+      <div className="simulation-review-footer">
+        <div>
+          <p className="section-kicker">可以带回教练的问题</p>
+          <p>{formatProductCopy(reflectionItems[0] ?? "这次训练里我最该复盘哪一步？")}</p>
+        </div>
+        <div>
+          <button type="button" className="action-button-secondary" onClick={onBack}>
+            返回训练室
+          </button>
+          <Link
+            href={buildAgentPromptHref({
+              focus: "simulation",
+              from: "simulation",
+              prompt:
+                "请帮我复盘这次模拟训练里最容易失守的节点，并告诉我下次行动前要先检查什么。",
+              sourceIds: {
+                simulation_session_id: session.id,
+                scenario_id: review.scenarioId ?? session.scenarioId,
+              },
+            })}
+            className="action-button-secondary"
+          >
+            去教练继续追问
+          </Link>
+          <button type="button" className="action-button" onClick={onRestart}>
+            开始下一次训练
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -267,6 +383,7 @@ export function SimulationWorkspace() {
   const [startError, setStartError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [reviewRequested, setReviewRequested] = useState(false);
+  const [showTrainingGuide, setShowTrainingGuide] = useState(false);
 
   const sessionQuery = useQuery({
     queryKey: ["session-user"],
@@ -299,10 +416,22 @@ export function SimulationWorkspace() {
     scenarios.find((item) => item.id === resolvedScenarioId) ?? null;
   const pendingActiveSessionId = scenariosQuery.data?.activeSessionId ?? null;
 
+  const activeSessionQuery = useQuery({
+    queryKey: ["simulation-session", pendingActiveSessionId],
+    queryFn: () => getSimulationSession(pendingActiveSessionId ?? ""),
+    enabled: Boolean(isOnboarded && pendingActiveSessionId && !activeSession),
+    retry: false,
+  });
+  const displayedActiveSession = activeSession ?? activeSessionQuery.data ?? null;
+  const displayedActionId =
+    selectedActionId ??
+    displayedActiveSession?.activeEvent?.availableActions[0]?.id ??
+    null;
+
   const reviewQuery = useQuery({
-    queryKey: ["simulation-review", activeSession?.id],
-    queryFn: () => getSimulationReview(activeSession?.id ?? ""),
-    enabled: Boolean(activeSession?.id && reviewRequested),
+    queryKey: ["simulation-review", displayedActiveSession?.id],
+    queryFn: () => getSimulationReview(displayedActiveSession?.id ?? ""),
+    enabled: Boolean(displayedActiveSession?.id && reviewRequested),
     retry: false,
   });
 
@@ -312,7 +441,7 @@ export function SimulationWorkspace() {
     onSuccess: async (nextSession) => {
       setActiveSession(nextSession);
       setLatestFeedback(null);
-      setSelectedActionId(null);
+      setSelectedActionId(nextSession.activeEvent?.availableActions[0]?.id ?? null);
       setDraftRationale("");
       setDraftWorry("");
       setDraftImpulsePlan("");
@@ -333,7 +462,7 @@ export function SimulationWorkspace() {
     onSuccess: (session) => {
       setActiveSession(session);
       setLatestFeedback(null);
-      setSelectedActionId(null);
+      setSelectedActionId(session.activeEvent?.availableActions[0]?.id ?? null);
       setDraftRationale("");
       setDraftWorry("");
       setDraftImpulsePlan("");
@@ -350,11 +479,12 @@ export function SimulationWorkspace() {
 
   const actionMutation = useMutation({
     mutationFn: async () => {
-      if (!activeSession) {
+      const session = displayedActiveSession;
+      if (!session) {
         throw new Error("请先启动一个情境训练。");
       }
 
-      if (!selectedActionId) {
+      if (!displayedActionId) {
         throw new Error("请先选择本轮要执行的动作。");
       }
 
@@ -364,9 +494,9 @@ export function SimulationWorkspace() {
       }
 
       return submitSimulationAction({
-        sessionId: activeSession.id,
-        eventId: activeSession.activeEvent?.id ?? null,
-        actionId: selectedActionId,
+        sessionId: session.id,
+        eventId: session.activeEvent?.id ?? null,
+        actionId: displayedActionId,
         rationale: trimmedRationale,
         worry: draftWorry.trim(),
         impulseControlPlan: draftImpulsePlan.trim(),
@@ -490,33 +620,10 @@ export function SimulationWorkspace() {
 
   const behavior = behaviorQuery.data;
   const review = reviewQuery.data ?? null;
-  const activeSessionCompleted = isSessionCompleted(activeSession);
-  const activeEvent = activeSession?.activeEvent ?? null;
-  const apiUnavailable =
-    scenariosQuery.error instanceof ApiError &&
-    (scenariosQuery.error.status === 404 ||
-      scenariosQuery.error.status === 405 ||
-      scenariosQuery.error.status === 501);
-  const progressValue = getProgressValue(activeSession);
+  const activeSessionCompleted = isSessionCompleted(displayedActiveSession);
+  const activeEvent = displayedActiveSession?.activeEvent ?? null;
+  const progressValue = getProgressValue(displayedActiveSession);
   const trainingBiasLabels = getTrainingBiasLabels(selectedScenario, behavior);
-  const recommendationReason = buildRecommendationReason(selectedScenario, behavior);
-  const assignmentWritebacks = [
-    {
-      label: "动作日志",
-      value: "每一步选择 + 理由",
-      detail: "提交后保存在训练会话里，结尾复盘会回看这条链路。",
-    },
-    {
-      label: "行为线索",
-      value: "只生成候选证据",
-      detail: "单次训练不会直接改写画像，会先形成待确认观察。",
-    },
-    {
-      label: "工作台",
-      value: "刷新安全下一步",
-      detail: "完成复盘后，工作台会读取新的训练状态与建议动作。",
-    },
-  ];
 
   function handleStartScenario() {
     if (!selectedScenario) {
@@ -547,7 +654,7 @@ export function SimulationWorkspace() {
   }
 
   function handleRequestReview() {
-    if (!activeSession?.id) {
+    if (!displayedActiveSession?.id) {
       return;
     }
 
@@ -555,902 +662,397 @@ export function SimulationWorkspace() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="agent-hero overflow-hidden px-5 py-6 sm:px-6">
-        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[42%] border-l border-[color:var(--line-soft)] bg-white/42 xl:block" />
-        <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1.02fr)_minmax(340px,0.98fr)]">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="section-kicker">历史情境训练</p>
-              <h1 className="max-w-4xl text-3xl font-semibold leading-tight text-[color:var(--ink-strong)] sm:text-4xl">
-                {selectedScenario
-                  ? `今天训练：${selectedScenario.title}`
-                  : "今天训练：把一次市场波动写成可复盘的决策作业。"}
-              </h1>
-              <p className="max-w-3xl text-sm leading-7 text-[color:var(--ink-soft)]">
-                首屏先明确训练目标：练什么偏差、为什么推荐、训练后会保存什么。
-                这里不模拟交易执行，只把你的判断过程保存成可回看的训练记录。
-              </p>
-            </div>
+    <div className="simulation-command-page space-y-6">
+      <section className="simulation-training-room">
+        <header className="simulation-room-heading">
+          <div>
+            <p className="section-kicker">模拟训练 / 历史情境</p>
+            <h1>用历史情境练一次不冲动的判断</h1>
+            <p>
+              基于真实市场事件的阶段推演，复盘当时可见信息，训练理性决策与情绪掌控。
+            </p>
+          </div>
+          <button
+            type="button"
+            className="simulation-help-pill"
+            aria-expanded={showTrainingGuide}
+            aria-controls="simulation-training-guide"
+            onClick={() => setShowTrainingGuide((value) => !value)}
+          >
+            <Info aria-hidden="true" className="size-4" />
+            训练说明
+          </button>
+        </header>
 
-            <div className="flex flex-wrap gap-3 text-sm text-[color:var(--ink-soft)]">
-              <span className="rounded-full border border-[rgba(0,113,227,0.14)] bg-white/62 px-4 py-2">
-                风险等级：{formatRiskLevel(behavior.riskLevel)}
-              </span>
-              <span className="rounded-full border border-[rgba(0,113,227,0.14)] bg-white/62 px-4 py-2">
-                训练偏差：{trainingBiasLabels.join(" / ")}
-              </span>
-              <span className="rounded-full border border-[rgba(0,113,227,0.14)] bg-white/62 px-4 py-2">
-                {scenariosQuery.isSuccess
-                  ? `可选场景 ${scenarios.length} 个`
-                  : "场景同步中"}
-              </span>
+        {showTrainingGuide ? (
+          <div
+            className="simulation-help-popover"
+            id="simulation-training-guide"
+            role="region"
+            aria-label="训练说明"
+          >
+            <div>
+              <strong>怎么完成一次训练</strong>
+              <p>先选择历史情境，再在每个阶段基于当时可见信息做一个动作选择。</p>
             </div>
-
-            <div className="flex flex-wrap gap-3">
-              <a href="#simulation-scenario-list" className="action-button">
-                选择场景
-              </a>
-              {activeSession ? (
-                <a href="#simulation-decision-room" className="action-button-secondary">
-                  继续训练
-                </a>
-              ) : null}
+            <div>
+              <strong>为什么必须写理由</strong>
+              <p>理由用于复盘你的判断链路，只生成候选观察，确认后才会写入画像。</p>
+            </div>
+            <div>
+              <strong>安全边界</strong>
+              <p>这里是训练，不是交易建议；不会下单，也不会承诺收益。</p>
             </div>
           </div>
+        ) : null}
 
-          <div className="space-y-3 self-start rounded-lg border border-white/42 bg-white/56 p-4 shadow-[0_18px_44px_rgba(29,29,31,0.08)] backdrop-blur-2xl">
-            <div>
-              <p className="section-kicker">训练任务单</p>
-              <h2 className="mt-2 text-xl font-semibold text-[color:var(--ink-strong)]">
-                {selectedScenario?.headline ?? selectedScenario?.title ?? "等待场景同步"}
-              </h2>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-4 py-3">
-                <p className="section-kicker">训练什么偏差</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {trainingBiasLabels.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border border-[rgba(0,113,227,0.16)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-xs text-[color:var(--accent-teal)]"
-                    >
-                      {item}
+        {reviewRequested && displayedActiveSession ? (
+          <SimulationReviewRoom
+            review={review}
+            reviewError={reviewQuery.error ?? null}
+            isLoading={reviewQuery.isLoading}
+            session={displayedActiveSession}
+            onBack={() => setReviewRequested(false)}
+            onRestart={() => {
+              setActiveSession(null);
+              setLatestFeedback(null);
+              setSelectedActionId(null);
+              setDraftRationale("");
+              setDraftWorry("");
+              setDraftImpulsePlan("");
+              setReviewRequested(false);
+            }}
+          />
+        ) : (
+        <div className="simulation-room-grid">
+            <div className="simulation-room-main">
+            <div className="simulation-scenario-tabs" id="simulation-scenario-list">
+              {scenariosQuery.isLoading ? (
+                <div className="simulation-inline-state">正在加载历史情境...</div>
+              ) : scenariosQuery.error ? (
+                <div className="simulation-inline-state simulation-inline-error">
+                  情境列表暂时不可用：{scenariosQuery.error.message}
+                </div>
+              ) : scenarios.length === 0 ? (
+                <div className="simulation-inline-state">当前还没有可训练的情境。</div>
+              ) : null}
+              {(scenarios.length > 0 ? scenarios.slice(0, 3) : []).map((scenario, index) => {
+                const Icon = scenarioIcon(index);
+                const active = scenario.id === selectedScenario?.id;
+                return (
+                  <button
+                    key={scenario.id}
+                    type="button"
+                    className={joinClasses("simulation-scenario-tab", active && "simulation-scenario-tab-active")}
+                    onClick={() => setSelectedScenarioId(scenario.id)}
+                    aria-pressed={active}
+                  >
+                    <span className="simulation-scenario-icon">
+                      <Icon aria-hidden="true" className="size-7" />
                     </span>
-                  ))}
+                    <span>
+                      <strong>{scenario.title}</strong>
+                      <em>{scenario.synopsis}</em>
+                      <small>{scenarioStatusLabel(scenario, selectedScenario, displayedActiveSession)}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="simulation-stage-panel">
+              <div className="simulation-panel-title">
+                <div>
+                  <p className="section-kicker">情境进程</p>
+                  <h2>
+                    当前阶段{" "}
+                    {displayedActiveSession?.currentStep ?? 2}/{displayedActiveSession?.totalSteps ?? 4}
+                  </h2>
+                </div>
+                <span>
+                  <Info aria-hidden="true" className="size-4" />
+                  本阶段基于当时可见信息
+                </span>
+              </div>
+              <StageTimeline session={displayedActiveSession} scenario={selectedScenario} />
+              <div className="simulation-chart-grid-layout">
+                <div>
+                  <p className="section-kicker">市场回放</p>
+                  <ScenarioMiniChart />
+                  <p className="mt-3 text-xs leading-5 text-[color:var(--ink-muted)]">
+                    数据为历史回放，仅供模拟训练使用，不代表未来走势与实际收益。
+                  </p>
+                </div>
+                <div className="simulation-event-brief">
+                  <p className="section-kicker">当时的关键事件</p>
+                  <ul>
+                    {(activeEvent?.marketContext
+                      ? splitInsightText(activeEvent.marketContext)
+                      : selectedScenario?.timelinePreview ?? [
+                          "市场快速下跌，情绪信号变强。",
+                          "部分行业出现短期压力。",
+                          "需要先核对风险承受能力和原计划。",
+                        ]
+                    )
+                      .slice(0, 3)
+                      .map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                  </ul>
+                  <div>
+                    <span>
+                      <BarChart3 aria-hidden="true" className="size-4" />
+                      指数走势
+                    </span>
+                    <span>
+                      <LineChart aria-hidden="true" className="size-4" />
+                      资金流向
+                    </span>
+                    <span>
+                      <ShieldCheck aria-hidden="true" className="size-4" />
+                      新闻资讯
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-4 py-3">
-                <p className="section-kicker">为什么推荐</p>
-                <p className="mt-3 text-sm leading-6 text-[color:var(--ink-soft)]">
-                  {recommendationReason}
+            </div>
+
+            <div className="simulation-pending-review">
+              <div>
+                <p className="section-kicker">待回顾</p>
+                <h2>你的行为证据预览</h2>
+                <p>
+                  提交后只生成候选观察，确认后才会保存到行为画像。
                 </p>
               </div>
-              <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-4 py-3">
-                <p className="section-kicker">训练后会保存什么</p>
-                <div className="mt-3 space-y-2">
-                  {assignmentWritebacks.map((item) => (
-                    <div key={item.label} className="text-sm leading-6">
-                      <span className="font-semibold text-[color:var(--ink-strong)]">
-                        {item.label}：
-                      </span>
-                      <span className="text-[color:var(--ink-soft)]">{item.value}</span>
-                      <p className="text-xs leading-5 text-[color:var(--ink-muted)]">
-                        {item.detail}
-                      </p>
+              <div className="simulation-review-card">
+                {displayedActiveSession?.actions[0] ? (
+                  <>
+                    <strong>
+                      你选择了：{displayedActiveSession.actions[0].choiceLabel}
+                    </strong>
+                    <p>{displayedActiveSession.actions[0].reflection ?? "尚未填写理由。"}</p>
+                  </>
+                ) : (
+                  <>
+                    <strong>还没有提交本轮动作</strong>
+                    <p>选择动作并写下理由后，这里会预览待确认记录。</p>
+                  </>
+                )}
+              </div>
+              <div className="simulation-save-card">
+                <AlertTriangle aria-hidden="true" className="size-5" />
+                <strong>确认后才保存</strong>
+                <p>写入你的行为画像前，用于后续洞察与训练优化。</p>
+              </div>
+            </div>
+          </div>
+
+          <aside className="simulation-decision-card" id="simulation-decision-room">
+            <div className="simulation-decision-head">
+              <p className="section-kicker">训练任务单</p>
+              <h2>{activeEvent?.prompt ?? "基于当前阶段的信息，做出你的决策并说明理由。"}</h2>
+            </div>
+
+            {displayedActiveSession && !activeSessionCompleted && activeEvent ? (
+              <form onSubmit={handleSubmitAction}>
+                <div className="simulation-form-scroll" data-testid="simulation-task-scroll">
+                  <fieldset>
+                    <legend>选择你的行动</legend>
+                    <div className="simulation-action-list">
+                      {activeEvent.availableActions.map((choice) => (
+                        <label
+                          key={choice.id}
+                          className={joinClasses(
+                            "simulation-action-option",
+                            displayedActionId === choice.id && "simulation-action-option-active",
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="simulation-action"
+                            checked={displayedActionId === choice.id}
+                            onChange={() => setSelectedActionId(choice.id)}
+                          />
+                          <span>
+                            <strong>{choice.label}</strong>
+                            <em>{choice.description ?? "记录这个动作的理由。"}</em>
+                          </span>
+                        </label>
+                      ))}
                     </div>
-                  ))}
+                  </fieldset>
+
+                  <label className="simulation-form-field">
+                    <span>请先说明你的理由（必填）</span>
+                    <textarea
+                      value={draftRationale}
+                      onChange={(event) => setDraftRationale(event.target.value)}
+                      placeholder={
+                        displayedActiveSession.reflectionPrompt ??
+                        "请结合当前信息，说明你的判断依据和考虑..."
+                      }
+                    />
+                    <small>{draftRationale.length} / 300</small>
+                  </label>
+
+                  <label className="simulation-form-field">
+                    <span>此时你的担忧主要来自？</span>
+                    <select
+                      className="field-input"
+                      value={draftWorry}
+                      onChange={(event) => setDraftWorry(event.target.value)}
+                    >
+                      <option value="">请选择最主要的担忧</option>
+                      <option value="担心继续下跌">担心继续下跌</option>
+                      <option value="担心错过反弹">担心错过反弹</option>
+                      <option value="担心和原计划冲突">担心和原计划冲突</option>
+                      <option value="暂时说不清">暂时说不清</option>
+                    </select>
+                  </label>
+
+                  <div className="simulation-control-check">
+                    <p>冲动控制清单（对自己打个分）</p>
+                    {["信息是否充分？", "情绪是否平稳？", "计划是否清晰？", "仓位是否合理？"].map((item) => (
+                      <div key={item}>
+                        <span>{item}</span>
+                        <label><input type="radio" name={item} />低</label>
+                        <label><input type="radio" name={item} />中</label>
+                        <label><input type="radio" name={item} />高</label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <div className="hidden gap-3 sm:grid sm:grid-cols-2 xl:grid-cols-4">
-        <DeskMetric
-          label="行为焦点"
-          value={formatBiasTag(behavior.biasTags[0])}
-          detail="训练优先围绕你最容易被情绪推着走的那一类场景展开。"
-          tone="moss"
-        />
-        <DeskMetric
-          label="推荐场景"
-          value={selectedScenario?.title ?? "等待场景"}
-          detail="当前会优先高亮推荐场景，但仍允许你主动切换。"
-          tone="gold"
-        />
-        <DeskMetric
-          label="训练状态"
-          value={
-            activeSession
-              ? activeSessionCompleted
-                ? "可生成复盘"
-                : "进行中"
-              : "未开始"
-          }
-          detail={
-            activeSession
-              ? `当前会话创建于 ${formatTimestamp(activeSession.startedAt)}`
-              : "启动第一个情境后，这里会显示训练状态。"
-          }
-          tone="ink"
-        />
-        <DeskMetric
-          label="训练链路"
-          value="4 步"
-          detail="选场景、启动训练、提交动作、生成复盘。"
-          tone="clay"
-        />
-      </div>
-
-      {scenariosQuery.isLoading ? (
-        <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-5 py-4 text-sm text-[color:var(--ink-soft)]">
-          正在加载情境列表与训练入口...
-        </div>
-      ) : scenariosQuery.error ? (
-        <SectionBlock
-          eyebrow={apiUnavailable ? "情境源" : "情境错误"}
-          title={
-            apiUnavailable
-              ? "当前情境源暂不可用。"
-              : "无法读取历史情境列表。"
-          }
-          description={
-            apiUnavailable
-              ? "可以先回到学习、组合或教练；情境源恢复后再继续训练。"
-              : `请求返回错误：${scenariosQuery.error.message}`
-          }
-        >
-          <div className="grid gap-4 xl:grid-cols-[1fr_0.92fr]">
-            <div className="rounded-lg border border-[color:var(--line-soft)] bg-[linear-gradient(145deg,rgba(255,255,255,0.84),rgba(245,236,220,0.94))] p-5">
-              <p className="section-kicker">训练闭环</p>
-              <div className="mt-4 space-y-3 text-sm leading-7 text-[color:var(--ink-soft)]">
-                <div>1. 读取场景列表，建立选择与推荐逻辑。</div>
-                <div>2. 启动一个训练会话。</div>
-                <div>3. 在关键节点提交动作和理由。</div>
-                <div>4. 生成最终复盘并回到工作台。</div>
-              </div>
-            </div>
-            <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/78 p-5">
-              <p className="section-kicker">现在可以做什么</p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link href="/coach" className="action-button">
-                  先去教练
-                </Link>
-                <Link href="/dashboard" className="action-button-secondary">
-                  回工作台
-                </Link>
-              </div>
-              <p className="mt-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                情境源恢复后，可以继续完成完整训练。
-              </p>
-            </div>
-          </div>
-        </SectionBlock>
-      ) : scenarios.length === 0 ? (
-        <SectionBlock
-          eyebrow="情境目录"
-          title="场景目录还没有内容。"
-          description="目前没有可训练的历史情境。可以先去学习或组合体检。"
-        >
-          <div className="flex flex-wrap gap-3">
-            <Link href="/learning" className="action-button">
-              先去学习
-            </Link>
-            <Link href="/portfolio" className="action-button-secondary">
-              看组合
-            </Link>
-          </div>
-        </SectionBlock>
-      ) : (
-        <>
-          <div
-            id="simulation-scenario-list"
-            className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]"
-          >
-            <div className="xl:hidden rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-4 shadow-sm backdrop-blur-2xl">
-              <p className="section-kicker">情境档案</p>
-              <h2 className="mt-2 text-lg font-semibold text-[color:var(--ink-strong)]">
-                {selectedScenario?.title ?? "选择一个情境"}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                {selectedScenario?.synopsis ?? "先选场景，再进入训练。"}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="action-button"
-                  onClick={handleStartScenario}
-                  disabled={startMutation.isPending || Boolean(pendingActiveSessionId && !activeSession)}
-                >
-                  {startMutation.isPending
-                    ? "启动中..."
-                    : pendingActiveSessionId && !activeSession
-                      ? "先继续上次训练"
-                      : "开始训练"}
-                </button>
-                {pendingActiveSessionId && !activeSession ? (
+                <div className="simulation-form-actions">
+                  <button
+                    type="submit"
+                    className="action-button w-full justify-center"
+                    disabled={
+                      actionMutation.isPending ||
+                      activeEvent.availableActions.length === 0
+                    }
+                  >
+                    {actionMutation.isPending ? "提交动作中..." : "提交决策并继续"}
+                  </button>
+                  <p className="simulation-submit-note">
+                    提交后进入下一阶段，稍后可在“待回顾”中确认保存。
+                  </p>
+                  {actionError ? (
+                    <div className="command-inline-error" role="alert">
+                      {actionError}
+                    </div>
+                  ) : null}
+                </div>
+              </form>
+            ) : (
+              <div className="simulation-start-card">
+                <p>
+                  {activeSessionCompleted
+                    ? "本次训练已完成，可以先查看复盘，再决定是否开始下一次训练。"
+                    : "先启动所选情境，FundGene 会给出当前阶段信息和可选动作。"}
+                </p>
+                {activeSessionCompleted ? (
                   <button
                     type="button"
-                    className="action-button-secondary"
+                    className="action-button w-full justify-center"
+                    onClick={handleRequestReview}
+                    disabled={reviewQuery.isLoading}
+                  >
+                    {reviewQuery.isLoading ? "正在读取复盘..." : "查看最终复盘"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="action-button w-full justify-center"
+                    onClick={handleStartScenario}
+                    disabled={
+                      startMutation.isPending ||
+                      scenariosQuery.isLoading ||
+                      Boolean(pendingActiveSessionId && !displayedActiveSession)
+                    }
+                  >
+                    {startMutation.isPending
+                      ? "启动中..."
+                      : pendingActiveSessionId && !displayedActiveSession
+                        ? "先继续上次训练"
+                        : "开始训练"}
+                  </button>
+                )}
+                {pendingActiveSessionId && !displayedActiveSession ? (
+                  <button
+                    type="button"
+                    className="action-button-secondary w-full justify-center"
                     onClick={handleResumeSession}
                     disabled={resumeMutation.isPending}
                   >
                     {resumeMutation.isPending ? "恢复中..." : "继续上次"}
                   </button>
                 ) : null}
+                {startError ? (
+                  <div className="command-inline-error" role="alert">
+                    {startError}
+                  </div>
+                ) : null}
               </div>
+            )}
+
+            <div className="simulation-side-facts">
+              <span>风险等级：{formatRiskLevel(behavior.riskLevel)}</span>
+              <span>训练偏差：{trainingBiasLabels.join(" / ")}</span>
+              <span>
+                训练状态：{displayedActiveSession ? (activeSessionCompleted ? "待复盘" : "进行中") : "未开始"}
+              </span>
             </div>
-
-            <SectionBlock
-              eyebrow="场景目录"
-              title="先从场景池里挑一个值得练的历史节点。"
-              description="左侧是可用情境；选择后，右侧会展开背景、训练目标和时间线预览。"
-            >
-              <div className="grid max-h-[36rem] gap-4 overflow-y-auto pr-1 xl:max-h-none xl:overflow-visible xl:pr-0">
-                {scenarios.map((scenario) => {
-                  const active = scenario.id === selectedScenario?.id;
-                  return (
-                    <button
-                      key={scenario.id}
-                      type="button"
-                      className={joinClasses(
-                        "group rounded-lg border p-4 text-left transition duration-200",
-                        active
-                          ? "border-[rgba(0,113,227,0.28)] bg-[linear-gradient(135deg,rgba(0,113,227,0.09),rgba(255,255,255,0.98))] shadow-[0_18px_42px_rgba(0,113,227,0.1)]"
-                          : "border-[color:var(--line-soft)] bg-white/72 hover:-translate-y-0.5 hover:border-[rgba(0,113,227,0.18)]",
-                      )}
-                      onClick={() => setSelectedScenarioId(scenario.id)}
-                      aria-pressed={active}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="section-kicker">{buildScenarioBadge(scenario)}</span>
-                            {scenario.recommended ? (
-                              <span className="rounded-full border border-[rgba(255,159,10,0.22)] bg-[rgba(255,159,10,0.1)] px-3 py-1 text-[11px] text-[color:var(--accent-gold)]">
-                                推荐
-                              </span>
-                            ) : null}
-                            {scenario.completed ? (
-                              <span className="rounded-full border border-[rgba(0,113,227,0.18)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-[11px] text-[color:var(--accent-teal)]">
-                                已完成
-                              </span>
-                            ) : null}
-                          </div>
-                          <h2 className="mt-3 text-2xl font-semibold">{scenario.title}</h2>
-                        </div>
-                        <div className="rounded-full border border-[color:var(--line-soft)] bg-white/75 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
-                          {formatDifficulty(scenario.difficulty)}
-                        </div>
-                      </div>
-                      <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
-                        {scenario.synopsis}
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-[color:var(--ink-soft)]">
-                        {scenario.tags.slice(0, 3).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full border border-[color:var(--line-soft)] bg-white/75 px-3 py-1"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                            {formatBiasTags(scenario.biasFocus).slice(0, 2).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full border border-[rgba(154,93,58,0.16)] bg-[rgba(154,93,58,0.08)] px-3 py-1 text-[color:var(--accent-clay)]"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-lg bg-[rgba(255,255,255,0.72)] px-3 py-3 text-xs text-[color:var(--ink-soft)]">
-                          预计时长
-                          <p className="mt-1 text-sm font-semibold text-[color:var(--ink-strong)]">
-                            {formatDuration(scenario.estimatedDurationMinutes)}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-[rgba(255,255,255,0.72)] px-3 py-3 text-xs text-[color:var(--ink-soft)]">
-                          决策节点
-                          <p className="mt-1 text-sm font-semibold text-[color:var(--ink-strong)]">
-                            {scenario.decisionCount ?? "待定"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-[rgba(255,255,255,0.72)] px-3 py-3 text-xs text-[color:var(--ink-soft)]">
-                          起始背景
-                          <p className="mt-1 text-sm font-semibold text-[color:var(--ink-strong)]">
-                            {scenario.startingYear ?? "历史样本"}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </SectionBlock>
-
-            <SectionBlock
-              eyebrow="情境档案"
-              title={selectedScenario?.headline ?? selectedScenario?.title ?? "选择一个情境"}
-              description={
-                selectedScenario?.description ??
-                "选择场景后，这里会展示背景、目标、时间线与启动入口。"
-              }
-              className="hidden xl:block xl:sticky xl:top-6"
-            >
-              {selectedScenario ? (
-                <div className="space-y-4">
-                  <div className="rounded-lg border border-[rgba(36,49,39,0.1)] bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(239,227,204,0.95))] p-5 shadow-[0_18px_44px_rgba(70,58,39,0.08)]">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="section-kicker">{buildScenarioBadge(selectedScenario)}</p>
-                        <h2 className="mt-3 font-serif text-3xl leading-tight">
-                          {selectedScenario.title}
-                        </h2>
-                      </div>
-                      <div className="rounded-full border border-[color:var(--line-soft)] bg-white/78 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
-                        {formatDifficulty(selectedScenario.difficulty)}
-                      </div>
-                    </div>
-                    <p className="mt-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                      {selectedScenario.setup ?? selectedScenario.synopsis}
-                    </p>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 px-4 py-4">
-                        <p className="section-kicker">训练目标</p>
-                        <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
-                          {selectedScenario.objective ??
-                            "在波动背景里记录你的判断顺序，而不是只看最后对错。"}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 px-4 py-4">
-                        <p className="section-kicker">行为焦点</p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {(selectedScenario.biasFocus.length > 0
-                            ? selectedScenario.biasFocus
-                            : ["情绪反应", "风险纪律"]
-                          ).map((item) => formatBiasTag(item)).map((item) => (
-                            <span
-                              key={item}
-                              className="rounded-full border border-[rgba(154,93,58,0.16)] bg-[rgba(154,93,58,0.08)] px-3 py-1 text-xs text-[color:var(--accent-clay)]"
-                            >
-                              {item}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                    <p className="section-kicker">时间线预览</p>
-                    <div className="mt-4 space-y-4">
-                      {(selectedScenario.timelinePreview.length > 0
-                        ? selectedScenario.timelinePreview
-                        : ["启动情境后会显示关键节点。"]
-                      ).map((item, index) => (
-                        <div key={`${item}-${index}`} className="flex gap-4">
-                          <div className="flex w-8 flex-none flex-col items-center">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(0,113,227,0.16)] bg-white/80 text-xs font-semibold text-[color:var(--accent-teal)]">
-                              {index + 1}
-                            </span>
-                            {index < selectedScenario.timelinePreview.length - 1 ? (
-                              <span className="mt-2 h-full w-px bg-[rgba(36,49,39,0.12)]" />
-                            ) : null}
-                          </div>
-                          <div className="pt-0.5 text-sm leading-7 text-[color:var(--ink-soft)]">
-                            {item}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {pendingActiveSessionId && !activeSession ? (
-                    <div className="rounded-lg border border-[rgba(184,131,47,0.18)] bg-[rgba(184,131,47,0.08)] px-4 py-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <span>
-                          当前账号存在一段未完成训练。先继续上次节点，避免重复开同一类训练。
-                        </span>
-                        <button
-                          type="button"
-                          className="action-button-secondary"
-                          onClick={handleResumeSession}
-                          disabled={resumeMutation.isPending}
-                        >
-                          {resumeMutation.isPending ? "正在恢复..." : "继续上次训练"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      className="action-button"
-                      onClick={handleStartScenario}
-                      disabled={startMutation.isPending || Boolean(pendingActiveSessionId && !activeSession)}
-                    >
-                      {startMutation.isPending
-                        ? "正在启动情境..."
-                        : pendingActiveSessionId && !activeSession
-                          ? "先继续上次训练"
-                          : "开始这个情境"}
-                    </button>
-                    <Link href="/coach" className="action-button-secondary">
-                      先去教练预热
-                    </Link>
-                  </div>
-
-                  {startError ? (
-                    <div
-                      className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-                      role="alert"
-                    >
-                      {startError}
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/72 px-5 py-6 text-sm leading-7 text-[color:var(--ink-soft)]">
-                  当前没有可展开的场景详情。
-                </div>
-              )}
-            </SectionBlock>
-          </div>
-
-          <SectionBlock
-            eyebrow="本轮判断"
-            title={
-              activeSession
-                ? activeSessionCompleted
-                  ? "本次训练已到复盘节点。"
-                  : `正在进行：${activeSession.scenarioTitle ?? selectedScenario?.title ?? "历史情境"}`
-                : "启动一个情境后，这里会进入训练会话。"
-            }
-            description={
-              activeSession
-                ? activeSessionCompleted
-                  ? "动作已经提交完毕。接下来可以读取最终复盘，把这次训练回流到行为画像和工作台。"
-                  : "当前事件、动作选项和即时反馈都来自同一条训练会话。"
-                : "先从上方卡片选择一个场景并启动训练，再进入关键节点判断。"
-            }
+          </aside>
+        </div>
+        )}
+      </section>
+      <section className="simulation-after-panel">
+        <div>
+          <p className="section-kicker">训练进度</p>
+          <div
+            className="simulation-progress-bar"
+            role="progressbar"
+            aria-label="训练进度"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressValue}
           >
-            <div
-              id="simulation-decision-room"
-              className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]"
+            <span style={{ width: `${progressValue}%` }} />
+          </div>
+          <p>
+            {displayedActiveSession
+              ? `${activeSessionCompleted ? "已完成" : "进行中"} · ${progressValue}% · ${formatTimestamp(displayedActiveSession.startedAt)}`
+              : "启动后会显示阶段进度、即时反馈和复盘入口。"}
+          </p>
+        </div>
+        <div>
+          <p className="section-kicker">即时反馈</p>
+          <p>
+            {latestFeedback
+              ? formatProductCopy(latestFeedback.summary)
+              : "每提交一次动作，这里会显示本轮反馈。"}
+          </p>
+        </div>
+        <div>
+          <p className="section-kicker">完成后</p>
+          <div className="simulation-after-actions">
+            <button
+              type="button"
+              className={activeSessionCompleted ? "action-button" : "action-button-secondary"}
+              onClick={handleRequestReview}
+              disabled={!activeSessionCompleted || reviewQuery.isLoading}
             >
-              <div className="space-y-4">
-                {activeSession && !activeSessionCompleted && activeEvent ? (
-                  <>
-                    <div className="rounded-lg border border-[rgba(36,49,39,0.1)] bg-[linear-gradient(145deg,rgba(255,255,255,0.86),rgba(241,232,214,0.96))] p-5 shadow-[0_18px_44px_rgba(70,58,39,0.08)]">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="section-kicker">
-                            第 {activeEvent.index} 步
-                            {activeSession.totalSteps ? ` / ${activeSession.totalSteps}` : ""}
-                          </p>
-                          <h2 className="mt-3 text-2xl font-semibold">{activeEvent.title}</h2>
-                        </div>
-                        {activeEvent.dateLabel ? (
-                          <span className="rounded-full border border-[color:var(--line-soft)] bg-white/75 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
-                            {activeEvent.dateLabel}
-                          </span>
-                        ) : null}
-                      </div>
-                      {activeEvent.marketContext ? (
-                        <p className="mt-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                          {activeEvent.marketContext}
-                        </p>
-                      ) : null}
-                      {activeEvent.prompt ? (
-                        <div className="mt-5 rounded-lg border border-[color:var(--line-soft)] bg-white/72 px-4 py-4">
-                          <p className="section-kicker">判断问题</p>
-                          <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
-                            {activeEvent.prompt}
-                          </p>
-                        </div>
-                      ) : null}
-                      {activeEvent.decisionFocus.length > 0 ? (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {formatBiasTags(activeEvent.decisionFocus).map((item) => (
-                            <span
-                              key={item}
-                              className="rounded-full border border-[rgba(0,113,227,0.16)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-xs text-[color:var(--accent-teal)]"
-                            >
-                              {item}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
+              {reviewQuery.isLoading ? "正在读取复盘..." : "查看最终复盘"}
+            </button>
+            <Link href="/dashboard" className="action-button-secondary">
+              回工作台
+            </Link>
+          </div>
+        </div>
+      </section>
 
-                    <form
-                      className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5"
-                      onSubmit={handleSubmitAction}
-                    >
-                      <p className="section-kicker">选择本轮动作</p>
-                      <div className="mt-4 grid gap-3">
-                        {activeEvent.availableActions.length > 0 ? (
-                          activeEvent.availableActions.map((choice) => (
-                            <ChoiceCard
-                              key={choice.id}
-                              choice={choice}
-                              active={selectedActionId === choice.id}
-                              onSelect={setSelectedActionId}
-                            />
-                          ))
-                        ) : (
-                          <div className="rounded-lg border border-[color:var(--line-soft)] bg-[rgba(255,255,255,0.68)] px-4 py-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                            当前事件尚未返回可提交的动作选项。
-                          </div>
-                        )}
-                      </div>
-
-                      <label className="mt-5 block space-y-2 text-sm">
-                        <span className="font-medium">我的判断（至少一句）</span>
-                        <textarea
-                          className="field-input min-h-[130px]"
-                          value={draftRationale}
-                          onChange={(event) => setDraftRationale(event.target.value)}
-                          placeholder={
-                            activeSession.reflectionPrompt ??
-                            "例如：我为什么倾向先暂停动作、继续观察或回到计划检查？这个判断是基于证据还是情绪反应？"
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="text-left text-xs font-semibold text-[color:var(--accent-teal)]"
-                          onClick={() => setDraftRationale("我暂不确定，想先观察风险，再决定下一步。")}
-                        >
-                          不确定时填入一句保守理由
-                        </button>
-                      </label>
-
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <label className="block space-y-2 text-sm">
-                          <span className="font-medium">我担心什么</span>
-                          <textarea
-                            className="field-input min-h-[104px]"
-                            value={draftWorry}
-                            onChange={(event) => setDraftWorry(event.target.value)}
-                            placeholder="例如：我担心继续下跌，或者担心错过反弹。"
-                          />
-                        </label>
-                        <label className="block space-y-2 text-sm">
-                          <span className="font-medium">我如何控制冲动</span>
-                          <textarea
-                            className="field-input min-h-[104px]"
-                            value={draftImpulsePlan}
-                            onChange={(event) => setDraftImpulsePlan(event.target.value)}
-                            placeholder="例如：先核对期限、现金需求和原计划，再决定是否需要进一步学习。"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="sticky bottom-3 z-20 mt-5 flex flex-wrap gap-3 rounded-2xl border border-[color:var(--line-soft)] bg-white/88 p-2 shadow-[0_14px_34px_rgba(29,29,31,0.12)] backdrop-blur-2xl md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
-                        <button
-                          type="submit"
-                          className="action-button flex-1 justify-center md:flex-none"
-                          disabled={
-                            actionMutation.isPending ||
-                            activeEvent.availableActions.length === 0
-                          }
-                        >
-                          {actionMutation.isPending ? "提交动作中..." : "提交本轮动作"}
-                        </button>
-                        <button
-                          type="button"
-                          className="action-button-secondary flex-1 justify-center md:flex-none"
-                          onClick={() => {
-                            setSelectedActionId(null);
-                            setDraftRationale("");
-                            setDraftWorry("");
-                            setDraftImpulsePlan("");
-                            setActionError(null);
-                          }}
-                          disabled={actionMutation.isPending}
-                        >
-                          清空选择
-                        </button>
-                      </div>
-
-                      {actionError ? (
-                        <div
-                          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-                          role="alert"
-                        >
-                          {actionError}
-                        </div>
-                      ) : null}
-                    </form>
-                  </>
-                ) : (
-                  <div className="rounded-lg border border-[color:var(--line-soft)] bg-[linear-gradient(145deg,rgba(255,255,255,0.84),rgba(245,236,220,0.94))] px-5 py-6 text-sm leading-7 text-[color:var(--ink-soft)]">
-                    {activeSessionCompleted
-                      ? "当前训练已经没有新的动作节点。直接去右侧读取结构化复盘即可。"
-                      : "还没有启动中的训练。先从上面的情境档案中点“开始这个情境”，这里才会展开真正的决策节点。"}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/82 p-5 text-[color:var(--ink-strong)] shadow-[0_16px_38px_rgba(29,29,31,0.065)] backdrop-blur-2xl">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-normal text-[color:var(--accent-teal)]">
-                        训练看板
-                      </p>
-                      <h2 className="mt-3 text-3xl font-semibold">
-                        {activeSession?.stageLabel ??
-                          (activeSessionCompleted
-                            ? "复盘节点"
-                            : activeSession
-                              ? "实时训练"
-                              : "等待开始")}
-                      </h2>
-                    </div>
-                    {activeSession ? (
-                      <span className="rounded-full border border-[color:var(--line-soft)] bg-white/70 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
-                        {activeSessionCompleted ? "已完成" : "进行中"}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div
-                    className="mt-5 overflow-hidden rounded-full bg-[rgba(118,118,128,0.16)]"
-                    role="progressbar"
-                    aria-label="训练进度"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={progressValue}
-                  >
-                    <div
-                      className="h-2 rounded-full bg-[linear-gradient(90deg,var(--accent-teal),var(--accent-cyan))] transition-all duration-300"
-                      style={{ width: `${progressValue}%` }}
-                    />
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-3 text-xs text-[color:var(--ink-soft)]">
-                    <span>进度 {progressValue}%</span>
-                    {activeSession?.totalSteps ? (
-                      <span>
-                        {activeSession.currentStep}/{activeSession.totalSteps} 节点
-                      </span>
-                    ) : null}
-                    {activeSession?.startedAt ? (
-                      <span>开始于 {formatTimestamp(activeSession.startedAt)}</span>
-                    ) : null}
-                  </div>
-                  <p className="mt-5 text-sm leading-7 text-[color:var(--ink-soft)]">
-                    {activeSession?.openingBrief ??
-                      "会话启动后，这里会显示摘要与阶段说明。"}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                  <p className="section-kicker">即时反馈</p>
-                  {latestFeedback ? (
-                    <div className="mt-4 space-y-4">
-                      <p className="text-sm leading-7 text-[color:var(--ink-soft)]">
-                        {latestFeedback.summary}
-                      </p>
-                      {latestFeedback.impact ? (
-                        <div className="rounded-lg border border-[color:var(--line-soft)] bg-[rgba(255,255,255,0.72)] px-4 py-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                          {latestFeedback.impact}
-                        </div>
-                      ) : null}
-                      {latestFeedback.disciplineSignals.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {formatBiasTags(latestFeedback.disciplineSignals).map((item) => (
-                            <span
-                              key={item}
-                              className="rounded-full border border-[rgba(0,113,227,0.18)] bg-[rgba(0,113,227,0.08)] px-3 py-1 text-xs text-[color:var(--accent-teal)]"
-                            >
-                              {item}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                      {latestFeedback.nextPrompt ? (
-                        <p className="text-sm leading-7 text-[color:var(--ink-soft)]">
-                          下一步提示：{latestFeedback.nextPrompt}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <p className="mt-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                      你每提交一次动作，这里都会渲染本轮反馈，而不是只在结尾告诉你结果。
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                  <p className="section-kicker">训练结束后</p>
-                  <div className="mt-4 space-y-3 text-sm leading-7 text-[color:var(--ink-soft)]">
-                    <div>1. 读取最终复盘，确认这次训练暴露了哪些行为偏差。</div>
-                    <div>2. 回到工作台，看下一步训练动作是否被刷新。</div>
-                    <div>3. 去教练追问“为什么我会在这一类波动里犹豫或冲动”。</div>
-                  </div>
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      className={activeSessionCompleted ? "action-button" : "action-button-secondary"}
-                      onClick={handleRequestReview}
-                      disabled={!activeSessionCompleted || reviewQuery.isLoading}
-                    >
-                      {reviewQuery.isLoading ? "正在读取复盘..." : "查看最终复盘"}
-                    </button>
-                    <Link href="/dashboard" className="action-button-secondary">
-                      回工作台
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </SectionBlock>
-
-          {(reviewRequested || review || reviewQuery.isError) && activeSession ? (
-            <SectionBlock
-              eyebrow="最终复盘"
-              title="把一次动作链，收束成一份可以回看的行为复盘。"
-              description="最终复盘不只说你做得对不对，而是把这次训练里的纪律、盲点和下一步动作重新组织出来。"
-            >
-              {reviewQuery.isLoading ? (
-                <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/72 px-5 py-5 text-sm text-[color:var(--ink-soft)]">
-                  正在读取最终复盘...
-                </div>
-              ) : reviewQuery.error ? (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-5 text-sm text-red-700">
-                  复盘读取失败：{reviewQuery.error.message}
-                </div>
-              ) : review ? (
-                <div className="space-y-5">
-                  <div className="rounded-lg border border-[rgba(36,49,39,0.1)] bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(239,227,204,0.95))] p-6 shadow-[0_18px_44px_rgba(70,58,39,0.08)]">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="max-w-3xl">
-                        <p className="section-kicker">
-                          {review.scenarioTitle ?? activeSession.scenarioTitle ?? "情境复盘"}
-                        </p>
-                        <h2 className="mt-3 font-serif text-4xl leading-tight">
-                          {review.scoreLabel ?? "训练复盘"}
-                        </h2>
-                        <p className="mt-4 text-sm leading-8 text-[color:var(--ink-soft)]">
-                          {review.overallAssessment}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/78 px-4 py-4 text-sm text-[color:var(--ink-soft)]">
-                        <p>完成时间</p>
-                        <p className="mt-2 font-semibold text-[color:var(--ink-strong)]">
-                          {formatTimestamp(review.completedAt)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {review.outcomeSummary || review.finalDisposition ? (
-                      <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                        <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 px-4 py-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                          <p className="section-kicker">结果摘要</p>
-                          <p className="mt-3">
-                            {review.outcomeSummary ?? "本次训练已形成结构化结果。"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 px-4 py-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                          <p className="section-kicker">行为观察</p>
-                          <p className="mt-3">
-                            {review.finalDisposition ??
-                              "系统会把这次训练转成下一步的行为观察重点。"}
-                          </p>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {review.biasSignals.length > 0 ? (
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        {formatBiasTags(review.biasSignals).map((item) => (
-                          <span
-                            key={item}
-                            className="rounded-full border border-[rgba(154,93,58,0.16)] bg-[rgba(154,93,58,0.08)] px-3 py-1 text-xs text-[color:var(--accent-clay)]"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="grid gap-4 xl:grid-cols-3">
-                    <ReviewColumn
-                      title="做得好的地方"
-                      items={review.strengths}
-                      emptyText="暂无优势清单。"
-                    />
-                    <ReviewColumn
-                      title="下次重点观察"
-                      items={review.improvementAreas}
-                      emptyText="暂无待改进项。"
-                    />
-                    <ReviewColumn
-                      title="下一步动作"
-                      items={review.recommendedNextActions.map((item) => formatProductCopy(item))}
-                      emptyText="暂无下一步动作。"
-                    />
-                  </div>
-
-                  <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                    <p className="section-kicker">行为证据候选</p>
-                    <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">
-                      单次训练只会形成待确认线索，不会直接改写你的行为画像。
-                      {review.pendingStateProposal ? ` ${review.pendingStateProposal}` : ""}
-                    </p>
-                    <div className="mt-4 space-y-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                      {review.behaviorEvidenceCandidates.length > 0
-                        ? review.behaviorEvidenceCandidates.map((item) => (
-                            <div
-                              key={item}
-                              className="rounded-lg border border-[color:var(--line-soft)] bg-white/70 px-4 py-3"
-                            >
-                              {item}
-                            </div>
-                          ))
-                        : "这次暂未形成明确行为证据候选；可以把复盘问题带回 Coach 继续拆解。"}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
-                    <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/82 p-5 text-[color:var(--ink-strong)] shadow-[0_16px_38px_rgba(29,29,31,0.065)] backdrop-blur-2xl">
-                      <p className="text-[11px] font-bold uppercase tracking-normal text-[color:var(--accent-teal)]">
-                        复盘问题
-                      </p>
-                      <div className="mt-4 space-y-3 text-sm leading-7 text-[color:var(--ink-soft)]">
-                        {review.reflectionQuestions.length > 0
-                          ? review.reflectionQuestions.map((item) => (
-                              <div key={item}>{item}</div>
-                            ))
-                          : "暂无反思问题，可以回到教练继续追问这次训练。"}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/76 p-5">
-                      <p className="section-kicker">继续回流</p>
-                      <p className="mt-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-                        这份复盘的价值，在于把“我当时为什么那样选”重新转回可讨论、可学习、可安排下一步训练的产品主线。
-                      </p>
-                      <div className="mt-5 flex flex-wrap gap-3">
-                        <Link href="/dashboard" className="action-button">
-                          去看工作台变化
-                        </Link>
-                        <Link href="/coach" className="action-button-secondary">
-                          去教练继续追问
-                        </Link>
-                        <button
-                          type="button"
-                          className="action-button-secondary"
-                          onClick={() => {
-                            setActiveSession(null);
-                            setLatestFeedback(null);
-                            setSelectedActionId(null);
-                            setDraftRationale("");
-                            setDraftWorry("");
-                            setDraftImpulsePlan("");
-                            setReviewRequested(false);
-                          }}
-                        >
-                          开始下一次训练
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/72 px-5 py-5 text-sm text-[color:var(--ink-soft)]">
-                  当前训练已完成，但复盘结果尚未可用。
-                </div>
-              )}
-            </SectionBlock>
-          ) : null}
-        </>
-      )}
     </div>
   );
 }

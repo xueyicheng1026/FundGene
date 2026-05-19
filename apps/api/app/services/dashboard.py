@@ -192,7 +192,7 @@ def build_daily_brief(
             ],
             primary_action=profile_action,
             secondary_actions=[],
-            do_not_do="不要把通用资讯或课程内容当成你的个人判断。",
+            do_not_do="资料不足时只展示通用学习方向，个人化判断会等资料补齐后生成。",
             source_coverage={**coverage, "profile": False},
             trace_id=None,
         )
@@ -208,7 +208,7 @@ def build_daily_brief(
                 beginner_translation="这会影响教练解释波动时的语气、深度和下一步优先级。",
                 support_level="strong",
                 freshness_label="最新问卷",
-                risk_boundary="风险等级不能推出任何账户操作。",
+                risk_boundary="只用于调整解释方式。",
             )
         )
 
@@ -223,7 +223,7 @@ def build_daily_brief(
                 beginner_translation="教练会优先帮你识别容易被波动或热点带偏的判断环节。",
                 support_level="medium",
                 freshness_label="最新行为画像",
-                risk_boundary="单个标签只是训练线索，不是对你的固定定性。",
+                risk_boundary="只是训练线索，不是固定评价。",
             )
         )
 
@@ -242,7 +242,7 @@ def build_daily_brief(
                     if portfolio_overview.latest_snapshot_date
                     else "最近组合快照"
                 ),
-                risk_boundary="组合报告不能推出任何直接账户操作。",
+                risk_boundary="只用于解释组合结构。",
             )
         )
 
@@ -263,7 +263,7 @@ def build_daily_brief(
                 beginner_translation="知识缺口会影响你理解组合波动和新闻影响路径的速度。",
                 support_level="medium",
                 freshness_label="当前学习进度",
-                risk_boundary="课程推荐只是训练顺序，不是投资结论。",
+                risk_boundary="只是学习顺序。",
             )
         )
 
@@ -281,7 +281,7 @@ def build_daily_brief(
                 beginner_translation="训练复盘能帮助教练判断你在压力情境下先看什么。",
                 support_level="medium",
                 freshness_label="最近情境复盘",
-                risk_boundary="一次训练不能直接固化为行为标签。",
+                risk_boundary="一次训练只作为复盘线索。",
             )
         )
 
@@ -301,12 +301,12 @@ def build_daily_brief(
                     news_overview.latest_title or "最近新闻/政策解读已生成。"
                 ),
                 beginner_translation=_truncate(
-                    f"新闻概括：{news_summary} Agent 解读：{news_agent_read}",
+                    f"新闻概括：{news_summary} 简要解读：{news_agent_read}",
                     limit=220,
                 ),
                 support_level="medium",
                 freshness_label="最近新闻/政策分析",
-                risk_boundary="新闻相关性不是账户操作信号。",
+                risk_boundary="只用于理解影响路径。",
             )
         )
 
@@ -321,7 +321,7 @@ def build_daily_brief(
                 beginner_translation="最近问答会影响今天先解释哪个概念或风险边界。",
                 support_level="weak",
                 freshness_label="最近 Coach 问答",
-                risk_boundary="一次问答不能替代完整组合和行为证据。",
+                risk_boundary="一次问答只作为追问线索。",
             )
         )
 
@@ -344,8 +344,8 @@ def build_daily_brief(
         primary_source = "news_policy"
         headline = "今天先看新闻如何触达你的组合，不急着做账户动作。"
         explanation = (
-            "已有画像、组合和新闻/政策分析。今天的重点是把新闻影响路径翻译成"
-            "你能理解的风险来源，而不是把单条信息当成操作理由。"
+            "最近的新闻和政策已经有了解读。今天更适合先看它可能影响哪些"
+            "持仓和风险感受，再决定是否需要继续追问。"
         )
         primary_action = _safe_action(
             action_id="read-news-impact-path",
@@ -395,7 +395,7 @@ def build_daily_brief(
         evidence=visible_evidence,
         primary_action=primary_action,
         secondary_actions=secondary_actions,
-        do_not_do="不要把今日简报理解成直接操作账户的指令；先完成理解、检查或训练。",
+        do_not_do="先把今天的判断用于理解和检查，需要保存的变化会再请你确认。",
         source_coverage=coverage,  # type: ignore[arg-type]
         trace_id=None,
     )
