@@ -992,3 +992,7 @@ All future agents should follow these rules:
 
 - Upgraded Agent/Coach conversation history from latest-session-only behavior to ChatGPT-style persisted history: `GET /api/assistant/sessions` lists owned coach conversations, `GET /api/assistant/sessions/{session_id}` reloads full messages for a selected conversation, and `POST /api/assistant/messages` now supports `start_new_session` while preserving explicit `session_id` continuation.
 - Updated `/agent` so the history rail shows real saved sessions, selecting a session restores its complete conversation, and sending another message appends to that selected session instead of silently starting from the latest conversation.
+
+### 2026-05-20
+
+- Live Render services were renamed in the dashboard from `fundgene-xueyicheng-api` / `fundgene-xueyicheng-web` to `fundgene-demo-api` / `fundgene-demo-web` so service display names no longer expose the maintainer name. The existing default `*.onrender.com` subdomains did not change in place; removing the name from public URLs requires either new Render services with non-personal slugs or a user-owned custom domain.
