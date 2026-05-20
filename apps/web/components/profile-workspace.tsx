@@ -22,9 +22,8 @@ import {
   rejectProfilePendingProposal,
   updateProfileLlmSettings,
   type ProfilePendingProposal,
-  type RiskLevel,
 } from "@/lib/api";
-import { formatBiasTags, formatProductCopy } from "@/lib/display-labels";
+import { formatBiasTags, formatProductCopy, formatRiskLevel } from "@/lib/display-labels";
 import {
   Button,
   ErrorState,
@@ -37,19 +36,6 @@ import {
 
 function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
-}
-
-function formatRiskLevel(level: RiskLevel): string {
-  if (level === "conservative") {
-    return "稳健";
-  }
-  if (level === "balanced") {
-    return "平衡";
-  }
-  if (level === "growth") {
-    return "进取";
-  }
-  return "待评估";
 }
 
 function formatCurrency(value: number | null | undefined): string {

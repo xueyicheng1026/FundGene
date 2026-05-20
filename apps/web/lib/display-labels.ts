@@ -3,9 +3,16 @@ const biasTagLabels: Record<string, string> = {
   panic_selling_risk: "回撤恐慌倾向",
   concentration_risk: "持仓集中倾向",
   no_major_bias_detected: "暂未发现明显行为偏差",
+  "暂无显著行为偏差标签": "暂未发现明显行为偏差",
   overconfidence_risk: "过度自信倾向",
   loss_aversion_risk: "亏损回避倾向",
   diversification_gap: "分散配置不足",
+};
+
+const riskLevelLabels: Record<string, string> = {
+  conservative: "稳健型",
+  balanced: "均衡型",
+  growth: "成长型",
 };
 
 const tokenLabels: Record<string, string> = {
@@ -94,8 +101,21 @@ export function formatBiasTags(values: string[]): string[] {
   return values.map((value) => formatBiasTag(value));
 }
 
+export function formatRiskLevel(value: string | null | undefined): string {
+  if (!value) {
+    return "待评估";
+  }
+
+  return riskLevelLabels[value] ?? fallbackCodeLabel(value);
+}
+
 export function formatProductCopy(value: string): string {
   return stripInternalPromptCopy(value)
+    .replaceAll("暂无显著行为偏差标签", "暂未发现明显行为偏差")
+    .replace(/\bbalanced\b/g, "均衡型")
+    .replace(/\bconservative\b/g, "稳健型")
+    .replace(/\bgrowth\b/g, "成长型")
+    .replaceAll("no_major_bias_detected", "暂未发现明显行为偏差")
     .replaceAll("Daily Brief", "今日简报")
     .replaceAll("DeepSeek", "模型")
     .replaceAll("Assignment", "训练任务")

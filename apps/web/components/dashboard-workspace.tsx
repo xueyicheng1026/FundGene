@@ -22,27 +22,13 @@ import {
   type DashboardDailyBrief,
   type DashboardEvidenceSource,
   type SafeNextAction,
-  type RiskLevel,
 } from "@/lib/api";
-import { formatBiasTags, formatProductCopy } from "@/lib/display-labels";
+import { formatBiasTags, formatProductCopy, formatRiskLevel } from "@/lib/display-labels";
 import { SectionBlock } from "./section-block";
 import { InlineNotice, StatusPill } from "./ui/primitives";
 
 function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
-}
-
-function formatRiskLevel(level: RiskLevel): string {
-  if (level === "conservative") {
-    return "稳健";
-  }
-  if (level === "balanced") {
-    return "平衡";
-  }
-  if (level === "growth") {
-    return "进取";
-  }
-  return "待评估";
 }
 
 function buildSafeActionHref(action: SafeNextAction): string {
@@ -111,7 +97,7 @@ function buildDailyReason(brief: DashboardDailyBrief | null): string {
   }
 
   const firstEvidence = brief.evidence[0]?.beginnerTranslation;
-  return firstEvidence ?? brief.beginnerExplanation;
+  return formatProductCopy(firstEvidence ?? brief.beginnerExplanation);
 }
 
 const sourceCoverageOrder: Array<{
@@ -434,8 +420,9 @@ export function DashboardWorkspace() {
     dashboard.nextActions[0] ??
       "先完成一次教练提问，系统会把回答回流到学习、组合和行为训练。",
   );
-  const primaryActionLabel =
-    dailyBrief?.primaryAction.label ?? legacyPrimaryAction;
+  const primaryActionLabel = formatProductCopy(
+    dailyBrief?.primaryAction.label ?? legacyPrimaryAction,
+  );
   const primaryActionHref = dailyBrief?.primaryAction
     ? buildSafeActionHref(dailyBrief.primaryAction)
     : legacyPrimaryAction.includes("情境")
@@ -465,8 +452,8 @@ export function DashboardWorkspace() {
     dailyBrief?.evidence.slice(0, 3).map((item) => ({
       id: item.id,
       label: formatEvidenceSource(item.sourceType),
-      title: item.claim,
-      detail: item.beginnerTranslation,
+      title: formatProductCopy(item.claim),
+      detail: formatProductCopy(item.beginnerTranslation),
       tone: (item.supportLevel === "strong" ? "positive" : "accent") as TodayEvidenceTone,
     })) ?? [];
   const fallbackEvidenceHighlights = [
@@ -535,9 +522,15 @@ export function DashboardWorkspace() {
 
             <div className="today-judgement-block">
               <p className="section-kicker">今日判断</p>
-              <h3>{dailyBrief?.headline ?? "今天先处理一件可解释、可回流的事。"}</h3>
+              <h3>
+                {dailyBrief?.headline
+                  ? formatProductCopy(dailyBrief.headline)
+                  : "今天先处理一件可解释、可回流的事。"}
+              </h3>
               <p>
-                {dailyBrief?.beginnerExplanation ??
+                {dailyBrief?.beginnerExplanation
+                  ? formatProductCopy(dailyBrief.beginnerExplanation)
+                  :
                   "FundGene 会把今日资料先压缩成一个可解释判断，再给出一个不会越界的下一步。"}
               </p>
             </div>
@@ -546,7 +539,11 @@ export function DashboardWorkspace() {
               <div>
                 <p className="section-kicker text-[#178a3b]">今天只做这一步</p>
                 <h4>{primaryActionLabel}</h4>
-                <p>{dailyBrief?.primaryAction.reason ?? legacyPrimaryAction}</p>
+                <p>
+                  {formatProductCopy(
+                    dailyBrief?.primaryAction.reason ?? legacyPrimaryAction,
+                  )}
+                </p>
               </div>
               <Link href={primaryActionHref} className="action-button">
                 去完成下一步
@@ -561,7 +558,11 @@ export function DashboardWorkspace() {
               </div>
               <div className="today-safety-note">
                 <ShieldCheck aria-hidden="true" className="size-4" />
-                <span>{dailyBrief?.doNotDo ?? "今天的判断只用于理解和检查，不会替你买卖或下单。"}</span>
+                <span>
+                  {dailyBrief?.doNotDo
+                    ? formatProductCopy(dailyBrief.doNotDo)
+                    : "今天的判断只用于理解和检查，不会替你买卖或下单。"}
+                </span>
               </div>
             </div>
 

@@ -21,6 +21,7 @@ import {
   getNewsAnalysis,
   getSessionUser,
   type NewsAnalysis,
+  type NewsCatalogState,
   type NewsItem,
 } from "@/lib/api";
 import {
@@ -248,6 +249,29 @@ function formatBeginnerSummary(value: string | null | undefined): string {
   return formatProductCopy(value);
 }
 
+function applyAnalysisToCatalog(
+  catalog: NewsCatalogState | undefined,
+  analysis: NewsAnalysis,
+): NewsCatalogState | undefined {
+  if (!catalog || !analysis.itemId || !analysis.id) {
+    return catalog;
+  }
+
+  const markItem = (item: NewsItem): NewsItem =>
+    item.id === analysis.itemId
+      ? {
+          ...(analysis.item ?? item),
+          latestAnalysisId: analysis.id,
+        }
+      : item;
+
+  return {
+    ...catalog,
+    items: catalog.items.map(markItem),
+    policyItems: catalog.policyItems.map(markItem),
+  };
+}
+
 function NewsCard({
   item,
   active,
@@ -319,7 +343,7 @@ function NewsCard({
           }}
           disabled={disabled}
         >
-          {disabled ? "生成中" : "生成解读"}
+          {disabled ? "生成中" : item.latestAnalysisId ? "重新解读" : "生成解读"}
         </button>
         {isExternalHttpUrl(item.url) ? (
           <a
@@ -647,7 +671,12 @@ export function NewsWorkspace() {
     mutationFn: analyzeNews,
     onSuccess: (result) => {
       setAnalysis(result);
+      setSelectedItemId(result.itemId);
       setSubmitError(null);
+      queryClient.setQueryData<NewsCatalogState | undefined>(
+        newsCatalogQueryKey,
+        (current) => applyAnalysisToCatalog(current, result),
+      );
       window.setTimeout(() => {
         analysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         analysisRef.current?.focus();
@@ -825,9 +854,13 @@ export function NewsWorkspace() {
           <div className="news-feed-list">
             {newsQuery.isLoading ? (
               <div className="command-empty-line">正在读取资讯列表...</div>
-            ) : newsQuery.error && !endpointPending ? (
+            ) : newsQuery.error && !endpointPending && !activeAnalysis ? (
               <div className="command-inline-error">
                 新闻列表加载失败：{newsQuery.error.message}
+              </div>
+            ) : newsQuery.error && !endpointPending && activeAnalysis ? (
+              <div className="command-empty-line">
+                列表刷新暂时失败，但刚生成的解读已保留在右侧，可继续查看或稍后同步。
               </div>
             ) : visibleItems.length > 0 ? (
               <>

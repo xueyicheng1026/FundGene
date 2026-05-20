@@ -1297,6 +1297,9 @@ export function CoachWorkspace() {
     coachMutation.mutate(message);
   }
 
+  const isHandoffDraft =
+    contextPrompt.trim().length > 0 && draft.trim() === contextPrompt.trim();
+
   return (
     <div className="agent-command-dashboard grid gap-3">
       <AgentWorkspaceTopbar
@@ -1496,6 +1499,11 @@ export function CoachWorkspace() {
               <Sparkles aria-hidden="true" className="size-3.5" />
               任务输入
             </span>
+            {isHandoffDraft ? (
+              <span className="mb-2 block text-xs font-semibold normal-case tracking-normal text-[color:var(--ink-muted)]">
+                已带入上一页的问题，确认无误后点击发送。
+              </span>
+            ) : null}
             <textarea
               ref={composerTextareaRef}
               className="min-h-[72px] w-full resize-y border-0 bg-transparent text-base leading-7 text-[color:var(--ink-strong)] outline-none placeholder:text-[color:var(--ink-muted)]"
@@ -1517,7 +1525,11 @@ export function CoachWorkspace() {
                 disabled={coachMutation.isPending}
               >
                 <SendHorizontal aria-hidden="true" className="size-4" />
-                {coachMutation.isPending ? "生成中" : "发送"}
+                {coachMutation.isPending
+                  ? "生成中"
+                  : isHandoffDraft
+                    ? "确认发送"
+                    : "发送"}
               </button>
               <button
                 type="button"
@@ -1531,7 +1543,9 @@ export function CoachWorkspace() {
             <span className="agent-composer-hint text-xs leading-5 text-[color:var(--ink-muted)] sm:max-w-[21rem] sm:text-right">
               {coachMutation.isPending
                 ? "正在生成上一条回答；你可以先整理下一句。"
-                : "回答会自动保留风险边界，并把建议转成下一步动作。"}
+                : isHandoffDraft
+                  ? "从其他页面带来的问题不会自动发送，避免替你确认。"
+                  : "回答会自动保留风险边界，并把建议转成下一步动作。"}
             </span>
           </div>
 

@@ -40,7 +40,7 @@ class BehaviorWorker:
 
         finding = "行为陪练先识别触发情绪的情境，再把情绪和投资动作拆开。"
         if asks_for_list_or_status(message):
-            bias_text = "、".join(display_tags) if display_tags else "暂无显著行为偏差标签"
+            bias_text = "、".join(display_tags) if display_tags else "暂未发现明显行为偏差"
             focus_text = training_focus or "先记录投资动作前的触发情绪"
             finding = f"直接回答：当前行为画像显示 {bias_text}；建议训练焦点是“{focus_text}”。"
         if (
@@ -102,10 +102,17 @@ class BehaviorWorker:
             ],
             evidence_refs=evidence_refs,
             risk_flags=["行为标签是训练线索，不是对用户的永久判断。"],
-            recommended_actions=[
-                "进入 Simulation，完成当前训练焦点对应的情境训练。",
-                "记录最近一次想追涨或想止损时的触发点。",
-            ],
+            recommended_actions=(
+                [
+                    "把最近一次训练复盘里的触发点写成一条待观察记录。",
+                    "下次行动前先核对这条触发点是否再次出现。",
+                ]
+                if review_summary
+                else [
+                    "进入 Simulation，完成当前训练焦点对应的情境训练。",
+                    "记录最近一次想追涨或想止损时的触发点。",
+                ]
+            ),
             state_update_proposals=state_update_proposals,
             confidence=0.74,
             limitations=["行为判断仅基于问卷、行为画像和最近情境复盘摘要。"],

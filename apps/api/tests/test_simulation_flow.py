@@ -147,6 +147,11 @@ def test_simulation_session_review_and_behavior_training_flow(
     advisor_response = coach_payload["messages"][1]["advisor_response"]
     assert advisor_response["intent"] == "simulation"
     assert "最近一次训练复盘提示" in advisor_response["answer"]
+    assert "不需要马上重复同一轮训练" in advisor_response["answer"]
+    assert not any(
+        action.startswith("进入 Simulation")
+        for action in advisor_response["recommended_actions"]
+    )
 
     with session_factory() as session:
         assert session.scalar(select(func.count()).select_from(Scenario)) == 2

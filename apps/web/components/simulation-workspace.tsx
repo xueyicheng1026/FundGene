@@ -30,7 +30,12 @@ import {
   type SimulationScenario,
   type SimulationSession,
 } from "@/lib/api";
-import { formatBiasTag, formatBiasTags, formatProductCopy } from "@/lib/display-labels";
+import {
+  formatBiasTag,
+  formatBiasTags,
+  formatProductCopy,
+  formatRiskLevel,
+} from "@/lib/display-labels";
 import { buildAgentPromptHref } from "@/lib/navigation";
 import { MetricCard } from "./metric-card";
 import { SectionBlock } from "./section-block";
@@ -41,19 +46,6 @@ function joinClasses(...parts: Array<string | false | null | undefined>) {
 
 function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
-}
-
-function formatRiskLevel(level: BehaviorProfile["riskLevel"]): string {
-  if (level === "conservative") {
-    return "稳健";
-  }
-  if (level === "balanced") {
-    return "平衡";
-  }
-  if (level === "growth") {
-    return "进取";
-  }
-  return "待评估";
 }
 
 function formatTimestamp(value: string | null): string {
@@ -423,10 +415,7 @@ export function SimulationWorkspace() {
     retry: false,
   });
   const displayedActiveSession = activeSession ?? activeSessionQuery.data ?? null;
-  const displayedActionId =
-    selectedActionId ??
-    displayedActiveSession?.activeEvent?.availableActions[0]?.id ??
-    null;
+  const displayedActionId = selectedActionId;
 
   const reviewQuery = useQuery({
     queryKey: ["simulation-review", displayedActiveSession?.id],
@@ -441,7 +430,7 @@ export function SimulationWorkspace() {
     onSuccess: async (nextSession) => {
       setActiveSession(nextSession);
       setLatestFeedback(null);
-      setSelectedActionId(nextSession.activeEvent?.availableActions[0]?.id ?? null);
+      setSelectedActionId(null);
       setDraftRationale("");
       setDraftWorry("");
       setDraftImpulsePlan("");
@@ -462,7 +451,7 @@ export function SimulationWorkspace() {
     onSuccess: (session) => {
       setActiveSession(session);
       setLatestFeedback(null);
-      setSelectedActionId(session.activeEvent?.availableActions[0]?.id ?? null);
+      setSelectedActionId(null);
       setDraftRationale("");
       setDraftWorry("");
       setDraftImpulsePlan("");
@@ -882,6 +871,11 @@ export function SimulationWorkspace() {
                         </label>
                       ))}
                     </div>
+                    {!displayedActionId ? (
+                      <p className="mt-2 text-xs font-semibold text-[color:var(--ink-muted)]">
+                        请主动选择一个行动；系统不会替你默认选中任何动作。
+                      </p>
+                    ) : null}
                   </fieldset>
 
                   <label className="simulation-form-field">
@@ -931,7 +925,9 @@ export function SimulationWorkspace() {
                     className="action-button w-full justify-center"
                     disabled={
                       actionMutation.isPending ||
-                      activeEvent.availableActions.length === 0
+                      activeEvent.availableActions.length === 0 ||
+                      !displayedActionId ||
+                      draftRationale.trim().length === 0
                     }
                   >
                     {actionMutation.isPending ? "提交动作中..." : "提交决策并继续"}

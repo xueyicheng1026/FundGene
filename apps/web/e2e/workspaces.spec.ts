@@ -50,6 +50,8 @@ test("simulation exposes training guidance and keeps the submit action visible",
   const submitButton = page.getByRole("button", { name: "提交决策并继续" });
   await expect(submitButton).toBeVisible();
   await expect(submitButton).toBeInViewport();
+  await expect(submitButton).toBeDisabled();
+  await expect(page.getByRole("radio", { checked: true })).toHaveCount(0);
 
   const taskScroll = page.getByTestId("simulation-task-scroll");
   await expect(taskScroll).toHaveCSS("overflow-y", "auto");
@@ -72,6 +74,7 @@ test("simulation opens the final review after a completed training action", asyn
   await page
     .getByPlaceholder("请结合当前信息，说明你的判断依据和考虑。")
     .fill("我先保留仓位，等风险信息更清楚再决定。");
+  await page.getByRole("radio").first().check();
   await page.getByRole("button", { name: "提交决策并继续" }).click();
   await expect(page.getByText("这次训练先记住一件事")).toBeVisible({
     timeout: 15_000,
@@ -458,6 +461,7 @@ test("news workspace can request a structured analysis", async ({ page }) => {
   await expect(page.getByTestId("news-selected-source")).toBeVisible();
   await expect(page.getByTestId("news-analysis-process")).toBeVisible();
   await expect(page.getByText("已生成解读").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "重新解读" }).first()).toBeVisible();
   await expect(page.getByText("支持性的货币政策立场").first()).toBeVisible();
   await expect(page.getByText("资讯解读不构成买卖建议").first()).toBeVisible();
 });
