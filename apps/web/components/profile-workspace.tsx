@@ -564,7 +564,7 @@ export function ProfileWorkspace() {
                 </Button>
               </div>
               <p className="profile-auth-note">
-                展示版会把 Key 存在后端资料表；生产环境应改成加密密钥托管。
+                保存后只用于你的教练回答生成；页面只显示脱敏预览，不会展示完整 Key。
               </p>
             </div>
           </Panel>

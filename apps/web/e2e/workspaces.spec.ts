@@ -431,7 +431,7 @@ test("portfolio reviews a draft before saving a snapshot", async ({ page }) => {
 test("news workspace can request a structured analysis", async ({ page }) => {
   const initialCatalogResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
-    return url.pathname === "/api/news" && url.search.includes("refresh=true");
+    return url.pathname === "/api/news" && !url.search.includes("refresh=true");
   });
   await page.goto("/news", { waitUntil: "domcontentloaded" });
   await initialCatalogResponse;

@@ -1,6 +1,7 @@
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT";
   body?: unknown;
+  timeoutMs?: number;
 };
 
 export type JsonObject = Record<string, unknown>;
@@ -956,13 +957,31 @@ async function request(path: string, options: RequestOptions): Promise<unknown> 
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(url, {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-    cache: "no-store",
-    credentials: "include",
-  });
+  const controller = new AbortController();
+  const timeoutMs = options.timeoutMs ?? 45_000;
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      cache: "no-store",
+      credentials: "include",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError(
+        408,
+        "服务正在唤醒或网络较慢，请稍后重试。页面不会假装生成结果。",
+      );
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     let message = "request failed";
@@ -3027,7 +3046,7 @@ export async function logoutAuthSession(): Promise<void> {
 }
 
 export async function getSessionUser(): Promise<SessionUser> {
-  const payload = await request("/api/auth/session", {});
+  const payload = await request("/api/auth/session", { timeoutMs: 20_000 });
   return parseSessionUser(payload);
 }
 
@@ -3251,7 +3270,7 @@ export async function getSimulationReview(
 export async function getNewsCatalog(
   options: { refresh?: boolean } = { refresh: false },
 ): Promise<NewsCatalogState> {
-  const query = options.refresh === false ? "" : "?refresh=true&limit=20";
+  const query = options.refresh === true ? "?refresh=true&limit=20" : "";
   const payload = await request(`/api/news${query}`, {});
   return parseNewsCatalog(payload);
 }

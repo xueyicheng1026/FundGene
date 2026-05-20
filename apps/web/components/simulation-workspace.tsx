@@ -175,7 +175,7 @@ function StageTimeline({
   scenario: SimulationScenario | null;
 }) {
   const total = session?.totalSteps && session.totalSteps > 0 ? session.totalSteps : 4;
-  const current = session ? Math.min(Math.max(session.currentStep, 1), total) : 2;
+  const current = session ? Math.min(Math.max(session.currentStep, 1), total) : 0;
   const labels =
     scenario?.timelinePreview && scenario.timelinePreview.length >= total
       ? scenario.timelinePreview.slice(0, total)
@@ -185,8 +185,8 @@ function StageTimeline({
     <ol className="simulation-stage-line" aria-label="情境进程">
       {labels.map((label, index) => {
         const step = index + 1;
-        const done = step < current;
-        const active = step === current;
+        const done = current > 0 && step < current;
+        const active = current > 0 && step === current;
         return (
           <li key={`${label}-${step}`} className={active ? "simulation-stage-active" : ""}>
             <span>{done ? <CheckCircle2 aria-hidden="true" className="size-4" /> : step}</span>
@@ -765,13 +765,14 @@ export function SimulationWorkspace() {
                 <div>
                   <p className="section-kicker">情境进程</p>
                   <h2>
-                    当前阶段{" "}
-                    {displayedActiveSession?.currentStep ?? 2}/{displayedActiveSession?.totalSteps ?? 4}
+                    {displayedActiveSession
+                      ? `当前阶段 ${displayedActiveSession.currentStep}/${displayedActiveSession.totalSteps}`
+                      : "情境预览"}
                   </h2>
                 </div>
                 <span>
                   <Info aria-hidden="true" className="size-4" />
-                  本阶段基于当时可见信息
+                  {displayedActiveSession ? "本阶段基于当时可见信息" : "开始后逐步开放阶段信息"}
                 </span>
               </div>
               <StageTimeline session={displayedActiveSession} scenario={selectedScenario} />
@@ -1037,19 +1038,23 @@ export function SimulationWorkspace() {
         </div>
         <div>
           <p className="section-kicker">完成后</p>
-          <div className="simulation-after-actions">
-            <button
-              type="button"
-              className={activeSessionCompleted ? "action-button" : "action-button-secondary"}
-              onClick={handleRequestReview}
-              disabled={!activeSessionCompleted || reviewQuery.isLoading}
-            >
-              {reviewQuery.isLoading ? "正在读取复盘..." : "查看最终复盘"}
-            </button>
-            <Link href="/dashboard" className="action-button-secondary">
-              回工作台
-            </Link>
-          </div>
+          {displayedActiveSession ? (
+            <div className="simulation-after-actions">
+              <button
+                type="button"
+                className={activeSessionCompleted ? "action-button" : "action-button-secondary"}
+                onClick={handleRequestReview}
+                disabled={!activeSessionCompleted || reviewQuery.isLoading}
+              >
+                {reviewQuery.isLoading ? "正在读取复盘..." : "查看最终复盘"}
+              </button>
+              <Link href="/dashboard" className="action-button-secondary">
+                回工作台
+              </Link>
+            </div>
+          ) : (
+            <p>先开始一个情境，完成所有阶段后这里会出现复盘入口。</p>
+          )}
         </div>
       </section>
 

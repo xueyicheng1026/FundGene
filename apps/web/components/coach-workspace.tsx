@@ -864,9 +864,6 @@ function AgentWorkspaceTopbar({
         >
           新会话
         </button>
-        <span aria-hidden="true" className="text-[color:var(--ink-muted)]">
-          /
-        </span>
         <button
           type="button"
           className="agent-layout-text-button"
@@ -876,9 +873,6 @@ function AgentWorkspaceTopbar({
         >
           {contextPanelCollapsed ? "显示参考" : "隐藏参考"}
         </button>
-        <span aria-hidden="true" className="text-[color:var(--ink-muted)]">
-          /
-        </span>
         <button
           type="button"
           className="agent-layout-text-button"

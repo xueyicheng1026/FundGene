@@ -17,6 +17,7 @@ import { InlineNotice, StatusPill } from "./ui/primitives";
 
 type AuthMode = "sign-in" | "sign-up";
 const REMEMBERED_EMAIL_KEY = "fundgene:last-auth-email";
+const SESSION_CHECK_SLOW_MS = 6_000;
 
 function getRememberedEmail(): string {
   if (typeof window === "undefined") {
@@ -54,12 +55,22 @@ export function AuthEntry() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [sessionCheckSlow, setSessionCheckSlow] = useState(false);
 
   const sessionQuery = useQuery({
     queryKey: ["session-user"],
     queryFn: getSessionUser,
     retry: false,
   });
+
+  useEffect(() => {
+    if (!sessionQuery.isLoading) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setSessionCheckSlow(true), SESSION_CHECK_SLOW_MS);
+    return () => window.clearTimeout(timer);
+  }, [sessionQuery.isLoading]);
 
   useEffect(() => {
     if (!sessionQuery.data) {
@@ -123,7 +134,13 @@ export function AuthEntry() {
   });
 
   if (sessionQuery.isLoading) {
-    return <InlineNotice>正在检查登录状态...</InlineNotice>;
+    return (
+      <InlineNotice>
+        {sessionCheckSlow
+          ? "认证服务正在唤醒，可能需要几十秒。还没连上前不会假装登录。"
+          : "正在检查登录状态..."}
+      </InlineNotice>
+    );
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -316,7 +333,9 @@ export function AuthEntry() {
                     disabled={authMutation.isPending}
                   >
                     {authMutation.isPending
-                      ? "处理中..."
+                      ? mode === "sign-in"
+                        ? "正在登录..."
+                        : "正在创建账号..."
                       : mode === "sign-in"
                         ? "登录并继续"
                         : "注册并开始建档"}
@@ -328,6 +347,12 @@ export function AuthEntry() {
                 </div>
 
                 {submitError ? <InlineNotice tone="danger">{submitError}</InlineNotice> : null}
+
+                {authMutation.isPending ? (
+                  <InlineNotice>
+                    正在连接认证服务；如果服务刚唤醒，可能需要稍等几十秒。
+                  </InlineNotice>
+                ) : null}
 
                 {sessionQuery.error instanceof ApiError &&
                 sessionQuery.error.status !== 401 ? (

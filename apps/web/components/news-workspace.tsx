@@ -606,7 +606,7 @@ export function NewsWorkspace() {
 
   const newsQuery = useQuery({
     queryKey: newsCatalogQueryKey,
-    queryFn: () => getNewsCatalog({ refresh: true }),
+    queryFn: () => getNewsCatalog({ refresh: false }),
     enabled: Boolean(sessionQuery.data),
     staleTime: newsCatalogStaleTimeMs,
     gcTime: newsCatalogGcTimeMs,
@@ -831,13 +831,15 @@ export function NewsWorkspace() {
                 ) : null}
               </>
             ) : (
-              <div className="command-empty-line">没有匹配资讯，可以手动粘贴材料。</div>
+              <div className="command-empty-line">
+                当前没有已同步资讯。可以点击“同步真实资讯”，或手动粘贴材料。
+              </div>
             )}
           </div>
           <p className="news-feed-count">已显示 {visibleItems.length} 条资讯</p>
         </aside>
 
-        <section className="news-main-panel">
+        <section className="news-main-panel" tabIndex={0} aria-label="资讯解读画布">
           <div
             ref={analysisRef}
             tabIndex={-1}

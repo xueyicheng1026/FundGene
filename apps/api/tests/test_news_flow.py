@@ -330,3 +330,125 @@ def test_news_list_only_returns_latest_daily_items(
 
     assert "Today market policy update" in titles
     assert "Yesterday market policy update" not in titles
+
+
+def test_news_list_prefers_real_items_over_dev_fixture_same_day(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _complete_onboarding(client, email="real-news-priority@example.com")
+    fetched_at = datetime(2026, 5, 20, 8, 0, tzinfo=timezone.utc)
+
+    with session_factory() as session:
+        session.add_all(
+            [
+                NewsItem(
+                    user_id=None,
+                    source_name="FundGene dev fixture",
+                    source_url="https://example.com/dev.xml",
+                    external_id="fixture-1",
+                    title="暂未返回标题",
+                    summary=None,
+                    url="https://example.com/fixture",
+                    published_at=fetched_at,
+                    fetched_at=fetched_at,
+                ),
+                NewsItem(
+                    user_id=None,
+                    source_name="Live Feed",
+                    source_url="https://example.com/live.xml",
+                    external_id="live-priority-1",
+                    title="Real source market update",
+                    summary="Real synced item should be visible first.",
+                    url="https://example.com/live-priority-1",
+                    published_at=fetched_at,
+                    fetched_at=fetched_at,
+                ),
+            ]
+        )
+        session.commit()
+
+    response = client.get("/api/news")
+    assert response.status_code == 200
+    titles = [item["title"] for item in response.json()["items"]]
+
+    assert titles == ["Real source market update"]
+
+
+def test_dashboard_news_overview_skips_dev_fixture_analysis(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _complete_onboarding(client, email="dashboard-real-news@example.com")
+    user_id = client.get("/api/auth/session").json()["user"]["profile_id"]
+    fetched_at = datetime(2026, 5, 20, 8, 0, tzinfo=timezone.utc)
+
+    with session_factory() as session:
+        fixture_item = NewsItem(
+            user_id=None,
+            source_name="FundGene dev fixture",
+            source_url="https://example.com/dev-overview.xml",
+            external_id="fixture-overview-1",
+            title="暂未返回标题",
+            summary=None,
+            url="https://example.com/fixture-overview",
+            published_at=fetched_at,
+            fetched_at=fetched_at,
+        )
+        real_item = NewsItem(
+            user_id=None,
+            source_name="Live Feed",
+            source_url="https://example.com/live-overview.xml",
+            external_id="live-overview-1",
+            title="Real dashboard policy update",
+            summary="Real summary should appear in Today evidence.",
+            url="https://example.com/live-overview-1",
+            published_at=fetched_at,
+            fetched_at=fetched_at,
+        )
+        session.add_all([fixture_item, real_item])
+        session.flush()
+        session.add_all(
+            [
+                NewsAnalysis(
+                    user_id=user_id,
+                    news_item_id=fixture_item.id,
+                    facts=["fixture"],
+                    impact_paths=["fixture path"],
+                    uncertainty_notes=["fixture uncertainty"],
+                    beginner_translation="Fixture analysis should not be shown.",
+                    related_learning_topics=[],
+                    recommended_next_actions=[],
+                    risk_notice="fixture notice",
+                    generated_at=datetime(2026, 5, 20, 9, 0, tzinfo=timezone.utc),
+                ),
+                NewsAnalysis(
+                    user_id=user_id,
+                    news_item_id=real_item.id,
+                    facts=["real"],
+                    impact_paths=["real path"],
+                    uncertainty_notes=["real uncertainty"],
+                    beginner_translation="Real analysis should be shown.",
+                    related_learning_topics=[],
+                    recommended_next_actions=["核对组合暴露"],
+                    risk_notice="real notice",
+                    generated_at=datetime(2026, 5, 20, 8, 30, tzinfo=timezone.utc),
+                ),
+            ]
+        )
+        session.commit()
+
+    response = client.get("/api/dashboard")
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["news_status"]["has_analysis"] is True
+    assert payload["news_status"]["latest_title"] == "Real dashboard policy update"
+    news_evidence = [
+        evidence
+        for evidence in payload["daily_brief"]["evidence"]
+        if evidence["source_type"] == "news_policy"
+    ]
+    assert news_evidence
+    assert "Real summary should appear" in news_evidence[0]["beginner_translation"]
+    assert "原始摘要暂不可用" not in news_evidence[0]["beginner_translation"]

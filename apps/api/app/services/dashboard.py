@@ -287,11 +287,16 @@ def build_daily_brief(
 
     if news_overview is not None and news_overview.has_analysis:
         coverage["news_policy"] = True
-        news_summary = news_overview.latest_summary or "原始摘要暂不可用。"
+        news_summary = news_overview.latest_summary
         news_agent_read = (
             news_overview.beginner_translation
             or "先判断它通过什么路径影响组合和行为，再决定是否需要追问。"
         )
+        news_translation_parts = []
+        if news_summary:
+            news_translation_parts.append(f"新闻概括：{news_summary}")
+        if news_agent_read:
+            news_translation_parts.append(f"简要解读：{news_agent_read}")
         evidence.append(
             DashboardEvidence(
                 id="evidence:news-latest",
@@ -301,7 +306,8 @@ def build_daily_brief(
                     news_overview.latest_title or "最近新闻/政策解读已生成。"
                 ),
                 beginner_translation=_truncate(
-                    f"新闻概括：{news_summary} 简要解读：{news_agent_read}",
+                    " ".join(news_translation_parts)
+                    or "最近已有一条新闻/政策解读，可进入资讯页查看影响路径。",
                     limit=220,
                 ),
                 support_level="medium",

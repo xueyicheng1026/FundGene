@@ -521,6 +521,17 @@ def _latest_daily_rows(
     return [row for row in rows if _sort_date(row[1]) == latest_date]
 
 
+def _is_demo_fixture_item(item: NewsItem | PolicyItem) -> bool:
+    return (item.source_name or "").strip().lower() == "fundgene dev fixture"
+
+
+def _prefer_real_items(
+    rows: list[tuple[NewsItemType, NewsItem | PolicyItem]],
+) -> list[tuple[NewsItemType, NewsItem | PolicyItem]]:
+    real_rows = [row for row in rows if not _is_demo_fixture_item(row[1])]
+    return real_rows or rows
+
+
 def list_news_items(
     db: Session,
     *,
@@ -547,7 +558,7 @@ def list_news_items(
         ("news", item) for item in news_items
     ] + [("policy", item) for item in policy_items]
     combined.sort(key=lambda row: _sort_timestamp(row[1]), reverse=True)
-    latest_daily_combined = _latest_daily_rows(combined)
+    latest_daily_combined = _prefer_real_items(_latest_daily_rows(combined))
 
     return NewsListResponse(
         items=[
@@ -844,15 +855,32 @@ def get_news_overview(
     *,
     user_id: str,
 ) -> DashboardNewsStatus:
-    analysis = db.scalar(
-        select(NewsAnalysis)
-        .where(NewsAnalysis.user_id == user_id)
-        .order_by(NewsAnalysis.generated_at.desc(), NewsAnalysis.id.desc())
+    analyses = list(
+        db.scalars(
+            select(NewsAnalysis)
+            .where(NewsAnalysis.user_id == user_id)
+            .order_by(NewsAnalysis.generated_at.desc(), NewsAnalysis.id.desc())
+            .limit(12)
+        )
     )
-    if analysis is None:
+    if not analyses:
         return DashboardNewsStatus(has_analysis=False)
 
-    item_type, item = _analysis_item(db, analysis=analysis)
+    analysis: NewsAnalysis | None = None
+    item_type: NewsItemType | None = None
+    item: NewsItem | PolicyItem | None = None
+    for candidate in analyses:
+        candidate_item_type, candidate_item = _analysis_item(db, analysis=candidate)
+        if _is_demo_fixture_item(candidate_item):
+            continue
+        analysis = candidate
+        item_type = candidate_item_type
+        item = candidate_item
+        break
+
+    if analysis is None or item_type is None or item is None:
+        return DashboardNewsStatus(has_analysis=False)
+
     recommended_actions = list(analysis.recommended_next_actions or [])
     return DashboardNewsStatus(
         has_analysis=True,
