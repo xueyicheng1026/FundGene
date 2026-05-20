@@ -506,8 +506,8 @@ export function ProfileWorkspace() {
             </div>
           </Panel>
 
-          <Panel className="profile-auth-panel">
-            <div className="profile-auth-block" id="llm-settings">
+          <Panel className="profile-auth-panel profile-llm-panel">
+            <div className="profile-auth-block profile-llm-block" id="llm-settings">
               <div className="profile-card-heading">
                 <KeyRound aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
                 <h2>模型设置</h2>
@@ -532,14 +532,13 @@ export function ProfileWorkspace() {
               {llmOperationError ? (
                 <p className="command-inline-error">{llmOperationError}</p>
               ) : null}
-              <div className="grid gap-3">
+              <div className="profile-llm-form">
                 <Field
                   label="DeepSeek API Key"
                   type="password"
                   autoComplete="off"
                   value={llmApiKey}
                   placeholder="sk-..."
-                  hint="保存后只显示脱敏预览；未配置时 Agent 会直接提示模型不可用。"
                   onChange={(event) => setLlmApiKey(event.target.value)}
                 />
                 <Field
@@ -547,7 +546,7 @@ export function ProfileWorkspace() {
                   value={effectiveLlmModelName}
                   onChange={(event) => setLlmModelName(event.target.value)}
                 />
-                <label className="flex items-center gap-2 text-sm font-semibold">
+                <label className="profile-llm-toggle">
                   <input
                     type="checkbox"
                     checked={effectiveLlmEnabled}
@@ -564,7 +563,7 @@ export function ProfileWorkspace() {
                 </Button>
               </div>
               <p className="profile-auth-note">
-                保存后只用于你的教练回答生成；页面只显示脱敏预览，不会展示完整 Key。
+                保存后只用于教练回答生成；页面只显示脱敏预览。
               </p>
             </div>
           </Panel>

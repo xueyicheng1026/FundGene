@@ -333,25 +333,25 @@ test("dashboard daily brief shows evidence, safe action, and module status", asy
   ).toBeVisible();
   await expect(page.getByText("为什么")).toBeVisible();
   await expect(page.getByText("今天不要做什么")).toHaveCount(0);
-  await expect(page.getByText("今日信号面板")).toBeVisible();
+  await expect(page.getByText("今天只做这一步")).toBeVisible();
+  await expect(page.getByLabel("今日判断依据")).toBeVisible();
   await expect(page.getByText("第一大持仓约 34%").first()).toBeVisible();
-  await expect(page.getByText("新闻标题：")).toBeVisible();
-  await expect(page.getByText("长期资金入市政策继续推进").first()).toBeVisible();
-  await expect(page.getByText("新闻概括：")).toBeVisible();
-  await expect(
-    page.getByText("政策强调长期资金和资本市场稳定，但具体节奏仍需观察。"),
-  ).toBeVisible();
-  await expect(page.getByText("简要解读：")).toBeVisible();
+  await expect(page.getByText("已进入判断的资料")).toBeVisible();
+  await expect(page.getByText("长期资金入市政策更像长期市场结构信号。")).toBeVisible();
+  const coverageList = page.locator(".today-coverage-list");
+  await expect(coverageList.getByText("画像")).toBeVisible();
+  await expect(coverageList.getByText("组合")).toBeVisible();
+  await expect(coverageList.getByText("资讯")).toBeVisible();
+  await expect(page.getByText("今日信号面板")).toHaveCount(0);
+  await expect(page.getByText("新闻标题：")).toHaveCount(0);
+  await expect(page.getByText("新闻概括：")).toHaveCount(0);
+  await expect(page.getByText("简要解读：")).toHaveCount(0);
   await expect(page.getByText("把这条政策先翻译成一句新手能执行的话")).toHaveCount(0);
   await expect(page.getByText("直接操作账户")).toHaveCount(0);
   await expect(page.getByRole("link", { name: /去完成下一步/ })).toHaveAttribute(
     "href",
     "/portfolio?from=today&focus=concentration",
   );
-  await expect(page.getByText("回撤纪律训练").first()).toBeVisible();
-  await expect(page.getByText("最近复盘显示你能先检查计划").first()).toBeVisible();
-  await expect(page.getByText("长期资金入市政策继续推进").first()).toBeVisible();
-  await expect(page.getByText("这条政策更像长期市场结构信号").first()).toBeVisible();
   await expect(page.getByText("run_e2e")).toHaveCount(0);
 });
 
