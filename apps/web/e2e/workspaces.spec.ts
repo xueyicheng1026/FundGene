@@ -103,6 +103,9 @@ test("coach keeps internal trace details out of the user-facing answer", async (
     "/learning",
   );
   await expect(page.getByText("下一步").first()).toBeVisible();
+  await expect(page.getByTestId("agent-run-status")).toContainText(
+    "生成给用户的回答",
+  );
   await expect(page.getByText("下一句可以问").first()).not.toBeVisible();
   await expect(page.getByText("证据链路")).toHaveCount(0);
   await expect(page.getByText("Run ID: run_e2e")).toHaveCount(0);

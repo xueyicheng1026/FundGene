@@ -19,6 +19,7 @@ import {
 import {
   ApiError,
   cancelAgentRun,
+  getAgentRunEvents,
   getAgentRunTrace,
   getAssistantConversation,
   getAssistantSession,
@@ -29,6 +30,7 @@ import {
   streamAssistantMessage,
   type AdvisorActionTarget,
   type AgentRunEvent,
+  type AgentRunEvents,
   type AgentRunTrace,
   type AssistantConversationMessage,
   type AssistantConversationState,
@@ -565,6 +567,7 @@ function SessionRail({
 function AgentRunStatusPanel({
   trace,
   liveEvents,
+  replayEvents,
   loading,
   pending,
   dashboard,
@@ -572,14 +575,16 @@ function AgentRunStatusPanel({
 }: {
   trace: AgentRunTrace | undefined;
   liveEvents: AgentRunEvent[];
+  replayEvents: AgentRunEvents | undefined;
   loading: boolean;
   pending: boolean;
   dashboard: DashboardState;
   dailyBrief: DashboardDailyBrief | null;
 }) {
+  const displayEvents = liveEvents.length > 0 ? liveEvents : replayEvents?.events ?? [];
   const steps =
-    liveEvents.length > 0
-      ? getLiveRunProgressSteps(liveEvents)
+    displayEvents.length > 0
+      ? getLiveRunProgressSteps(displayEvents)
       : getRunProgressSteps({ trace, pending });
   const coverageItems = [
     {
@@ -1077,6 +1082,12 @@ export function CoachWorkspace() {
   const traceQuery = useQuery({
     queryKey: ["agent-run-trace", latestTraceRunId],
     queryFn: () => getAgentRunTrace(latestTraceRunId ?? ""),
+    enabled: Boolean(isOnboarded && latestTraceRunId),
+    retry: false,
+  });
+  const runEventsQuery = useQuery({
+    queryKey: ["agent-run-events", latestTraceRunId],
+    queryFn: () => getAgentRunEvents(latestTraceRunId ?? ""),
     enabled: Boolean(isOnboarded && latestTraceRunId),
     retry: false,
   });
@@ -1686,7 +1697,8 @@ export function CoachWorkspace() {
           <AgentRunStatusPanel
             trace={traceQuery.data}
             liveEvents={liveRunEvents}
-            loading={traceQuery.isLoading}
+            replayEvents={runEventsQuery.data}
+            loading={traceQuery.isLoading || runEventsQuery.isLoading}
             pending={coachMutation.isPending}
             dashboard={dashboard}
             dailyBrief={dailyBrief}

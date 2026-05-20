@@ -418,6 +418,61 @@ const agentRunTrace = {
   ],
 };
 
+const agentRunEvents = {
+  schema_version: "agent_run_events_v1",
+  run_id: "run_e2e",
+  events: [
+    {
+      id: "run_e2e:0001",
+      run_id: "run_e2e",
+      sequence: 1,
+      event_type: "turn_started",
+      phase: "turn",
+      title: "开始处理任务",
+      status: "completed",
+      at: "2026-04-26T08:29:58Z",
+      duration_ms: null,
+      payload: {},
+    },
+    {
+      id: "run_e2e:0002",
+      run_id: "run_e2e",
+      sequence: 2,
+      event_type: "step_completed",
+      phase: "context",
+      title: "读取授权上下文",
+      status: "completed",
+      at: "2026-04-26T08:29:59Z",
+      duration_ms: 180,
+      payload: {},
+    },
+    {
+      id: "run_e2e:0003",
+      run_id: "run_e2e",
+      sequence: 3,
+      event_type: "agent_message",
+      phase: "message",
+      title: "生成给用户的回答",
+      status: "completed",
+      at: "2026-04-26T08:30:00Z",
+      duration_ms: null,
+      payload: {},
+    },
+    {
+      id: "run_e2e:0004",
+      run_id: "run_e2e",
+      sequence: 4,
+      event_type: "turn_complete",
+      phase: "turn",
+      title: "任务处理完成",
+      status: "completed",
+      at: "2026-04-26T08:30:00Z",
+      duration_ms: 1280,
+      payload: {},
+    },
+  ],
+};
+
 const portfolioReport = {
   snapshot_id: "snapshot_e2e",
   snapshot_date: "2026-04-26",
@@ -1244,6 +1299,9 @@ export async function mockFundGeneApi(
     }
     if (path.startsWith("/api/assistant/runs/") && path.endsWith("/trace")) {
       return json(route, agentRunTrace);
+    }
+    if (path.startsWith("/api/assistant/runs/") && path.endsWith("/events")) {
+      return json(route, agentRunEvents);
     }
     if (path === "/api/assistant/messages/stream") {
       let payload: Record<string, unknown> = {};

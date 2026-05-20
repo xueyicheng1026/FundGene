@@ -389,6 +389,12 @@ export type AgentRunEvent = {
   payload: JsonObject;
 };
 
+export type AgentRunEvents = {
+  schemaVersion: string;
+  runId: string;
+  events: AgentRunEvent[];
+};
+
 export type AssistantMessageStreamHandlers = {
   onEvent?: (event: AgentRunEvent) => void;
 };
@@ -1707,6 +1713,18 @@ function parseAgentRunEvent(input: unknown): AgentRunEvent {
     at: pickString(source, ["at"]),
     durationMs: pickNumber(source, ["durationMs", "duration_ms"]),
     payload: pickObject(source, ["payload"]),
+  };
+}
+
+function parseAgentRunEvents(input: unknown, fallbackRunId: string): AgentRunEvents {
+  const source = asObject(input);
+  const runId = pickString(source, ["runId", "run_id"]) ?? fallbackRunId;
+  return {
+    schemaVersion:
+      pickString(source, ["schemaVersion", "schema_version"]) ??
+      "agent_run_events_v1",
+    runId,
+    events: pickArray(source, ["events"]).map((event) => parseAgentRunEvent(event)),
   };
 }
 
@@ -3326,6 +3344,11 @@ function buildAssistantMessageBody(input: AssistantMessageInput): JsonObject {
 export async function getAgentRunTrace(runId: string): Promise<AgentRunTrace> {
   const payload = await request(`/api/assistant/runs/${runId}/trace`, {});
   return parseAgentRunTrace(payload, runId);
+}
+
+export async function getAgentRunEvents(runId: string): Promise<AgentRunEvents> {
+  const payload = await request(`/api/assistant/runs/${runId}/events`, {});
+  return parseAgentRunEvents(payload, runId);
 }
 
 export async function cancelAgentRun(runId: string): Promise<AgentRunCancelResult> {
