@@ -436,6 +436,15 @@ test("news workspace can request a structured analysis", async ({ page }) => {
   await page.goto("/news", { waitUntil: "domcontentloaded" });
   await initialCatalogResponse;
 
+  await page
+    .getByRole("button", { name: "查看资讯：北向资金净流入超百亿元 科技板块获加仓" })
+    .click();
+  await expect(
+    page
+      .getByLabel("资讯解读画布")
+      .getByRole("heading", { name: "北向资金净流入超百亿元 科技板块获加仓" }),
+  ).toBeVisible();
+
   const refreshCatalogResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname === "/api/news" && url.search.includes("refresh=true");
@@ -443,11 +452,7 @@ test("news workspace can request a structured analysis", async ({ page }) => {
   await page.getByRole("button", { name: "同步真实资讯" }).click();
   await refreshCatalogResponse;
 
-  await page
-    .locator("article")
-    .first()
-    .getByRole("button", { name: "生成解读" })
-    .click();
+  await page.getByRole("button", { name: "生成解读" }).first().click();
 
   await expect(page.getByText("影响路径图").first()).toBeVisible();
   await expect(page.getByTestId("news-selected-source")).toBeVisible();

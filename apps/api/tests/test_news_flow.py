@@ -375,6 +375,50 @@ def test_news_list_prefers_real_items_over_dev_fixture_same_day(
     assert titles == ["Real source market update"]
 
 
+def test_news_list_uses_latest_real_synced_day_when_fixture_is_newer(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _complete_onboarding(client, email="saved-real-news@example.com")
+    real_fetched_at = datetime(2026, 5, 19, 8, 0, tzinfo=timezone.utc)
+    fixture_fetched_at = datetime(2026, 5, 20, 8, 0, tzinfo=timezone.utc)
+
+    with session_factory() as session:
+        session.add_all(
+            [
+                NewsItem(
+                    user_id=None,
+                    source_name="Live Feed",
+                    source_url="https://example.com/live-saved.xml",
+                    external_id="live-saved-1",
+                    title="Persisted real synced update",
+                    summary="A previously synced real item should still be shown.",
+                    url="https://example.com/live-saved-1",
+                    published_at=real_fetched_at,
+                    fetched_at=real_fetched_at,
+                ),
+                NewsItem(
+                    user_id=None,
+                    source_name="FundGene dev fixture",
+                    source_url="https://example.com/dev-newer.xml",
+                    external_id="fixture-newer-1",
+                    title="暂未返回标题",
+                    summary=None,
+                    url="https://example.com/fixture-newer",
+                    published_at=fixture_fetched_at,
+                    fetched_at=fixture_fetched_at,
+                ),
+            ]
+        )
+        session.commit()
+
+    response = client.get("/api/news")
+    assert response.status_code == 200
+    titles = [item["title"] for item in response.json()["items"]]
+
+    assert titles == ["Persisted real synced update"]
+
+
 def test_dashboard_news_overview_skips_dev_fixture_analysis(
     client: TestClient,
     session_factory: sessionmaker[Session],

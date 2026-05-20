@@ -558,7 +558,7 @@ def list_news_items(
         ("news", item) for item in news_items
     ] + [("policy", item) for item in policy_items]
     combined.sort(key=lambda row: _sort_timestamp(row[1]), reverse=True)
-    latest_daily_combined = _prefer_real_items(_latest_daily_rows(combined))
+    latest_daily_combined = _latest_daily_rows(_prefer_real_items(combined))
 
     return NewsListResponse(
         items=[

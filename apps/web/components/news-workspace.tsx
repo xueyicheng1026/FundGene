@@ -252,13 +252,19 @@ function NewsCard({
   item,
   active,
   disabled,
+  onSelect,
   onAnalyze,
 }: {
   item: NewsItem;
   active: boolean;
   disabled: boolean;
+  onSelect: (item: NewsItem) => void;
   onAnalyze: (item: NewsItem) => void;
 }) {
+  function handleSelect() {
+    onSelect(item);
+  }
+
   return (
     <article
       className={`news-list-item transition duration-200 ${
@@ -267,40 +273,50 @@ function NewsCard({
           : ""
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="grid size-5 flex-none place-items-center rounded-full bg-[rgba(0,113,227,0.1)] text-[0.62rem] font-bold text-[color:var(--accent-teal)]">
-              {formatSourceLabel(item.source).slice(0, 1)}
+      <button
+        type="button"
+        aria-pressed={active}
+        aria-label={`查看资讯：${item.title}`}
+        className="news-list-select"
+        onClick={handleSelect}
+      >
+        <span className="flex items-start justify-between gap-3">
+          <span className="min-w-0">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="grid size-5 flex-none place-items-center rounded-full bg-[rgba(0,113,227,0.1)] text-[0.62rem] font-bold text-[color:var(--accent-teal)]">
+                {formatSourceLabel(item.source).slice(0, 1)}
+              </span>
+              <span className="truncate text-xs font-semibold text-[color:var(--ink-muted)]">
+                {formatSourceLabel(item.source)}
+              </span>
             </span>
-            <span className="truncate text-xs font-semibold text-[color:var(--ink-muted)]">
-              {formatSourceLabel(item.source)}
+            <span className="news-list-title mt-2 line-clamp-2 text-sm font-semibold leading-6 text-[color:var(--ink-strong)]">
+              {item.title}
             </span>
-          </div>
-          <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-[color:var(--ink-strong)]">
-            {item.title}
-          </h3>
-        </div>
-        <span className="flex-none text-xs font-medium text-[color:var(--ink-muted)]">
-          {formatDate(item.publishedAt)}
+          </span>
+          <span className="flex-none text-xs font-medium text-[color:var(--ink-muted)]">
+            {formatDate(item.publishedAt)}
+          </span>
         </span>
-      </div>
-      <p className="news-list-summary mt-2 line-clamp-2 text-xs leading-5 text-[color:var(--ink-soft)]">
-        {formatBeginnerSummary(item.summary)}
-      </p>
-      <div className="news-list-tags mt-3 flex flex-wrap items-center gap-2 text-xs text-[color:var(--ink-soft)]">
-        <span className="rounded-full border border-[rgba(255,159,10,0.18)] bg-[rgba(255,159,10,0.08)] px-2.5 py-1 text-[color:var(--accent-gold)]">
-          {buildImpactSummary(item)}
+        <span className="news-list-summary mt-2 line-clamp-2 text-xs leading-5 text-[color:var(--ink-soft)]">
+          {formatBeginnerSummary(item.summary)}
         </span>
-        <span className={`rounded-full border px-2.5 py-1 ${getRelevanceTone(item.relevanceScore)}`}>
-          {formatRelevanceLabel(item.relevanceScore)}
+        <span className="news-list-tags mt-3 flex flex-wrap items-center gap-2 text-xs text-[color:var(--ink-soft)]">
+          <span className="rounded-full border border-[rgba(255,159,10,0.18)] bg-[rgba(255,159,10,0.08)] px-2.5 py-1 text-[color:var(--accent-gold)]">
+            {buildImpactSummary(item)}
+          </span>
+          <span className={`rounded-full border px-2.5 py-1 ${getRelevanceTone(item.relevanceScore)}`}>
+            {formatRelevanceLabel(item.relevanceScore)}
+          </span>
         </span>
-      </div>
+      </button>
       <div className="news-list-actions mt-3 flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"
           className="news-mini-button"
-          onClick={() => onAnalyze(item)}
+          onClick={() => {
+            onAnalyze(item);
+          }}
           disabled={disabled}
         >
           {disabled ? "生成中" : "生成解读"}
@@ -705,6 +721,12 @@ export function NewsWorkspace() {
     });
   }
 
+  function handleSelectItem(item: NewsItem) {
+    setSelectedItemId(item.id);
+    setAnalysis(null);
+    setSubmitError(null);
+  }
+
   function handleAnalyzeDraft(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError(null);
@@ -815,6 +837,7 @@ export function NewsWorkspace() {
                     item={item}
                     active={activeSourceItem?.id === item.id}
                     disabled={analyzeMutation.isPending}
+                    onSelect={handleSelectItem}
                     onAnalyze={handleAnalyzeItem}
                   />
                 ))}
