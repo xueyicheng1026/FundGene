@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock3,
   Gauge,
   Layers3,
+  PieChart,
   Radar,
   ShieldCheck,
   Target,
@@ -291,6 +293,92 @@ function SignalCell({
   );
 }
 
+function TodayAlertStrip({
+  brief,
+  actionLabel,
+  actionHref,
+}: {
+  brief: DashboardDailyBrief | null;
+  actionLabel: string;
+  actionHref: string;
+}) {
+  const alertCopy = brief?.doNotDo
+    ? formatProductCopy(brief.doNotDo)
+    : "先判断，再行动：今天的建议只用于检查和学习，不替你做买卖决定。";
+
+  return (
+    <div className="today-alert-strip">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="today-alert-icon">
+          <AlertTriangle aria-hidden="true" className="size-4" />
+        </span>
+        <p className="min-w-0 truncate text-sm font-bold">
+          <span className="text-[color:var(--ink-strong)]">新手情绪底牌越界：</span>
+          <span className="text-[color:var(--warning)]">{alertCopy}</span>
+        </p>
+      </div>
+      <Link href={actionHref} className="today-alert-action">
+        {actionLabel}
+      </Link>
+    </div>
+  );
+}
+
+function PortfolioRiskCard({
+  riskLevel,
+  portfolioSummary,
+  sourceCoverageCount,
+}: {
+  riskLevel: string | null | undefined;
+  portfolioSummary: string | null | undefined;
+  sourceCoverageCount: number;
+}) {
+  const bands = [
+    { label: "宽基指数", value: 24, className: "bg-[#12a8e8]" },
+    { label: "红利低波", value: 36, className: "bg-[#0f6ed0]" },
+    { label: "主题波动", value: 22, className: "bg-[#ff4d57]" },
+    { label: "现金缓冲", value: 18, className: "bg-[#0fbd7b]" },
+  ];
+
+  return (
+    <section className="today-risk-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="section-kicker">初始风险底牌</p>
+          <h4>{formatRiskLevel(riskLevel)}</h4>
+        </div>
+        <span className="today-risk-icon" aria-hidden="true">
+          <PieChart className="size-4" />
+        </span>
+      </div>
+      <p className="mt-3 text-sm font-semibold leading-6 text-[color:var(--ink-soft)]">
+        {portfolioSummary ?? "组合骨架待补齐；先用风险画像、学习状态和行为线索做保守判断。"}
+      </p>
+      <div className="today-stack-bar" aria-hidden="true">
+        {bands.map((item) => (
+          <span
+            key={item.label}
+            className={item.className}
+            style={{ width: `${item.value}%` }}
+          />
+        ))}
+      </div>
+      <div className="today-risk-legend">
+        {bands.map((item) => (
+          <span key={item.label}>
+            <i className={item.className} aria-hidden="true" />
+            {item.label}
+          </span>
+        ))}
+      </div>
+      <div className="today-risk-footer">
+        <span>资料覆盖</span>
+        <strong>{sourceCoverageCount} / 7</strong>
+      </div>
+    </section>
+  );
+}
+
 export function DashboardWorkspace() {
   const sessionQuery = useQuery({
     queryKey: ["session-user"],
@@ -495,6 +583,11 @@ export function DashboardWorkspace() {
     <div className="today-command-dashboard">
       <section className="agent-hero command-center-hero today-cockpit overflow-hidden">
         <div className="today-cockpit-grid">
+          <TodayAlertStrip
+            brief={dailyBrief}
+            actionLabel={primaryActionLabel}
+            actionHref={primaryActionHref}
+          />
           <div className="today-cockpit-main">
             <div className="today-brief-header">
               <div className="min-w-0">
@@ -605,6 +698,11 @@ export function DashboardWorkspace() {
           </div>
 
           <aside className="today-cockpit-side">
+            <PortfolioRiskCard
+              riskLevel={riskLevel}
+              portfolioSummary={portfolioStatus?.summary}
+              sourceCoverageCount={sourceCoverageCount}
+            />
             <AgentCheckTimeline brief={dailyBrief} compact />
             <div className="today-side-card">
               <div className="flex items-center justify-between gap-3">

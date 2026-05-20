@@ -1013,6 +1013,29 @@ function json(route: Route, body: unknown, status = 200) {
   });
 }
 
+function sse(route: Route, blocks: Array<{ event: string; data: unknown }>) {
+  const requestOrigin = new URL(route.request().headers().origin ?? route.request().url()).origin;
+  const body = blocks
+    .map(
+      (block) =>
+        `event: ${block.event}\ndata: ${JSON.stringify(block.data)}\n\n`,
+    )
+    .join("");
+
+  return route.fulfill({
+    status: 200,
+    contentType: "text/event-stream",
+    headers: {
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Headers": "content-type",
+      "Access-Control-Allow-Methods": "GET,POST,PATCH,PUT,OPTIONS",
+      "Access-Control-Allow-Origin": requestOrigin,
+      "Cache-Control": "no-cache",
+    },
+    body,
+  });
+}
+
 export async function mockFundGeneApi(
   page: Page,
   options: { authenticated?: boolean } = {},
@@ -1221,6 +1244,66 @@ export async function mockFundGeneApi(
     }
     if (path.startsWith("/api/assistant/runs/") && path.endsWith("/trace")) {
       return json(route, agentRunTrace);
+    }
+    if (path === "/api/assistant/messages/stream") {
+      let payload: Record<string, unknown> = {};
+      try {
+        payload = route.request().postDataJSON() as Record<string, unknown>;
+      } catch {
+        payload = {};
+      }
+      const conversation =
+        payload.session_id === "session_history_e2e"
+          ? continuedAssistantHistorySession
+          : assistantSession;
+      return sse(route, [
+        {
+          event: "agent_event",
+          data: {
+            id: "run_e2e:0001",
+            run_id: "run_e2e",
+            sequence: 1,
+            event_type: "turn_started",
+            phase: "turn",
+            title: "开始处理任务",
+            status: "running",
+            at: "2026-04-26T09:35:00Z",
+            duration_ms: null,
+            payload: {},
+          },
+        },
+        {
+          event: "agent_event",
+          data: {
+            id: "run_e2e:0002",
+            run_id: "run_e2e",
+            sequence: 2,
+            event_type: "step_started",
+            phase: "context",
+            title: "读取授权上下文",
+            status: "running",
+            at: "2026-04-26T09:35:01Z",
+            duration_ms: null,
+            payload: {},
+          },
+        },
+        {
+          event: "agent_event",
+          data: {
+            id: "run_e2e:0003",
+            run_id: "run_e2e",
+            sequence: 3,
+            event_type: "turn_complete",
+            phase: "turn",
+            title: "任务处理完成",
+            status: "completed",
+            at: "2026-04-26T09:35:02Z",
+            duration_ms: 1200,
+            payload: {},
+          },
+        },
+        { event: "conversation", data: conversation },
+      ]);
     }
     if (path === "/api/assistant/messages") {
       let payload: Record<string, unknown> = {};

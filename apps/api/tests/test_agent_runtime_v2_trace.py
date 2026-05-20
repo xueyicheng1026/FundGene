@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -6,6 +8,9 @@ from app.models.agent_evidence_ref import AgentEvidenceRef
 from app.models.agent_run import AgentRun
 from app.models.agent_step import AgentStep
 from app.models.agent_tool_call import AgentToolCall
+from app.models.user import UserProfile
+from app.runtime.v2.active_runs import get_active_agent_run_registry
+from app.runtime.v2.events import NullAgentRunEventSink
 from app.runtime.v2.features import build_runtime_capabilities
 from app.runtime.v2.orchestrator import AdvisorOrchestrator
 from app.runtime.v2.planner import AgentPlanner
@@ -19,6 +24,23 @@ from app.runtime.v2.schemas import (
 )
 from app.runtime.v2.tools.registry import ToolRegistry
 from app.schemas.assistant import AdvisorResponse
+
+
+def _parse_sse_events(text: str) -> list[tuple[str, dict]]:
+    events: list[tuple[str, dict]] = []
+    for block in text.strip().split("\n\n"):
+        if not block.strip():
+            continue
+        event_name = "message"
+        data = ""
+        for line in block.splitlines():
+            if line.startswith("event:"):
+                event_name = line.removeprefix("event:").strip()
+            if line.startswith("data:"):
+                data += line.removeprefix("data:").strip()
+        if data:
+            events.append((event_name, json.loads(data)))
+    return events
 
 
 def _onboard(client: TestClient, *, email: str = "agent-v2@example.com") -> None:
@@ -175,6 +197,105 @@ def test_agent_runtime_v2_persists_trace_and_exposes_owned_trace(
         assert session.scalar(select(func.count()).select_from(AgentStep)) == 12
         assert session.scalar(select(func.count()).select_from(AgentToolCall)) >= 2
         assert session.scalar(select(func.count()).select_from(AgentEvidenceRef)) >= 2
+
+    events_response = client.get(f"/api/assistant/runs/{run_id}/events")
+    assert events_response.status_code == 200
+    events_payload = events_response.json()
+    assert events_payload["schema_version"] == "agent_run_events_v1"
+    assert events_payload["run_id"] == run_id
+    events = events_payload["events"]
+    assert events[0]["event_type"] == "turn_started"
+    assert events[0]["phase"] == "turn"
+    assert events[-1]["event_type"] == "turn_complete"
+    assert events[-1]["status"] == "completed"
+    assert [event["sequence"] for event in events] == list(range(1, len(events) + 1))
+    assert {event["event_type"] for event in events} >= {
+        "step_completed",
+        "tool_call_completed",
+        "agent_message",
+    }
+    assert any(
+        event["event_type"] == "tool_call_completed"
+        and event["payload"]["permission_level"] == "read"
+        for event in events
+    )
+    assert any(
+        event["event_type"] == "agent_message"
+        and event["payload"]["message"]
+        for event in events
+    )
+
+
+def test_assistant_message_stream_emits_live_events_and_final_conversation(
+    client: TestClient,
+) -> None:
+    _onboard(client, email="agent-stream@example.com")
+
+    with client.stream(
+        "POST",
+        "/api/assistant/messages/stream",
+        json={"message": "帮我检查今天应该先看组合还是新闻。"},
+    ) as response:
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers["content-type"]
+        raw_stream = "".join(response.iter_text())
+
+    stream_events = _parse_sse_events(raw_stream)
+    agent_events = [
+        payload for event_name, payload in stream_events if event_name == "agent_event"
+    ]
+    conversation_payloads = [
+        payload for event_name, payload in stream_events if event_name == "conversation"
+    ]
+
+    assert conversation_payloads
+    assert conversation_payloads[-1]["messages"][-1]["role"] == "assistant"
+    assert conversation_payloads[-1]["messages"][-1]["agent_run_id"]
+    assert [event["sequence"] for event in agent_events] == list(
+        range(1, len(agent_events) + 1)
+    )
+    assert agent_events[0]["event_type"] == "turn_started"
+    assert agent_events[-1]["event_type"] == "turn_complete"
+    assert {event["event_type"] for event in agent_events} >= {
+        "step_started",
+        "step_completed",
+        "tool_call_started",
+        "tool_call_completed",
+        "agent_message",
+    }
+
+
+def test_active_agent_run_can_be_cancelled_by_owner(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _onboard(client, email="agent-cancel@example.com")
+
+    with session_factory() as session:
+        user = session.scalar(select(UserProfile).where(UserProfile.display_name == "Ava"))
+        assert user is not None
+        user_id = user.id
+
+    registry = get_active_agent_run_registry()
+    run_id = "run-cancel-test"
+    registry.register(
+        run_id=run_id,
+        session_id="session-cancel-test",
+        user_id=user_id,
+        event_sink=NullAgentRunEventSink(),
+    )
+    try:
+        response = client.post(f"/api/assistant/runs/{run_id}/cancel")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["run_id"] == run_id
+        assert payload["status"] == "cancelling"
+        assert payload["cancel_requested"] is True
+        snapshot = registry.get(run_id=run_id)
+        assert snapshot is not None
+        assert snapshot.cancel_requested is True
+    finally:
+        registry.unregister(run_id=run_id)
 
 
 def test_agent_policy_guard_blocks_trade_execution_request(

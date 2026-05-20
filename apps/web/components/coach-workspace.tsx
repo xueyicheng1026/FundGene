@@ -8,6 +8,7 @@ import {
   Activity,
   ArrowRight,
   Bot,
+  CircleStop,
   History,
   ListChecks,
   SendHorizontal,
@@ -17,6 +18,7 @@ import {
 
 import {
   ApiError,
+  cancelAgentRun,
   getAgentRunTrace,
   getAssistantConversation,
   getAssistantSession,
@@ -24,8 +26,9 @@ import {
   getBehaviorProfile,
   getDashboardState,
   getSessionUser,
-  sendAssistantMessage,
+  streamAssistantMessage,
   type AdvisorActionTarget,
+  type AgentRunEvent,
   type AgentRunTrace,
   type AssistantConversationMessage,
   type AssistantConversationState,
@@ -345,6 +348,69 @@ function getRunProgressSteps({
   ];
 }
 
+function getLiveRunProgressSteps(
+  events: AgentRunEvent[],
+): Array<{ label: string; detail: string; status: RunStepStatus }> {
+  return events
+    .filter((event) =>
+      [
+        "turn_started",
+        "step_started",
+        "step_completed",
+        "tool_call_started",
+        "tool_call_completed",
+        "turn_cancel_requested",
+        "turn_aborted",
+        "agent_message",
+        "turn_complete",
+      ].includes(event.eventType),
+    )
+    .slice(-8)
+    .map((event) => {
+      const isRunning =
+        event.status === "running" ||
+        event.status === "cancelling" ||
+        event.eventType.endsWith("_started");
+      return {
+        label: event.title,
+        detail: formatLiveRunEventDetail(event),
+        status: isRunning ? "active" : "done",
+      };
+    });
+}
+
+function formatLiveRunEventDetail(event: AgentRunEvent): string {
+  if (event.eventType === "turn_started") {
+    return "已接收任务，正在建立本轮上下文";
+  }
+  if (event.eventType === "tool_call_started") {
+    return "正在读取授权范围内的资料";
+  }
+  if (event.eventType === "tool_call_completed") {
+    return event.durationMs !== null
+      ? `资料读取完成，用时 ${event.durationMs}ms`
+      : "资料读取完成";
+  }
+  if (event.eventType === "agent_message") {
+    return "回答已经生成，正在同步会话";
+  }
+  if (event.eventType === "turn_complete") {
+    return "本轮任务已完成";
+  }
+  if (event.eventType === "turn_cancel_requested") {
+    return "已收到停止请求，正在结束当前步骤";
+  }
+  if (event.eventType === "turn_aborted") {
+    return "本轮整理已停止，没有替你确认长期记录";
+  }
+  if (event.eventType === "step_started") {
+    return "正在处理这一步";
+  }
+  return event.durationMs !== null
+    ? `这一步已完成，用时 ${event.durationMs}ms`
+    : "这一步已完成";
+}
+
 function RunStatusDot({ status }: { status: RunStepStatus }) {
   return (
     <span
@@ -498,18 +564,23 @@ function SessionRail({
 
 function AgentRunStatusPanel({
   trace,
+  liveEvents,
   loading,
   pending,
   dashboard,
   dailyBrief,
 }: {
   trace: AgentRunTrace | undefined;
+  liveEvents: AgentRunEvent[];
   loading: boolean;
   pending: boolean;
   dashboard: DashboardState;
   dailyBrief: DashboardDailyBrief | null;
 }) {
-  const steps = getRunProgressSteps({ trace, pending });
+  const steps =
+    liveEvents.length > 0
+      ? getLiveRunProgressSteps(liveEvents)
+      : getRunProgressSteps({ trace, pending });
   const coverageItems = [
     {
       label: "今日判断",
@@ -897,6 +968,9 @@ export function CoachWorkspace() {
   const [draft, setDraft] = useState(() => contextPrompt);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const [liveRunEvents, setLiveRunEvents] = useState<AgentRunEvent[]>([]);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [cancelNotice, setCancelNotice] = useState<string | null>(null);
   const [freshTaskMode, setFreshTaskMode] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [isCompactWorkspace, setIsCompactWorkspace] = useState(
@@ -1007,6 +1081,18 @@ export function CoachWorkspace() {
     retry: false,
   });
 
+  const cancelRunMutation = useMutation({
+    mutationFn: async (runId: string) => cancelAgentRun(runId),
+    onSuccess: (result) => {
+      setCancelNotice(result.message);
+    },
+    onError: (error) => {
+      setCancelNotice(
+        error instanceof Error ? error.message : "停止请求没有发送成功，请稍后重试。",
+      );
+    },
+  });
+
   const coachMutation = useMutation({
     mutationFn: async (message: string) => {
       const trimmedMessage = message.trim();
@@ -1014,32 +1100,58 @@ export function CoachWorkspace() {
         throw new Error("请先写下一个至少 4 个字符的问题。");
       }
 
-      return sendAssistantMessage({
-        message: trimmedMessage,
-        sessionId: freshTaskMode ? null : coachQuery.data?.session?.id ?? null,
-        startNewSession: freshTaskMode,
-        context: {
-          fromRoute: getQueryValue(searchParams, ["from", "from_route"]),
-          focus: getQueryValue(searchParams, ["focus"]),
-          dailyBriefId:
-            getQueryValue(searchParams, ["daily_brief_id", "dailyBriefId"]) ??
-            dashboardQuery.data?.dailyBrief?.briefId ??
-            null,
-          sourceIds: {
-            portfolio_analysis_id:
-              getQueryValue(searchParams, ["portfolio_analysis_id"]) ?? "",
-            portfolio_snapshot_id:
-              getQueryValue(searchParams, ["portfolio_snapshot_id"]) ?? "",
-            news_analysis_id: getQueryValue(searchParams, ["news_analysis_id"]) ?? "",
-            news_item_id: getQueryValue(searchParams, ["news_item_id"]) ?? "",
-            course_slug: getQueryValue(searchParams, ["course", "course_slug"]) ?? "",
-            section_slug: getQueryValue(searchParams, ["section", "section_slug"]) ?? "",
-            simulation_session_id:
-              getQueryValue(searchParams, ["simulation_session_id"]) ?? "",
-            scenario_id: getQueryValue(searchParams, ["scenario_id"]) ?? "",
+      return streamAssistantMessage(
+        {
+          message: trimmedMessage,
+          sessionId: freshTaskMode ? null : coachQuery.data?.session?.id ?? null,
+          startNewSession: freshTaskMode,
+          context: {
+            fromRoute: getQueryValue(searchParams, ["from", "from_route"]),
+            focus: getQueryValue(searchParams, ["focus"]),
+            dailyBriefId:
+              getQueryValue(searchParams, ["daily_brief_id", "dailyBriefId"]) ??
+              dashboardQuery.data?.dailyBrief?.briefId ??
+              null,
+            sourceIds: {
+              portfolio_analysis_id:
+                getQueryValue(searchParams, ["portfolio_analysis_id"]) ?? "",
+              portfolio_snapshot_id:
+                getQueryValue(searchParams, ["portfolio_snapshot_id"]) ?? "",
+              news_analysis_id: getQueryValue(searchParams, ["news_analysis_id"]) ?? "",
+              news_item_id: getQueryValue(searchParams, ["news_item_id"]) ?? "",
+              course_slug: getQueryValue(searchParams, ["course", "course_slug"]) ?? "",
+              section_slug: getQueryValue(searchParams, ["section", "section_slug"]) ?? "",
+              simulation_session_id:
+                getQueryValue(searchParams, ["simulation_session_id"]) ?? "",
+              scenario_id: getQueryValue(searchParams, ["scenario_id"]) ?? "",
+            },
           },
         },
-      });
+        {
+          onEvent: (event) => {
+            if (event.runId) {
+              setActiveRunId(event.runId);
+            }
+            if (event.eventType === "turn_cancel_requested") {
+              setCancelNotice("正在停止本次整理。");
+            }
+            if (event.eventType === "turn_aborted") {
+              setCancelNotice("已停止这次整理，没有写入新的长期记录。");
+            }
+            setLiveRunEvents((current) => {
+              if (current.some((item) => item.id === event.id)) {
+                return current;
+              }
+              return [...current, event].slice(-14);
+            });
+          },
+        },
+      );
+    },
+    onMutate: () => {
+      setLiveRunEvents([]);
+      setActiveRunId(null);
+      setCancelNotice(null);
     },
     onSuccess: async (conversation, submittedMessage) => {
       setDraft((currentDraft) =>
@@ -1048,6 +1160,7 @@ export function CoachWorkspace() {
       setPendingQuestion(null);
       setFreshTaskMode(false);
       setSubmitError(null);
+      setActiveRunId(null);
       setSelectedSessionId(conversation.session?.id ?? null);
       queryClient.setQueryData(
         ["coach-session", conversation.session?.id ?? null],
@@ -1059,6 +1172,7 @@ export function CoachWorkspace() {
     },
     onError: (error, submittedMessage) => {
       setPendingQuestion(null);
+      setActiveRunId(null);
       setDraft((currentDraft) => currentDraft || submittedMessage);
       setSubmitError(error instanceof Error ? error.message : "发送失败，请稍后重试。");
     },
@@ -1531,6 +1645,17 @@ export function CoachWorkspace() {
                     ? "确认发送"
                     : "发送"}
               </button>
+              {coachMutation.isPending && activeRunId ? (
+                <button
+                  type="button"
+                  className="action-button-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => cancelRunMutation.mutate(activeRunId)}
+                  disabled={cancelRunMutation.isPending}
+                >
+                  <CircleStop aria-hidden="true" className="size-4" />
+                  {cancelRunMutation.isPending ? "停止中" : "停止"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="action-button-secondary disabled:cursor-not-allowed disabled:opacity-60"
@@ -1542,7 +1667,7 @@ export function CoachWorkspace() {
             </div>
             <span className="agent-composer-hint text-xs leading-5 text-[color:var(--ink-muted)] sm:max-w-[21rem] sm:text-right">
               {coachMutation.isPending
-                ? "正在生成上一条回答；你可以先整理下一句。"
+                ? cancelNotice ?? "正在生成上一条回答；你可以先整理下一句。"
                 : isHandoffDraft
                   ? "从其他页面带来的问题不会自动发送，避免替你确认。"
                   : "回答会自动保留风险边界，并把建议转成下一步动作。"}
@@ -1560,6 +1685,7 @@ export function CoachWorkspace() {
         {!runPanelCollapsed ? (
           <AgentRunStatusPanel
             trace={traceQuery.data}
+            liveEvents={liveRunEvents}
             loading={traceQuery.isLoading}
             pending={coachMutation.isPending}
             dashboard={dashboard}

@@ -52,7 +52,9 @@ for (const route of visualRoutes) {
 
       if (
         viewport.label === "desktop" &&
-        (route.path === "/learning" ||
+        (route.path === "/today" ||
+          route.path === "/agent" ||
+          route.path === "/learning" ||
           route.path === "/news" ||
           route.path === "/simulation")
       ) {

@@ -29,7 +29,7 @@ import {
   toolNavigationItems,
   workspaceNavigationItems,
 } from "@/lib/navigation";
-import { cn, InlineNotice, Panel, StatusPill } from "./ui/primitives";
+import { cn, InlineNotice, Panel, ProgressBar, StatusPill } from "./ui/primitives";
 
 const navIcons: Record<string, LucideIcon> = {
   "/": Home,
@@ -256,12 +256,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="app-sidebar-brand">
               <Link
                 href="/"
-                className="app-sidebar-home flex min-w-0 items-center gap-1 text-[24px] font-semibold leading-none text-[color:var(--ink-strong)]"
+                className="app-sidebar-home flex min-w-0 items-center gap-3 text-[24px] font-semibold leading-none text-[color:var(--ink-strong)]"
                 aria-label="回到 FundGene 总览"
               >
-                <span className="text-[color:var(--accent-teal)]">F</span>
-                <span className={cn("truncate", sidebarCollapsed && "lg:sr-only")}>
-                  undGene
+                <span className="app-sidebar-logo" aria-hidden="true">
+                  F
+                </span>
+                <span className={cn("grid min-w-0 gap-1", sidebarCollapsed && "lg:sr-only")}>
+                  <span className="truncate">FundGene</span>
+                  <span className="app-sidebar-subtitle">Fund Investing Coach</span>
                 </span>
               </Link>
               <button
@@ -279,6 +282,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               </button>
             </div>
+
+            {sessionUser && !sidebarCollapsed ? (
+              <section
+                className="app-sidebar-profile-card"
+                aria-label="当前用户画像摘要"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="app-sidebar-medal" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-[color:var(--ink-strong)]">
+                      学徒基因诊断
+                    </p>
+                    <p className="mt-1 truncate text-xs font-semibold text-[color:var(--ink-muted)]">
+                      {sessionUser.primaryGoal ?? "新手成长型资产基因"}
+                    </p>
+                  </div>
+                </div>
+                <ProgressBar value={75} label="认知免疫度" className="mt-4" />
+              </section>
+            ) : null}
 
             <nav
               aria-label="FundGene 工作区导航"
@@ -301,7 +324,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       active && "figma-nav-item-active",
                     )}
                   >
-                    <Icon aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                    <span className="figma-nav-icon" aria-hidden="true">
+                      <Icon className="size-4" strokeWidth={2.25} />
+                    </span>
                     <span
                       className={cn(
                         "figma-nav-label",
@@ -339,7 +364,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       active && "figma-nav-item-active",
                     )}
                   >
-                    <Icon aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                    <span className="figma-nav-icon" aria-hidden="true">
+                      <Icon className="size-4" strokeWidth={2.25} />
+                    </span>
                     <span
                       className={cn(
                         "figma-nav-label",
@@ -359,7 +386,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   disabled={logoutMutation.isPending}
                   title="退出登录"
                 >
-                  <LogOut aria-hidden="true" className="size-4" />
+                  <span className="figma-nav-icon" aria-hidden="true">
+                    <LogOut className="size-4" />
+                  </span>
                   <span
                     className={cn(
                       "figma-nav-label",
@@ -392,24 +421,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="flex min-w-0 items-center justify-end gap-3">
-                <div className="hidden h-9 max-w-[460px] items-center gap-2 rounded-full border border-[color:var(--line-soft)] bg-white/70 px-3 text-xs font-medium text-[color:var(--ink-soft)] shadow-sm backdrop-blur-2xl xl:flex">
-                  <Compass aria-hidden="true" className="size-4 text-[color:var(--ink-muted)]" />
-                  <span className="truncate">把问题交给教练，查看它如何整理依据</span>
-                </div>
-                {sessionUser ? (
-                  <div className="flex h-9 min-w-0 items-center gap-2 rounded-full border border-[color:var(--line-soft)] bg-white/76 px-2.5 text-[color:var(--ink-strong)] shadow-sm backdrop-blur-2xl">
-                    <span className="hidden max-w-[9rem] truncate text-xs font-bold sm:block">
-                      {sessionUser.displayName ?? "学习者"}
-                    </span>
-                    <span className="grid size-7 flex-none place-items-center rounded-full bg-[color:var(--accent-teal)] text-[0.65rem] font-semibold text-white shadow-[0_8px_16px_rgba(0,113,227,0.18)]">
-                      FG
-                    </span>
-                  </div>
-                ) : (
+                {!sessionUser ? (
                   <Link href="/start" className="action-button compact-action-button">
                     登录 / 注册
                   </Link>
-                )}
+                ) : null}
               </div>
             </motion.header>
 

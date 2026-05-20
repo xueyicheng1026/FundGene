@@ -15,8 +15,17 @@ from app.models.user import UserProfile
 from app.runtime.advisor_agent import AdvisorAgentRuntime
 from app.runtime.toolchains.base import AdvisorUserContext
 from app.runtime.v2 import AdvisorOrchestrator
+from app.runtime.v2.active_runs import AgentRunCancelled
+from app.runtime.v2.active_runs import get_active_agent_run_registry
+from app.runtime.v2.events import AgentRunEventSink
+from app.runtime.v2.events import AgentTurnContext
+from app.runtime.v2.events import NullAgentRunEventSink
+from app.runtime.v2.events import event_phase_for_step
+from app.runtime.v2.events import event_title_for_step
 from app.runtime.v2.orchestrator import ORCHESTRATOR_VERSION
 from app.schemas.assistant import (
+    AgentRunEvent,
+    AgentRunEventsResponse,
     AgentRunTraceEvidenceRef,
     AgentRunTraceResponse,
     AgentRunTraceRun,
@@ -244,6 +253,21 @@ def _build_user_context_payload(
     }
 
 
+def _build_cancelled_advisor_response() -> AdvisorResponse:
+    return AdvisorResponse(
+        answer=(
+            "已停止这次整理。本轮不会替你确认任何长期记录，也不会改变画像或自动任务；"
+            "你可以调整问题后重新发送。"
+        ),
+        intent="runtime",
+        citations=[],
+        risk_notice="这次整理已停止，未形成投资建议，也不会替你买卖或下单。",
+        recommended_actions=["重新组织问题后再发送一次。"],
+        recommended_action_targets=[],
+        follow_up_questions=[],
+    )
+
+
 def _build_page_context_payload(
     payload: AssistantMessageRequest,
 ) -> dict[str, object] | None:
@@ -308,8 +332,10 @@ async def send_message(
     user: UserProfile,
     payload: AssistantMessageRequest,
     runtime: AdvisorAgentRuntime,
+    event_sink: AgentRunEventSink | None = None,
 ) -> AssistantConversationResponse:
     started_at = datetime.now(timezone.utc)
+    event_sink = event_sink or NullAgentRunEventSink()
     user_context = build_advisor_user_context(db, user=user)
     page_context = _build_page_context_payload(payload)
     session = (
@@ -381,37 +407,99 @@ async def send_message(
         max_workers=runtime.max_workers,
         deepseek_api_key_override=deepseek_api_key_override,
     )
-    run_result = await orchestrator.run(
-        db=db,
-        agent_run=agent_run,
+    active_run = get_active_agent_run_registry().register(
+        run_id=agent_run.id,
         session_id=session.id,
-        message=payload.message,
-        user_context=user_context,
-        page_context=page_context,
+        user_id=user.id,
+        event_sink=event_sink,
     )
+    turn_context = AgentTurnContext(
+        run_id=agent_run.id,
+        session_id=session.id,
+        user_id=user.id,
+        message=payload.message,
+        model_name=effective_model_name,
+        llm_settings_source=llm_settings_source,
+        page_context=page_context,
+        runtime_capabilities=orchestrator.capabilities,
+        current_date=started_at.date().isoformat(),
+        timezone="UTC",
+        event_sink=event_sink,
+        cancellation_token=active_run.cancellation_token,
+    )
+    event_sink.emit(
+        run_id=agent_run.id,
+        event_type="turn_started",
+        phase="turn",
+        title="开始处理任务",
+        status="running",
+        at=agent_run.started_at,
+        payload={
+            "session_id": session.id,
+            "model_name": effective_model_name,
+            "orchestrator_version": ORCHESTRATOR_VERSION,
+            "llm_settings_source": llm_settings_source,
+            "page_context": page_context,
+            "runtime_capabilities": orchestrator.capabilities.model_dump(mode="json"),
+        },
+    )
+    try:
+        run_result = await orchestrator.run(
+            db=db,
+            agent_run=agent_run,
+            session_id=session.id,
+            message=payload.message,
+            user_context=user_context,
+            page_context=page_context,
+            turn_context=turn_context,
+        )
+    except AgentRunCancelled:
+        run_result = None
+    finally:
+        get_active_agent_run_registry().unregister(run_id=agent_run.id)
     completed_at = datetime.now(timezone.utc)
 
-    agent_run.run_status = run_result.run_status
-    agent_run.intent = run_result.intent
-    agent_run.policy_status = run_result.policy_status
-    agent_run.latency_ms = run_result.latency_ms
-    agent_run.context_snapshot = run_result.context_snapshot.model_dump(mode="json")
-    agent_run.context_snapshot_version = run_result.context_snapshot.schema_version
-    agent_run.output_payload = run_result.response.model_dump(mode="json")
-    agent_run.tool_trace = {
-        **(run_result.tool_trace or {}),
-        "user_message_id": user_message.id,
-        "page_context": page_context,
-    }
-    agent_run.fallback_reason = run_result.fallback_reason
+    if run_result is None:
+        cancelled_response = _build_cancelled_advisor_response()
+        agent_run.run_status = "cancelled"
+        agent_run.intent = "runtime"
+        agent_run.policy_status = "cancelled"
+        agent_run.latency_ms = max(0, round((completed_at - started_at).total_seconds() * 1000))
+        agent_run.context_snapshot = None
+        agent_run.context_snapshot_version = None
+        agent_run.output_payload = cancelled_response.model_dump(mode="json")
+        agent_run.tool_trace = {
+            **(agent_run.tool_trace or {}),
+            "user_message_id": user_message.id,
+            "page_context": page_context,
+            "cancelled": True,
+            "cancel_reason": "user_requested_cancel",
+        }
+        agent_run.fallback_reason = "user_requested_cancel"
+        response = cancelled_response
+    else:
+        agent_run.run_status = run_result.run_status
+        agent_run.intent = run_result.intent
+        agent_run.policy_status = run_result.policy_status
+        agent_run.latency_ms = run_result.latency_ms
+        agent_run.context_snapshot = run_result.context_snapshot.model_dump(mode="json")
+        agent_run.context_snapshot_version = run_result.context_snapshot.schema_version
+        agent_run.output_payload = run_result.response.model_dump(mode="json")
+        agent_run.tool_trace = {
+            **(run_result.tool_trace or {}),
+            "user_message_id": user_message.id,
+            "page_context": page_context,
+        }
+        agent_run.fallback_reason = run_result.fallback_reason
+        response = run_result.response
     agent_run.completed_at = completed_at
 
     assistant_message = ChatMessage(
         session_id=session.id,
         role="assistant",
-        content=run_result.response.answer,
+        content=response.answer,
         message_type="advisor_response",
-        structured_payload=run_result.response.model_dump(mode="json"),
+        structured_payload=response.model_dump(mode="json"),
         agent_run_id=agent_run.id,
         created_at=completed_at,
     )
@@ -427,6 +515,35 @@ async def send_message(
     db.add(session)
     db.add(agent_run)
     db.commit()
+
+    event_sink.emit(
+        run_id=agent_run.id,
+        event_type="agent_message",
+        phase="message",
+        title="生成给用户的回答",
+        status="completed",
+        at=completed_at,
+        payload={
+            "message": response.answer,
+            "intent": response.intent,
+            "citations": response.citations,
+            "recommended_actions": response.recommended_actions,
+        },
+    )
+    event_sink.emit(
+        run_id=agent_run.id,
+        event_type="turn_complete",
+        phase="turn",
+        title="任务处理完成",
+        status=agent_run.run_status,
+        at=completed_at,
+        duration_ms=agent_run.latency_ms,
+        payload={
+            "fallback_reason": agent_run.fallback_reason,
+            "context_snapshot_version": agent_run.context_snapshot_version,
+            "assistant_message_id": assistant_message.id,
+        },
+    )
 
     return get_current_conversation(db, user=user)
 
@@ -544,3 +661,170 @@ def get_agent_run_trace(
             for proposal in proposals
         ],
     )
+
+
+def get_agent_run_events(
+    db: Session,
+    *,
+    user: UserProfile,
+    run_id: str,
+) -> AgentRunEventsResponse:
+    agent_run = db.get(AgentRun, run_id)
+    if agent_run is None or agent_run.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Requested agent run events do not exist for the current user.",
+        )
+
+    steps = list(
+        db.scalars(
+            select(AgentStep)
+            .where(AgentStep.run_id == run_id)
+            .order_by(AgentStep.sequence.asc(), AgentStep.created_at.asc())
+        )
+    )
+    tool_calls = list(
+        db.scalars(
+            select(AgentToolCall)
+            .where(AgentToolCall.run_id == run_id)
+            .order_by(AgentToolCall.created_at.asc(), AgentToolCall.id.asc())
+        )
+    )
+    tools_by_step: dict[str | None, list[AgentToolCall]] = {}
+    for tool_call in tool_calls:
+        tools_by_step.setdefault(tool_call.step_id, []).append(tool_call)
+
+    events: list[AgentRunEvent] = []
+
+    def append_event(
+        *,
+        event_type: str,
+        phase: str,
+        title: str,
+        status_text: str,
+        at: datetime | None,
+        duration_ms: int | None = None,
+        payload: dict | None = None,
+    ) -> None:
+        events.append(
+            AgentRunEvent(
+                id=f"{run_id}:{len(events) + 1:04d}",
+                run_id=run_id,
+                sequence=len(events) + 1,
+                event_type=event_type,
+                phase=phase,
+                title=title,
+                status=status_text,
+                at=at,
+                duration_ms=duration_ms,
+                payload=payload or {},
+            )
+        )
+
+    append_event(
+        event_type="turn_started",
+        phase="turn",
+        title="开始处理任务",
+        status_text="completed" if agent_run.run_status == "completed" else "running",
+        at=agent_run.started_at,
+        payload={
+            "intent": agent_run.intent,
+            "model_name": agent_run.model_name,
+            "orchestrator_version": agent_run.orchestrator_version,
+            "policy_status": agent_run.policy_status,
+        },
+    )
+
+    for step in steps:
+        step_phase = _event_phase_for_step(step.step_name)
+        append_event(
+            event_type="step_completed",
+            phase=step_phase,
+            title=_event_title_for_step(step.step_name),
+            status_text=step.status,
+            at=step.completed_at or step.started_at,
+            duration_ms=step.latency_ms,
+            payload={
+                "step_id": step.id,
+                "step_name": step.step_name,
+                "input": step.input_payload,
+                "output": step.output_payload,
+                "error": step.error,
+            },
+        )
+        for tool_call in tools_by_step.get(step.id, []):
+            append_event(
+                event_type="tool_call_completed",
+                phase="tool",
+                title=f"读取工具：{tool_call.tool_name}",
+                status_text=tool_call.status,
+                at=tool_call.completed_at or tool_call.started_at,
+                duration_ms=tool_call.latency_ms,
+                payload={
+                    "tool_call_id": tool_call.id,
+                    "tool_name": tool_call.tool_name,
+                    "permission_level": tool_call.permission_level,
+                    "input": tool_call.input_payload,
+                    "output": tool_call.output_payload,
+                    "error": tool_call.error,
+                },
+            )
+
+    for tool_call in tools_by_step.get(None, []):
+        append_event(
+            event_type="tool_call_completed",
+            phase="tool",
+            title=f"读取工具：{tool_call.tool_name}",
+            status_text=tool_call.status,
+            at=tool_call.completed_at or tool_call.started_at,
+            duration_ms=tool_call.latency_ms,
+            payload={
+                "tool_call_id": tool_call.id,
+                "tool_name": tool_call.tool_name,
+                "permission_level": tool_call.permission_level,
+                "input": tool_call.input_payload,
+                "output": tool_call.output_payload,
+                "error": tool_call.error,
+            },
+        )
+
+    answer = (agent_run.output_payload or {}).get("answer")
+    if isinstance(answer, str) and answer:
+        append_event(
+            event_type="agent_message",
+            phase="message",
+            title="生成给用户的回答",
+            status_text="completed",
+            at=agent_run.completed_at,
+            payload={
+                "message": answer,
+                "intent": (agent_run.output_payload or {}).get("intent"),
+                "citations": (agent_run.output_payload or {}).get("citations"),
+                "recommended_actions": (agent_run.output_payload or {}).get(
+                    "recommended_actions"
+                ),
+            },
+        )
+
+    append_event(
+        event_type="turn_complete",
+        phase="turn",
+        title="任务处理完成",
+        status_text=agent_run.run_status,
+        at=agent_run.completed_at,
+        duration_ms=agent_run.latency_ms,
+        payload={
+            "fallback_reason": agent_run.fallback_reason,
+            "context_snapshot_version": agent_run.context_snapshot_version,
+        },
+    )
+
+    return AgentRunEventsResponse(run_id=run_id, events=events)
+
+
+def _event_phase_for_step(step_name: str) -> str:
+    return event_phase_for_step(step_name)
+
+
+def _event_title_for_step(step_name: str) -> str:
+    return event_title_for_step(step_name)

@@ -376,6 +376,30 @@ export type AgentRunTrace = {
   stateUpdateProposals: JsonObject[];
 };
 
+export type AgentRunEvent = {
+  id: string;
+  runId: string;
+  sequence: number;
+  eventType: string;
+  phase: string;
+  title: string;
+  status: string;
+  at: string | null;
+  durationMs: number | null;
+  payload: JsonObject;
+};
+
+export type AssistantMessageStreamHandlers = {
+  onEvent?: (event: AgentRunEvent) => void;
+};
+
+export type AgentRunCancelResult = {
+  runId: string;
+  status: string;
+  cancelRequested: boolean;
+  message: string;
+};
+
 export type PortfolioHoldingInput = {
   fundCode: string;
   fundName: string;
@@ -1662,6 +1686,38 @@ function parseAgentRunTrace(
       "stateUpdateProposals",
       "state_update_proposals",
     ]).map((item) => asObject(item)),
+  };
+}
+
+function parseAgentRunEvent(input: unknown): AgentRunEvent {
+  const source = asObject(input);
+  const sequence = pickNumber(source, ["sequence"]) ?? 0;
+
+  return {
+    id:
+      pickString(source, ["id", "event_id", "eventId"]) ??
+      `agent-event-${sequence}`,
+    runId: pickString(source, ["runId", "run_id"]) ?? "",
+    sequence,
+    eventType:
+      pickString(source, ["eventType", "event_type", "type"]) ?? "runtime_event",
+    phase: pickString(source, ["phase"]) ?? "runtime",
+    title: pickString(source, ["title"]) ?? "整理任务",
+    status: pickString(source, ["status"]) ?? "completed",
+    at: pickString(source, ["at"]),
+    durationMs: pickNumber(source, ["durationMs", "duration_ms"]),
+    payload: pickObject(source, ["payload"]),
+  };
+}
+
+function parseAgentRunCancelResult(input: unknown, runId: string): AgentRunCancelResult {
+  const source = asObject(input);
+  return {
+    runId: pickString(source, ["runId", "run_id"]) ?? runId,
+    status: pickString(source, ["status"]) ?? "unknown",
+    cancelRequested:
+      asBoolean(source.cancelRequested) || asBoolean(source.cancel_requested),
+    message: pickString(source, ["message"]) ?? "已请求停止本次整理。",
   };
 }
 
@@ -3148,29 +3204,135 @@ export async function getAssistantConversation(
 export async function sendAssistantMessage(
   input: AssistantMessageInput,
 ): Promise<AssistantConversationState> {
+  const body = buildAssistantMessageBody(input);
   const payload = await request("/api/assistant/messages", {
     method: "POST",
-    body: {
-      message: input.message.trim(),
-      session_id: input.sessionId ?? undefined,
-      start_new_session: input.startNewSession ?? false,
-      context: input.context
-        ? {
-            from_route: input.context.fromRoute ?? undefined,
-            focus: input.context.focus ?? undefined,
-            source_ids: input.context.sourceIds ?? undefined,
-            daily_brief_id: input.context.dailyBriefId ?? undefined,
-          }
-        : undefined,
-    },
+    body,
   });
 
   return parseAssistantConversation(payload);
 }
 
+export async function streamAssistantMessage(
+  input: AssistantMessageInput,
+  handlers: AssistantMessageStreamHandlers = {},
+): Promise<AssistantConversationState> {
+  const url = `${resolveApiBase()}/api/assistant/messages/stream`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildAssistantMessageBody(input)),
+    cache: "no-store",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    let message = "request failed";
+    try {
+      const payload = asObject(await response.json());
+      message = formatErrorDetail(payload.detail) ?? message;
+    } catch {
+      const text = await response.text();
+      message = text || message;
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  if (!response.body) {
+    return sendAssistantMessage(input);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let conversation: AssistantConversationState | null = null;
+
+  const handleBlock = (block: string) => {
+    const lines = block.split(/\r?\n/);
+    const eventName =
+      lines
+        .find((line) => line.startsWith("event:"))
+        ?.slice("event:".length)
+        .trim() ?? "message";
+    const data = lines
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice("data:".length).trim())
+      .join("\n");
+
+    if (!data) {
+      return;
+    }
+
+    const payload = JSON.parse(data) as unknown;
+    if (eventName === "agent_event") {
+      handlers.onEvent?.(parseAgentRunEvent(payload));
+      return;
+    }
+    if (eventName === "conversation") {
+      conversation = parseAssistantConversation(payload);
+      return;
+    }
+    if (eventName === "error") {
+      const message = pickString(asObject(payload), ["message"]) ?? "发送失败，请稍后重试。";
+      throw new ApiError(500, message);
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const block = buffer.slice(0, boundary).trim();
+      buffer = buffer.slice(boundary + 2);
+      if (block) {
+        handleBlock(block);
+      }
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    handleBlock(buffer.trim());
+  }
+
+  if (conversation) {
+    return conversation;
+  }
+
+  throw new ApiError(500, "Agent 已开始处理，但没有返回最终会话。");
+}
+
+function buildAssistantMessageBody(input: AssistantMessageInput): JsonObject {
+  return {
+    message: input.message.trim(),
+    session_id: input.sessionId ?? undefined,
+    start_new_session: input.startNewSession ?? false,
+    context: input.context
+      ? {
+          from_route: input.context.fromRoute ?? undefined,
+          focus: input.context.focus ?? undefined,
+          source_ids: input.context.sourceIds ?? undefined,
+          daily_brief_id: input.context.dailyBriefId ?? undefined,
+        }
+      : undefined,
+  };
+}
+
 export async function getAgentRunTrace(runId: string): Promise<AgentRunTrace> {
   const payload = await request(`/api/assistant/runs/${runId}/trace`, {});
   return parseAgentRunTrace(payload, runId);
+}
+
+export async function cancelAgentRun(runId: string): Promise<AgentRunCancelResult> {
+  const payload = await request(`/api/assistant/runs/${runId}/cancel`, {
+    method: "POST",
+  });
+  return parseAgentRunCancelResult(payload, runId);
 }
 
 export async function createPortfolioSnapshot(

@@ -12,7 +12,11 @@ from app.models.agent_tool_call import AgentToolCall
 from app.runtime.action_targets import build_recommended_action_targets
 from app.runtime.follow_up_prompts import build_user_follow_up_prompts
 from app.runtime.toolchains.base import AdvisorUserContext
+from app.runtime.v2.active_runs import AgentRunCancelled
 from app.runtime.v2.composer import ResponseComposer
+from app.runtime.v2.events import AgentTurnContext
+from app.runtime.v2.events import event_phase_for_step
+from app.runtime.v2.events import event_title_for_step
 from app.runtime.v2.features import RuntimeCapabilityConfig, build_runtime_capabilities
 from app.runtime.v2.planner import AgentPlanner
 from app.runtime.v2.policy import SafetyPolicy
@@ -95,6 +99,7 @@ class AdvisorOrchestrator:
             "simulation": SimulationWorker(),
             "news": NewsWorker(),
         }
+        self._turn_context: AgentTurnContext | None = None
 
     async def run(
         self,
@@ -105,8 +110,11 @@ class AdvisorOrchestrator:
         message: str,
         user_context: AdvisorUserContext,
         page_context: dict[str, object] | None = None,
+        turn_context: AgentTurnContext | None = None,
     ) -> OrchestratorRunResult:
+        self._turn_context = turn_context
         run_started = perf_counter()
+        self._raise_if_cancelled()
         input_policy = self.policy.check_input(message)
         execution_policy = input_policy
         contextual_message = self._contextualize_message(
@@ -121,6 +129,7 @@ class AdvisorOrchestrator:
             input_payload={"message": message, "page_context": page_context},
             output_payload=input_policy.model_dump(mode="json"),
         )
+        self._raise_if_cancelled()
 
         plan = self.planner.build_plan(
             message=contextual_message,
@@ -151,6 +160,7 @@ class AdvisorOrchestrator:
             },
             output_payload=plan.model_dump(mode="json"),
         )
+        self._raise_if_cancelled()
 
         snapshot = self._build_snapshot(user_context)
         evidence_service = EvidenceService(db)
@@ -165,6 +175,7 @@ class AdvisorOrchestrator:
                 "page_context": page_context,
             },
         )
+        self._raise_if_cancelled()
 
         plan_validation = self._validate_plan(
             plan,
@@ -206,6 +217,7 @@ class AdvisorOrchestrator:
                 ),
             },
         )
+        self._raise_if_cancelled()
 
         selected_tools = plan.tool_names
         self._record_step(
@@ -226,6 +238,7 @@ class AdvisorOrchestrator:
                 },
             },
         )
+        self._raise_if_cancelled()
 
         tool_step = self._record_step(
             db,
@@ -237,18 +250,21 @@ class AdvisorOrchestrator:
             status="running",
             completed=False,
         )
-        tool_results = [
-            self._execute_tool(
-                db,
-                run_id=agent_run.id,
-                step_id=tool_step.id,
-                tool_name=tool_name,
-                snapshot=snapshot,
-                query=contextual_message,
-                evidence_service=evidence_service,
+        tool_results = []
+        for tool_name in selected_tools:
+            self._raise_if_cancelled()
+            tool_results.append(
+                self._execute_tool(
+                    db,
+                    run_id=agent_run.id,
+                    step_id=tool_step.id,
+                    tool_name=tool_name,
+                    snapshot=snapshot,
+                    query=contextual_message,
+                    evidence_service=evidence_service,
+                )
             )
-            for tool_name in selected_tools
-        ]
+            self._raise_if_cancelled()
         self._complete_step(
             tool_step,
             output_payload={
@@ -260,6 +276,7 @@ class AdvisorOrchestrator:
                 ),
             },
         )
+        self._raise_if_cancelled()
 
         worker_step = self._record_step(
             db,
@@ -284,11 +301,13 @@ class AdvisorOrchestrator:
             tool_results=tool_results,
             input_policy=execution_policy,
         )
+        self._raise_if_cancelled()
         worker_output = self._aggregate_worker_outputs(
             plan=plan,
             worker_outputs=worker_outputs,
             input_policy=execution_policy,
         )
+        self._raise_if_cancelled()
         self._persist_evidence_refs(
             db,
             run_id=agent_run.id,
@@ -300,6 +319,7 @@ class AdvisorOrchestrator:
             run_id=agent_run.id,
             worker_output=worker_output,
         )
+        self._raise_if_cancelled()
         self._complete_step(
             worker_step,
             output_payload={
@@ -322,18 +342,21 @@ class AdvisorOrchestrator:
             input_payload=worker_output.model_dump(mode="json"),
             output_payload=worker_validation.model_dump(mode="json"),
         )
+        self._raise_if_cancelled()
 
         deterministic_response = self._compose_deterministic_response(
             intent=intent,
             worker_output=worker_output,
             input_policy=execution_policy,
         )
+        self._raise_if_cancelled()
         compose_result = await self.composer.compose(
             intent=intent,
             worker_output=worker_output,
             input_policy=execution_policy,
             deterministic_response=deterministic_response,
         )
+        self._raise_if_cancelled()
         draft_response = compose_result.response
         output_policy = (
             execution_policy
@@ -348,6 +371,7 @@ class AdvisorOrchestrator:
             input_payload={"intent": intent},
             output_payload=output_policy.model_dump(mode="json"),
         )
+        self._raise_if_cancelled()
         if output_policy.status == "revise" and output_policy.revised_answer:
             draft_response.answer = output_policy.revised_answer
 
@@ -384,6 +408,7 @@ class AdvisorOrchestrator:
             input_payload=draft_response.model_dump(mode="json"),
             output_payload=final_validation.model_dump(mode="json"),
         )
+        self._raise_if_cancelled()
 
         latency_ms = self._elapsed_ms(run_started)
         return OrchestratorRunResult(
@@ -1146,6 +1171,19 @@ class AdvisorOrchestrator:
         status = "completed"
         error = None
         output_payload = None
+        self._emit_event(
+            run_id=run_id,
+            event_type="tool_call_started",
+            phase="tool",
+            title=f"读取工具：{tool_name}",
+            status="running",
+            at=started_at,
+            payload={
+                "tool_name": tool_name,
+                "permission_level": "read",
+                "step_id": step_id,
+            },
+        )
         try:
             result = self.tools.execute(
                 tool_name=tool_name,
@@ -1161,23 +1199,41 @@ class AdvisorOrchestrator:
             raise
         finally:
             completed_at = datetime.now(timezone.utc)
-            db.add(
-                AgentToolCall(
-                    run_id=run_id,
-                    step_id=step_id,
-                    tool_name=tool_name,
-                    permission_level="read",
-                    input_payload={"snapshot_version": snapshot.schema_version},
-                    output_payload=output_payload,
-                    status=status,
-                    error=error,
-                    latency_ms=self._elapsed_ms(started),
-                    started_at=started_at,
-                    completed_at=completed_at,
-                    created_at=started_at,
-                )
+            latency_ms = self._elapsed_ms(started)
+            tool_call = AgentToolCall(
+                run_id=run_id,
+                step_id=step_id,
+                tool_name=tool_name,
+                permission_level="read",
+                input_payload={"snapshot_version": snapshot.schema_version},
+                output_payload=output_payload,
+                status=status,
+                error=error,
+                latency_ms=latency_ms,
+                started_at=started_at,
+                completed_at=completed_at,
+                created_at=started_at,
             )
+            db.add(tool_call)
             db.flush()
+            self._emit_event(
+                run_id=run_id,
+                event_type="tool_call_completed",
+                phase="tool",
+                title=f"读取工具：{tool_name}",
+                status=status,
+                at=completed_at,
+                duration_ms=latency_ms,
+                payload={
+                    "tool_call_id": tool_call.id,
+                    "tool_name": tool_name,
+                    "permission_level": "read",
+                    "step_id": step_id,
+                    "input": tool_call.input_payload,
+                    "output": output_payload,
+                    "error": error,
+                },
+            )
 
     def _record_step(
         self,
@@ -1206,6 +1262,32 @@ class AdvisorOrchestrator:
         )
         db.add(step)
         db.flush()
+        self._emit_step_event(
+            event_type="step_started",
+            step=step,
+            at=now,
+            payload={
+                "step_id": step.id,
+                "step_name": step_name,
+                "input": input_payload,
+            },
+            status="running",
+        )
+        if completed:
+            self._emit_step_event(
+                event_type="step_completed",
+                step=step,
+                at=now,
+                duration_ms=step.latency_ms,
+                payload={
+                    "step_id": step.id,
+                    "step_name": step_name,
+                    "input": input_payload,
+                    "output": output_payload,
+                    "error": step.error,
+                },
+                status=status,
+            )
         return step
 
     def _complete_step(self, step: AgentStep, *, output_payload: dict) -> None:
@@ -1218,6 +1300,86 @@ class AdvisorOrchestrator:
                 0,
                 round((now - step.started_at).total_seconds() * 1000),
             )
+        self._emit_step_event(
+            event_type="step_completed",
+            step=step,
+            at=now,
+            duration_ms=step.latency_ms,
+            payload={
+                "step_id": step.id,
+                "step_name": step.step_name,
+                "input": step.input_payload,
+                "output": output_payload,
+                "error": step.error,
+            },
+            status=step.status,
+        )
+
+    def _emit_step_event(
+        self,
+        *,
+        event_type: str,
+        step: AgentStep,
+        at: datetime,
+        payload: dict,
+        status: str,
+        duration_ms: int | None = None,
+    ) -> None:
+        self._emit_event(
+            run_id=step.run_id,
+            event_type=event_type,
+            phase=event_phase_for_step(step.step_name),
+            title=event_title_for_step(step.step_name),
+            status=status,
+            at=at,
+            duration_ms=duration_ms,
+            payload=payload,
+        )
+
+    def _emit_event(
+        self,
+        *,
+        run_id: str,
+        event_type: str,
+        phase: str,
+        title: str,
+        status: str,
+        at: datetime | None = None,
+        duration_ms: int | None = None,
+        payload: dict | None = None,
+    ) -> None:
+        if self._turn_context is None:
+            return
+        self._turn_context.event_sink.emit(
+            run_id=run_id,
+            event_type=event_type,
+            phase=phase,
+            title=title,
+            status=status,
+            at=at,
+            duration_ms=duration_ms,
+            payload=payload or {},
+        )
+
+    def _raise_if_cancelled(self) -> None:
+        token = (
+            self._turn_context.cancellation_token
+            if self._turn_context is not None
+            else None
+        )
+        if token is not None and token.cancel_requested:
+            self._emit_event(
+                run_id=self._turn_context.run_id,
+                event_type="turn_aborted",
+                phase="turn",
+                title="已停止本次整理",
+                status="cancelled",
+                payload={
+                    "reason": "user_requested_cancel",
+                    "message": "用户停止了本次整理。",
+                },
+            )
+            raise AgentRunCancelled("user_requested_cancel")
 
     def _persist_evidence_refs(
         self,

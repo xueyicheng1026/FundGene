@@ -186,3 +186,29 @@ class AgentRunTraceResponse(BaseModel):
     state_update_proposals: list[AgentRunTraceStateUpdateProposal] = Field(
         default_factory=list
     )
+
+
+class AgentRunEvent(BaseModel):
+    id: str
+    run_id: str
+    sequence: int
+    event_type: str
+    phase: str
+    title: str
+    status: str
+    at: datetime | None = None
+    duration_ms: int | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentRunEventsResponse(BaseModel):
+    schema_version: str = "agent_run_events_v1"
+    run_id: str
+    events: list[AgentRunEvent] = Field(default_factory=list)
+
+
+class AgentRunCancelResponse(BaseModel):
+    run_id: str
+    status: str
+    cancel_requested: bool
+    message: str
