@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.agent_evidence_ref import AgentEvidenceRef
 from app.models.agent_run import AgentRun
+from app.models.agent_run_event import AgentRunEventRecord
 from app.models.agent_step import AgentStep
 from app.models.agent_tool_call import AgentToolCall
 from app.models.user import UserProfile
@@ -197,6 +198,7 @@ def test_agent_runtime_v2_persists_trace_and_exposes_owned_trace(
         assert session.scalar(select(func.count()).select_from(AgentStep)) == 12
         assert session.scalar(select(func.count()).select_from(AgentToolCall)) >= 2
         assert session.scalar(select(func.count()).select_from(AgentEvidenceRef)) >= 2
+        assert session.scalar(select(func.count()).select_from(AgentRunEventRecord)) >= 20
 
     events_response = client.get(f"/api/assistant/runs/{run_id}/events")
     assert events_response.status_code == 200
@@ -210,7 +212,9 @@ def test_agent_runtime_v2_persists_trace_and_exposes_owned_trace(
     assert events[-1]["status"] == "completed"
     assert [event["sequence"] for event in events] == list(range(1, len(events) + 1))
     assert {event["event_type"] for event in events} >= {
+        "step_started",
         "step_completed",
+        "tool_call_started",
         "tool_call_completed",
         "agent_message",
     }

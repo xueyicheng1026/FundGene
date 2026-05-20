@@ -37,6 +37,9 @@ def event_title_for_step(step_name: str) -> str:
 
 
 class AgentRunEventSink(Protocol):
+    def emit_existing(self, event: AgentRunEvent) -> None:
+        ...
+
     def emit(
         self,
         *,
@@ -53,6 +56,9 @@ class AgentRunEventSink(Protocol):
 
 
 class NullAgentRunEventSink:
+    def emit_existing(self, event: AgentRunEvent) -> None:
+        return None
+
     def emit(
         self,
         *,
@@ -83,6 +89,13 @@ class QueueAgentRunEventSink:
     def __init__(self, queue: asyncio.Queue[AgentRunEvent]) -> None:
         self.queue = queue
         self._sequences: dict[str, int] = {}
+
+    def emit_existing(self, event: AgentRunEvent) -> None:
+        self._sequences[event.run_id] = max(
+            self._sequences.get(event.run_id, 0),
+            event.sequence,
+        )
+        self.queue.put_nowait(event)
 
     def emit(
         self,

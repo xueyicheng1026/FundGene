@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.agent_run import AgentRun
+from app.models.agent_run_event import AgentRunEventRecord
 from app.models.agent_evidence_ref import AgentEvidenceRef
 from app.models.agent_state_update_proposal import AgentStateUpdateProposal
 from app.models.agent_step import AgentStep
@@ -39,6 +40,8 @@ from app.schemas.assistant import (
     AssistantSessionListResponse,
     AssistantSessionSummary,
 )
+from app.services.agent_run_events import DurableAgentRunEventSink
+from app.services.agent_run_events import serialize_agent_run_event_record
 from app.services.behavior import get_behavior_profile
 from app.services.behavior import get_behavior_training_plan
 from app.services.learning import get_learning_overview
@@ -335,7 +338,11 @@ async def send_message(
     event_sink: AgentRunEventSink | None = None,
 ) -> AssistantConversationResponse:
     started_at = datetime.now(timezone.utc)
-    event_sink = event_sink or NullAgentRunEventSink()
+    downstream_event_sink = event_sink or NullAgentRunEventSink()
+    event_sink = DurableAgentRunEventSink(
+        db,
+        downstream=downstream_event_sink,
+    )
     user_context = build_advisor_user_context(db, user=user)
     page_context = _build_page_context_payload(payload)
     session = (
@@ -411,7 +418,7 @@ async def send_message(
         run_id=agent_run.id,
         session_id=session.id,
         user_id=user.id,
-        event_sink=event_sink,
+        event_sink=downstream_event_sink,
     )
     turn_context = AgentTurnContext(
         run_id=agent_run.id,
@@ -514,7 +521,6 @@ async def send_message(
     session.updated_at = completed_at
     db.add(session)
     db.add(agent_run)
-    db.commit()
 
     event_sink.emit(
         run_id=agent_run.id,
@@ -544,6 +550,7 @@ async def send_message(
             "assistant_message_id": assistant_message.id,
         },
     )
+    db.commit()
 
     return get_current_conversation(db, user=user)
 
@@ -674,6 +681,25 @@ def get_agent_run_events(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Requested agent run events do not exist for the current user.",
+        )
+
+    persisted_events = list(
+        db.scalars(
+            select(AgentRunEventRecord)
+            .where(AgentRunEventRecord.run_id == run_id)
+            .order_by(
+                AgentRunEventRecord.sequence.asc(),
+                AgentRunEventRecord.created_at.asc(),
+            )
+        )
+    )
+    if persisted_events:
+        return AgentRunEventsResponse(
+            run_id=run_id,
+            events=[
+                serialize_agent_run_event_record(event)
+                for event in persisted_events
+            ],
         )
 
     steps = list(

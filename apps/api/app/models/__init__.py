@@ -1,6 +1,7 @@
 """ORM models for persistence."""
 
 from app.models.agent_run import AgentRun
+from app.models.agent_run_event import AgentRunEventRecord
 from app.models.agent_evidence_ref import AgentEvidenceRef
 from app.models.agent_state_update_proposal import AgentStateUpdateProposal
 from app.models.agent_step import AgentStep
@@ -36,6 +37,7 @@ from app.models.user_llm_setting import UserLlmSetting
 
 __all__ = [
     "AgentRun",
+    "AgentRunEventRecord",
     "AgentEvidenceRef",
     "AgentStateUpdateProposal",
     "AgentStep",

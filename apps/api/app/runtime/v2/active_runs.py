@@ -78,15 +78,6 @@ class ActiveAgentRunRegistry:
             if active_run is None or active_run.user_id != user_id:
                 return None
             active_run.cancellation_token.request_cancel()
-            active_run.event_sink.emit(
-                run_id=run_id,
-                event_type="turn_cancel_requested",
-                phase="turn",
-                title="正在停止本次整理",
-                status="cancelling",
-                at=datetime.now(timezone.utc),
-                payload={"reason": "user_requested_cancel"},
-            )
             return self._snapshot(active_run)
 
     def unregister(self, *, run_id: str) -> None:
