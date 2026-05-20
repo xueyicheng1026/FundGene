@@ -18,6 +18,7 @@ import { InlineNotice, StatusPill } from "./ui/primitives";
 type AuthMode = "sign-in" | "sign-up";
 const REMEMBERED_EMAIL_KEY = "fundgene:last-auth-email";
 const SESSION_CHECK_SLOW_MS = 6_000;
+const SESSION_CHECK_RETRY_LIMIT = 3;
 
 function getRememberedEmail(): string {
   if (typeof window === "undefined") {
@@ -45,6 +46,30 @@ function resolveNextPath(nextPath: string | null, session: SessionUser): string 
   return nextPath;
 }
 
+function shouldRetrySessionCheck(failureCount: number, error: Error): boolean {
+  if (error instanceof ApiError && error.status === 401) {
+    return false;
+  }
+
+  return failureCount < SESSION_CHECK_RETRY_LIMIT;
+}
+
+function getAuthErrorMessage(error: unknown, mode: AuthMode): string {
+  if (mode === "sign-in" && error instanceof ApiError && [401, 404].includes(error.status)) {
+    return "账号不存在或密码不正确。还没有账号的话，请先创建账号并开始建档。";
+  }
+
+  if (error instanceof ApiError && error.status === 408) {
+    return "服务正在启动，通常需要 20-60 秒。请稍等一下再试一次。";
+  }
+
+  if (error instanceof ApiError && error.status >= 500) {
+    return "认证服务还在恢复中，请稍等一下再试。";
+  }
+
+  return error instanceof Error ? error.message : "请求失败，请稍后重试。";
+}
+
 export function AuthEntry() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,7 +85,8 @@ export function AuthEntry() {
   const sessionQuery = useQuery({
     queryKey: ["session-user"],
     queryFn: getSessionUser,
-    retry: false,
+    retry: shouldRetrySessionCheck,
+    retryDelay: (attemptIndex) => Math.min(4_000 * (attemptIndex + 1), 12_000),
   });
 
   useEffect(() => {
@@ -123,25 +149,9 @@ export function AuthEntry() {
         setSubmitError("这个邮箱已经注册过了，已为你切到登录。输入原密码即可继续。");
         return;
       }
-      if (mode === "sign-in") {
-        setSubmitError(
-          "账号不存在或密码不正确。还没有账号的话，请先创建账号并开始建档。",
-        );
-        return;
-      }
-      setSubmitError(error instanceof Error ? error.message : "请求失败，请稍后重试。");
+      setSubmitError(getAuthErrorMessage(error, mode));
     },
   });
-
-  if (sessionQuery.isLoading) {
-    return (
-      <InlineNotice>
-        {sessionCheckSlow
-          ? "认证服务正在唤醒，可能需要几十秒。还没连上前不会假装登录。"
-          : "正在检查登录状态..."}
-      </InlineNotice>
-    );
-  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -348,16 +358,24 @@ export function AuthEntry() {
 
                 {submitError ? <InlineNotice tone="danger">{submitError}</InlineNotice> : null}
 
+                {sessionQuery.isLoading ? (
+                  <InlineNotice>
+                    {sessionCheckSlow
+                      ? "服务正在启动，通常需要 20-60 秒。准备好后会自动继续。"
+                      : "正在检查登录状态..."}
+                  </InlineNotice>
+                ) : null}
+
                 {authMutation.isPending ? (
                   <InlineNotice>
-                    正在连接认证服务；如果服务刚唤醒，可能需要稍等几十秒。
+                    正在连接认证服务；如果这是第一次打开，可能需要 20-60 秒。
                   </InlineNotice>
                 ) : null}
 
                 {sessionQuery.error instanceof ApiError &&
                 sessionQuery.error.status !== 401 ? (
-                  <InlineNotice tone="danger">
-                    当前认证服务不可用：{sessionQuery.error.message}
+                  <InlineNotice>
+                    认证服务还在启动中，请稍等或重新点击登录/创建账号。
                   </InlineNotice>
                 ) : null}
               </form>

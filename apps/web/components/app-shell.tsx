@@ -45,6 +45,16 @@ const navIcons: Record<string, LucideIcon> = {
   "/simulation": PlayCircle,
   "/news": Newspaper,
 };
+const SESSION_CHECK_SLOW_MS = 6_000;
+const SESSION_CHECK_RETRY_LIMIT = 3;
+
+function shouldRetrySessionCheck(failureCount: number, error: Error): boolean {
+  if (error instanceof ApiError && error.status === 401) {
+    return false;
+  }
+
+  return failureCount < SESSION_CHECK_RETRY_LIMIT;
+}
 
 function getWorkspaceItem(pathname: string) {
   return workspaceNavigationItems.find((item) => {
@@ -103,11 +113,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
     return window.localStorage.getItem("fundgene-sidebar-collapsed") === "true";
   });
+  const [sessionCheckSlow, setSessionCheckSlow] = useState(false);
   const sessionQuery = useQuery({
     queryKey: ["session-user"],
     queryFn: getSessionUser,
     networkMode: "always",
-    retry: false,
+    retry: shouldRetrySessionCheck,
+    retryDelay: (attemptIndex) => Math.min(4_000 * (attemptIndex + 1), 12_000),
   });
   const logoutMutation = useMutation({
     mutationFn: logoutAuthSession,
@@ -131,6 +143,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }, [sidebarCollapsed]);
 
+  useEffect(() => {
+    if (!sessionQuery.isLoading) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setSessionCheckSlow(true), SESSION_CHECK_SLOW_MS);
+    return () => window.clearTimeout(timer);
+  }, [sessionQuery.isLoading]);
+
   const loginHref = `/start?next=${encodeURIComponent(pathname)}`;
 
   if (!isPublicOverview && sessionQuery.isLoading) {
@@ -140,7 +161,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <StatusPill tone="accent">会话</StatusPill>
           <h1 className="mt-4 text-3xl font-semibold">正在验证登录会话</h1>
           <p className="mt-4 text-sm leading-7 text-[color:var(--ink-soft)]">
-            正在读取当前账号状态。
+            {sessionCheckSlow
+              ? "服务正在启动，通常需要 20-60 秒。准备好后会自动继续。"
+              : "正在读取当前账号状态。"}
           </p>
         </Panel>
       </div>
@@ -190,8 +213,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!isPublicOverview && (sessionQuery.error || !sessionQuery.data)) {
     return (
       <div className="figma-app-shell grid min-h-screen place-items-center px-4">
-        <InlineNotice tone="danger" className="w-full max-w-[640px]">
-          无法初始化当前登录会话：{sessionQuery.error?.message ?? "未知错误"}
+        <InlineNotice className="w-full max-w-[640px]">
+          服务还在启动中，请稍等后刷新；若已经看到登录页，也可以重新登录继续。
         </InlineNotice>
       </div>
     );

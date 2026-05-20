@@ -975,7 +975,7 @@ async function request(path: string, options: RequestOptions): Promise<unknown> 
     if (error instanceof Error && error.name === "AbortError") {
       throw new ApiError(
         408,
-        "服务正在唤醒或网络较慢，请稍后重试。页面不会假装生成结果。",
+        "服务正在启动，通常需要 20-60 秒。请稍等一下，系统会继续重试。",
       );
     }
     throw error;
@@ -3046,7 +3046,7 @@ export async function logoutAuthSession(): Promise<void> {
 }
 
 export async function getSessionUser(): Promise<SessionUser> {
-  const payload = await request("/api/auth/session", { timeoutMs: 20_000 });
+  const payload = await request("/api/auth/session", { timeoutMs: 60_000 });
   return parseSessionUser(payload);
 }
 
