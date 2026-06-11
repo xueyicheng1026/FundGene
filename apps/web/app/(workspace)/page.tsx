@@ -1,157 +1,206 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  Bot,
+  CalendarCheck,
+  CheckCircle2,
+  FileText,
+  GraduationCap,
+  Newspaper,
+  PlayCircle,
+  ShieldCheck,
+  SlidersHorizontal,
+} from "lucide-react";
 
 import { cn } from "@/components/ui/primitives";
 
-const commandSurfaces = [
+const primaryTasks = [
   {
-    title: "今日",
-    eyebrow: "今日简报",
-    description: "打开后先看到今日判断、原因和安全下一步。",
+    title: "看今日判断",
+    eyebrow: "Today",
+    description: "先知道今天最该检查什么，以及哪些信息不能当成买卖信号。",
     href: "/today",
-    status: "主入口",
-    weight: "home",
+    accent: "blue",
+    icon: CalendarCheck,
   },
   {
-    title: "Agent",
-    eyebrow: "Workspace",
-    description: "布置任务，看 Agent 如何读取画像、检查组合、整理资讯并生成建议。",
+    title: "交给 Agent",
+    eyebrow: "Ask",
+    description: "把问题交给教练整理，得到解释、边界和可执行下一步。",
     href: "/agent",
-    status: "执行",
-    weight: "agent",
+    accent: "teal",
+    icon: Bot,
+  },
+  {
+    title: "确认资料",
+    eyebrow: "Context",
+    description: "管理风险画像、组合状态和需要你确认的长期记录。",
+    href: "/profile",
+    accent: "ink",
+    icon: FileText,
+  },
+];
+
+const toolEntries = [
+  {
+    title: "学习训练",
+    description: "把概念学习压缩成今天可完成的一步。",
+    href: "/learning",
+    icon: GraduationCap,
+  },
+  {
+    title: "资讯解读",
+    description: "把新闻拆成事实、影响路径和不确定性。",
+    href: "/news",
+    icon: Newspaper,
+  },
+  {
+    title: "模拟训练",
+    description: "用历史情境练一次不冲动的判断。",
+    href: "/simulation",
+    icon: PlayCircle,
   },
   {
     title: "自动任务",
-    eyebrow: "授权",
-    description: "控制每日简报、组合巡检、资讯观察和行为偏差观察的授权范围。",
+    description: "配置每日观察、组合巡检和行为观察。",
     href: "/automations",
-    status: "授权",
-    weight: "automation",
-  },
-  {
-    title: "我的资料",
-    eyebrow: "Context",
-    description: "管理画像、组合、行为证据、学习状态，以及需要确认的资料变化。",
-    href: "/profile",
-    status: "资料",
-    weight: "profile",
+    icon: SlidersHorizontal,
   },
 ];
 
-const agentSteps = [
-  "读取授权资料",
-  "形成今日判断",
-  "展示证据和限制",
-  "等待用户确认",
+const timeline = [
+  ["授权资料", "只读取你允许进入判断的画像、组合和学习记录。"],
+  ["生成简报", "把分散信息整理成一个今日判断和一个安全下一步。"],
+  ["进入任务", "需要追问时跳到 Agent，保留来源和上下文。"],
+  ["确认写回", "涉及长期画像和行为结论时，先进入待确认状态。"],
 ];
 
-const rules = [
-  "Agent 可以分析、总结、提醒和准备建议。",
-  "关键画像和长期计划保存前必须确认。",
-  "不连接券商，不执行交易，不承诺收益。",
+const guardrails = [
+  "不连接券商",
+  "不承诺收益",
+  "写回先确认",
 ];
 
 export default function OverviewPage() {
   return (
-    <div className="space-y-4">
-      <section className="command-hero relative overflow-hidden px-4 py-4 sm:px-5 lg:px-6">
-        <div className="relative grid gap-4 xl:grid-cols-[minmax(0,1fr)_310px]">
-          <div className="min-w-0">
-            <p className="section-kicker">Agent Command Center</p>
-            <h1 className="mt-2 max-w-4xl text-4xl font-semibold leading-tight tracking-normal text-[color:var(--ink-strong)] sm:text-5xl xl:text-6xl">
-              先让 Agent 看完，再由你确认下一步。
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--ink-soft)]">
-              FundGene 把画像、持仓、资讯、学习和训练记录收束成一个每日简报。你不需要先翻模块，先看 Agent 已经整理出的判断。
+    <main className="workspace-home-page">
+      <div className="workspace-home-board">
+        <section className="workspace-home-hero">
+          <div className="workspace-home-copy">
+            <p className="section-kicker">FundGene Workspace</p>
+            <h1>工作区</h1>
+            <p>
+              一个入口完成今日观察、Agent 分析、资料确认和训练推进。
             </p>
-            <div className="mt-4 flex flex-wrap gap-2.5">
+            <div className="workspace-home-actions">
               <Link href="/today" className="action-button">
                 查看今日简报
+                <ArrowRight aria-hidden="true" className="size-4" />
               </Link>
               <Link href="/agent" className="action-button-secondary">
-                交给 Agent 分析
+                交给 Agent
               </Link>
             </div>
           </div>
 
-          <aside className="focus-card p-3">
-            <p className="section-kicker">Agent 工作流</p>
-            <div className="mt-3 space-y-2">
-              {agentSteps.map((item, index) => (
-                <div key={item} className="focus-step">
+          <aside className="workspace-home-brief" aria-label="今日工作区摘要">
+            <div className="workspace-home-brief-header">
+              <div>
+                <p className="section-kicker">Today Brief</p>
+                <h2>先看一个判断</h2>
+              </div>
+              <span>75%</span>
+            </div>
+            <div className="workspace-home-brief-main">
+              <p>今天先检查组合集中度，不急着响应单条新闻。</p>
+              <small>组合、资讯、学习记录进入同一条任务链。</small>
+            </div>
+            <div className="workspace-home-signal-grid">
+              <span>组合已检查</span>
+              <span>画像已建立</span>
+              <span>行为待观察</span>
+            </div>
+          </aside>
+        </section>
+
+        <section className="workspace-home-primary" aria-label="核心任务入口">
+          {primaryTasks.map((task) => {
+            const Icon = task.icon;
+            return (
+              <Link
+                key={task.title}
+                href={task.href}
+                className={cn(
+                  "workspace-home-task",
+                  task.accent === "blue" && "workspace-home-task-primary",
+                )}
+              >
+                <span className="workspace-home-task-icon">
+                  <Icon aria-hidden="true" className="size-5" />
+                </span>
+                <span className="section-kicker">{task.eyebrow}</span>
+                <strong>{task.title}</strong>
+                <span>{task.description}</span>
+                <ArrowRight aria-hidden="true" className="workspace-home-arrow size-4" />
+              </Link>
+            );
+          })}
+        </section>
+
+        <section className="workspace-home-lower" aria-label="工作区辅助信息">
+          <div className="workspace-home-flow">
+            <div className="workspace-home-section-copy">
+              <p className="section-kicker">任务链条</p>
+              <h2>观察到确认</h2>
+            </div>
+            <div className="workspace-home-timeline">
+              {timeline.map(([title, description], index) => (
+                <div key={title} className="workspace-home-step">
                   <span>{String(index + 1).padStart(2, "0")}</span>
-                  <p>{item}</p>
+                  <div>
+                    <strong>{title}</strong>
+                    <p>{description}</p>
+                  </div>
                 </div>
               ))}
             </div>
-          </aside>
-        </div>
-      </section>
+          </div>
 
-      <section className="overview-console grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_310px]">
-        <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="section-kicker">四个主入口</p>
-              <h2 className="mt-2 text-3xl font-semibold leading-tight tracking-normal text-[color:var(--ink-strong)]">
-                模块降级为工具，Agent 成为主角。
-              </h2>
+          <div className="workspace-home-tools" aria-label="工具入口">
+            <div className="workspace-home-section-copy">
+              <p className="section-kicker">工具入口</p>
+              <h2>模块为任务服务</h2>
             </div>
-            <p className="max-w-md text-sm leading-6 text-[color:var(--ink-soft)]">
-              组合、资讯、学习和训练仍然存在，但从今日简报、Agent 任务和资料中心进入。
-            </p>
+            <div className="workspace-home-tool-grid">
+              {toolEntries.map((tool) => {
+                const Icon = tool.icon;
+                return (
+                  <Link key={tool.title} href={tool.href} className="workspace-home-tool">
+                    <Icon aria-hidden="true" className="size-4 text-[color:var(--accent-teal)]" />
+                    <strong>{tool.title}</strong>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {commandSurfaces.map((surface, index) => (
-              <Link
-                key={surface.title}
-                href={surface.href}
-                className={cn(
-                  "module-tile group relative overflow-hidden px-4 py-3.5",
-                  surface.weight === "home" && "module-tile-primary",
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="section-kicker">{surface.eyebrow}</p>
-                    <h3 className="mt-2 text-2xl font-semibold leading-none tracking-normal text-[color:var(--ink-strong)]">
-                      {surface.title}
-                    </h3>
-                  </div>
-                  <span className="module-index">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
+          <div className="workspace-home-guardrails">
+            <div>
+              <p className="section-kicker">安全边界</p>
+              <h2>自动整理，不自动决策</h2>
+            </div>
+            <div className="workspace-home-guardrail-list">
+              {guardrails.map((item) => (
+                <div key={item}>
+                  <CheckCircle2 aria-hidden="true" className="size-4" />
+                  <span>{item}</span>
                 </div>
-                <p className="mt-3 hidden min-h-20 text-sm leading-6 text-[color:var(--ink-soft)] sm:block">
-                  {surface.description}
-                </p>
-                <div className="mt-3 flex items-center justify-between gap-3 border-t border-[color:var(--line-soft)] pt-3">
-                  <span className="text-xs font-semibold text-[color:var(--accent-teal)]">
-                    Agent
-                  </span>
-                  <span className="rounded-full border border-[rgba(40,83,62,0.16)] bg-white/60 px-2.5 py-1 text-xs font-bold text-[color:var(--ink-soft)]">
-                    {surface.status}
-                  </span>
-                </div>
-              </Link>
-            ))}
+              ))}
+            </div>
+            <ShieldCheck aria-hidden="true" className="workspace-home-shield size-10" />
           </div>
-        </div>
-
-        <aside className="rule-panel p-4">
-          <p className="section-kicker">自动化边界</p>
-          <h2 className="mt-2 text-xl font-semibold leading-tight tracking-normal text-[color:var(--ink-strong)] sm:text-2xl">
-            自动看完，提醒确认，不替你交易。
-          </h2>
-          <div className="mt-4 hidden space-y-2.5 sm:block">
-            {rules.map((rule) => (
-              <div key={rule} className="rule-row">
-                {rule}
-              </div>
-            ))}
-          </div>
-        </aside>
-      </section>
-    </div>
+        </section>
+      </div>
+    </main>
   );
 }

@@ -17,7 +17,7 @@ test("renders the primary workspace routes with mocked API state", async ({
 }) => {
   const routes = [
     { path: "/today", text: "今日简报" },
-    { path: "/agent", text: "教练工作区" },
+    { path: "/agent", text: "Agent 工作区" },
     { path: "/automations", text: "自动任务" },
     { path: "/profile", text: "待确认资料" },
     { path: "/portfolio", text: "组合画像结论" },
@@ -106,6 +106,7 @@ test("coach keeps internal trace details out of the user-facing answer", async (
   await expect(page.getByTestId("agent-run-status")).toContainText(
     "生成给用户的回答",
   );
+  await expect(page.getByTestId("agent-run-status")).toContainText("本次整理已完成。");
   await expect(page.getByText("下一句可以问").first()).not.toBeVisible();
   await expect(page.getByText("证据链路")).toHaveCount(0);
   await expect(page.getByText("Run ID: run_e2e")).toHaveCount(0);
@@ -128,6 +129,16 @@ test("agent mobile keeps the active task surface before supporting panels", asyn
   expect(activeSessionBox).not.toBeNull();
   await expect(page.getByTestId("agent-session-rail")).toHaveCount(0);
   await expect(page.getByTestId("agent-run-status")).toHaveCount(0);
+  const mobileNavigation = page.getByRole("navigation", {
+    name: "FundGene 工作区导航",
+  });
+  await expect(mobileNavigation.getByText("今日")).toBeVisible();
+  await expect(mobileNavigation.getByText("Agent")).toBeVisible();
+  await expect(mobileNavigation.getByText("自动任务")).toBeVisible();
+  await expect(mobileNavigation.getByText("资料")).toBeVisible();
+  await expect(mobileNavigation.getByText("学习训练")).not.toBeVisible();
+  await expect(mobileNavigation.getByText("资讯解读")).not.toBeVisible();
+  await expect(mobileNavigation.getByText("模拟训练")).not.toBeVisible();
 });
 
 test("agent new session opens a blank task surface", async ({ page }) => {
@@ -139,6 +150,32 @@ test("agent new session opens a blank task surface", async ({ page }) => {
   await expect(page.getByText("今天想先问清楚什么？")).toBeVisible();
   await expect(page.getByRole("log").locator(".coach-message")).toHaveCount(0);
   await expect(page.locator("textarea")).toBeFocused();
+});
+
+test("agent example task jumps to the portfolio analysis view", async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
+  await page.goto("/agent", { waitUntil: "domcontentloaded" });
+
+  await page.getByRole("button", { name: "新会话" }).click();
+  await page
+    .locator("textarea")
+    .fill("帮我检查这份组合里最需要关注的风险来源。");
+  await page.getByRole("button", { name: "发送" }).click();
+
+  const portfolioAction = page.getByRole("link", { name: /查看持仓分析/ }).first();
+  await expect(portfolioAction).toBeVisible({ timeout: 15_000 });
+  await expect(portfolioAction).toHaveAttribute(
+    "href",
+    "/portfolio?from=agent&focus=concentration",
+  );
+
+  await portfolioAction.click();
+  await expect(page).toHaveURL(/\/portfolio\?from=agent&focus=concentration/);
+  await expect(page.getByText("来自 Agent 的持仓分析")).toBeVisible();
+  await expect(page.getByText("先看第一大持仓、资产分布和集中度。")).toBeVisible();
+  await expect(page.getByText("资产分布", { exact: true })).toBeVisible();
+  await expect(page.getByText("持仓权重", { exact: true })).toBeVisible();
+  await expect(page.getByText("第一大持仓").first()).toBeVisible();
 });
 
 test("agent history reloads a saved conversation and continues it", async ({
@@ -170,6 +207,734 @@ test("agent history reloads a saved conversation and continues it", async ({
     messageLog.getByText("可以，我们接着用同一套三步检查来看这次冲动。").first(),
   ).toBeVisible();
   await expect(messageLog.locator(".coach-message")).toHaveCount(6);
+});
+
+test("agent recovers the conversation when the stream misses the final payload", async ({
+  page,
+}) => {
+  const recoveryRequests: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (
+      path === "/api/assistant/runs/run_e2e/status" ||
+      path === "/api/assistant/sessions/session_e2e"
+    ) {
+      recoveryRequests.push(path);
+    }
+  });
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/agent", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "新会话" }).click();
+  await expect(
+    page.getByText("回撤可以理解为基金净值从阶段高点跌到低点的幅度。"),
+  ).toHaveCount(0);
+  await page.locator("textarea").fill("触发流式恢复测试");
+  await page.getByRole("button", { name: "发送" }).click();
+
+  await expect(
+    page.getByText("回撤可以理解为基金净值从阶段高点跌到低点的幅度。"),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("agent-run-status")).toContainText(
+    "任务处理完成",
+  );
+  await expect(page.getByText("Agent 已开始处理，但没有返回最终会话。")).toHaveCount(0);
+  expect(recoveryRequests).toContain("/api/assistant/sessions/session_e2e");
+});
+
+test("agent recovers the conversation when the stream ends with a recoverable error", async ({
+  page,
+}) => {
+  const recoveryRequests: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (
+      path === "/api/assistant/runs/run_stream_error_recover_e2e/status" ||
+      path === "/api/assistant/sessions/session_e2e"
+    ) {
+      recoveryRequests.push(path);
+    }
+  });
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/agent", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "新会话" }).click();
+  await page.locator("textarea").fill("触发错误恢复测试");
+  await page.getByRole("button", { name: "发送" }).click();
+
+  await expect(
+    page.getByText("回撤可以理解为基金净值从阶段高点跌到低点的幅度。"),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("流式连接在最终会话返回前断开。")).toHaveCount(0);
+  expect(recoveryRequests).toContain(
+    "/api/assistant/runs/run_stream_error_recover_e2e/status",
+  );
+  expect(recoveryRequests).toContain("/api/assistant/sessions/session_e2e");
+});
+
+test("agent keeps the run active when the stream disconnects before terminal state", async ({
+  page,
+}) => {
+  const recoveryRequests: string[] = [];
+  const eventReplayCursors: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    const path = url.pathname;
+    if (
+      path === "/api/assistant/runs/run_active_disconnect_e2e/status" ||
+      path === "/api/assistant/sessions/session_e2e"
+    ) {
+      recoveryRequests.push(path);
+    }
+    if (path === "/api/assistant/runs/run_active_disconnect_e2e/events") {
+      eventReplayCursors.push(url.searchParams.get("after_sequence") ?? "");
+    }
+  });
+  await page.route(
+    "**/api/assistant/runs/run_active_disconnect_e2e/events",
+    async (route) => {
+      const afterSequence = Number(
+        new URL(route.request().url()).searchParams.get("after_sequence") ?? 0,
+      );
+      const events = [
+        {
+          id: "run_active_disconnect_e2e:0001",
+          run_id: "run_active_disconnect_e2e",
+          sequence: 1,
+          event_type: "turn_started",
+          phase: "turn",
+          title: "开始处理任务",
+          status: "running",
+          at: "2026-04-26T09:35:00Z",
+          duration_ms: null,
+          payload: {},
+        },
+        {
+          id: "run_active_disconnect_e2e:0002",
+          run_id: "run_active_disconnect_e2e",
+          sequence: 2,
+          event_type: "step_started",
+          phase: "context",
+          title: "读取授权上下文",
+          status: "running",
+          at: "2026-04-26T09:35:01Z",
+          duration_ms: null,
+          payload: {},
+        },
+        {
+          id: "run_active_disconnect_e2e:0003",
+          run_id: "run_active_disconnect_e2e",
+          sequence: 3,
+          event_type: "input_queued",
+          phase: "input",
+          title: "下一句已排队",
+          status: "queued",
+          at: "2026-04-26T09:35:02Z",
+          duration_ms: null,
+          payload: { message_preview: "这条 replay 事件不应被 live 事件吞掉。" },
+        },
+      ];
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "agent_run_events_v1",
+          run_id: "run_active_disconnect_e2e",
+          events: events.filter((event) => event.sequence > afterSequence),
+        }),
+      });
+    },
+  );
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/agent", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "新会话" }).click();
+  await page.locator("textarea").fill("触发活跃流断开测试");
+  await page.getByRole("button", { name: "发送" }).click();
+
+  await expect(
+    page.getByText("触发活跃流断开测试", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("正在结合你的画像和这轮问题组织回答..."),
+  ).toBeVisible();
+  await expect(page.getByTestId("agent-run-status")).toContainText("正在整理");
+  await expect(page.getByTestId("agent-run-status")).toContainText(
+    "本次整理正在当前进程中运行。",
+  );
+  await expect(page.getByTestId("agent-run-status")).toContainText("下一句已排队");
+  await expect(page.getByTestId("agent-run-status")).toContainText(
+    "已收到下一句，会等本轮完成后再发送",
+  );
+  await expect(
+    page.getByText("回撤可以理解为基金净值从阶段高点跌到低点的幅度。"),
+  ).toHaveCount(0);
+  expect(recoveryRequests).toContain(
+    "/api/assistant/runs/run_active_disconnect_e2e/status",
+  );
+  expect(eventReplayCursors).toContain("2");
+  expect(recoveryRequests).not.toContain("/api/assistant/sessions/session_e2e");
+});
+
+test("agent discovers an active run after reload and keeps stop available", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  let queuedFollowUpMessage: string | null = null;
+  let queuedFollowUpDiscarded = false;
+  let runCancelled = false;
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (
+      path === "/api/assistant/runs/active" ||
+      path === "/api/assistant/runs/run_active_e2e/status" ||
+      path === "/api/assistant/runs/run_active_e2e/events" ||
+      path === "/api/assistant/runs/run_active_e2e/queued-follow-up" ||
+      path === "/api/assistant/runs/run_active_e2e/cancel"
+    ) {
+      requests.push(path);
+    }
+  });
+
+  await page.route("**/api/assistant/runs/active**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "active_agent_runs_v1",
+        runs: runCancelled
+          ? []
+          : [
+              {
+                schema_version: "agent_run_status_v1",
+                run_id: "run_active_e2e",
+                session_id: "session_e2e",
+                status: "running",
+                run_status: "running",
+                active: true,
+                cancel_requested: false,
+                started_at: "2026-04-26T09:45:00Z",
+                completed_at: null,
+                latency_ms: null,
+                message: "本次整理正在当前进程中运行。",
+              },
+            ],
+      }),
+    });
+  });
+  await page.route("**/api/assistant/runs/run_active_e2e/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "agent_run_status_v1",
+        run_id: "run_active_e2e",
+        session_id: "session_e2e",
+        status: runCancelled ? "cancelled" : "running",
+        run_status: runCancelled ? "cancelled" : "running",
+        active: !runCancelled,
+        cancel_requested: runCancelled,
+        started_at: "2026-04-26T09:45:00Z",
+        completed_at: runCancelled ? "2026-04-26T09:45:16Z" : null,
+        latency_ms: runCancelled ? 16_000 : null,
+        message: runCancelled ? "本次整理已停止，没有替你确认长期记录。" : "本次整理正在当前进程中运行。",
+      }),
+    });
+  });
+  await page.route(
+    "**/api/assistant/runs/run_active_e2e/queued-follow-up",
+    async (route) => {
+      const payload = route.request().postDataJSON() as { message?: string };
+      queuedFollowUpMessage = payload.message ?? "";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "queued_follow_up_v1",
+          queued_follow_up: {
+            id: "queued_active_e2e",
+            session_id: "session_e2e",
+            queued_after_run_id: "run_active_e2e",
+            message: queuedFollowUpMessage,
+            status: "queued",
+            created_at: "2026-04-26T09:45:10Z",
+            submitted_at: null,
+            discarded_at: null,
+          },
+          message: "已排队，上一条完成后发送。",
+        }),
+      });
+    },
+  );
+  await page.route("**/api/assistant/runs/run_active_e2e/events", async (route) => {
+    const events = [
+      {
+        id: "run_active_e2e:0001",
+        run_id: "run_active_e2e",
+        sequence: 1,
+        event_type: "turn_started",
+        phase: "turn",
+        title: "开始处理任务",
+        status: "running",
+        at: "2026-04-26T09:45:00Z",
+        duration_ms: null,
+        payload: {},
+      },
+    ];
+    if (queuedFollowUpMessage) {
+      events.push({
+        id: "run_active_e2e:0002",
+        run_id: "run_active_e2e",
+        sequence: 2,
+        event_type: "input_queued",
+        phase: "input",
+        title: "下一句已排队",
+        status: "queued",
+        at: "2026-04-26T09:45:10Z",
+        duration_ms: null,
+        payload: { message_preview: queuedFollowUpMessage },
+      });
+    }
+    if (queuedFollowUpDiscarded) {
+      events.push({
+        id: "run_active_e2e:0003",
+        run_id: "run_active_e2e",
+        sequence: 3,
+        event_type: "input_discarded",
+        phase: "input",
+        title: "停止后已取消排队下一句",
+        status: "discarded",
+        at: "2026-04-26T09:45:15Z",
+        duration_ms: null,
+        payload: { message_preview: queuedFollowUpMessage ?? "" },
+      });
+    }
+    if (runCancelled) {
+      events.push(
+        {
+          id: "run_active_e2e:0004",
+          run_id: "run_active_e2e",
+          sequence: 4,
+          event_type: "agent_message",
+          phase: "message",
+          title: "同步停止说明",
+          status: "cancelled",
+          at: "2026-04-26T09:45:16Z",
+          duration_ms: null,
+          payload: {},
+        },
+        {
+          id: "run_active_e2e:0005",
+          run_id: "run_active_e2e",
+          sequence: 5,
+          event_type: "turn_closed",
+          phase: "turn",
+          title: "本轮已停止",
+          status: "cancelled",
+          at: "2026-04-26T09:45:16Z",
+          duration_ms: 16_000,
+          payload: {},
+        },
+      );
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "agent_run_events_v1",
+        run_id: "run_active_e2e",
+        events,
+      }),
+    });
+  });
+  await page.route("**/api/assistant/runs/run_active_e2e/cancel", async (route) => {
+    queuedFollowUpDiscarded = Boolean(queuedFollowUpMessage);
+    runCancelled = true;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        run_id: "run_active_e2e",
+        status: "cancelling",
+        cancel_requested: true,
+        message: "已请求停止本次整理，排队的下一句不会自动发送。",
+      }),
+    });
+  });
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/agent", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByTestId("agent-run-status")).toContainText("正在整理");
+  await expect(page.getByRole("button", { name: "停止" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "生成中" })).toBeDisabled();
+  await page.locator("textarea").fill("再帮我接着看新闻影响。");
+  const queueRequest = page.waitForRequest((request) => {
+    const path = new URL(request.url()).pathname;
+    return path === "/api/assistant/runs/run_active_e2e/queued-follow-up";
+  });
+  await page.getByRole("button", { name: "排队发送" }).click();
+  await queueRequest;
+  await expect(
+    page.getByText("再帮我接着看新闻影响。", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("上一条完成后发送；如果上一条被停止或失败")).toBeVisible();
+  await expect(page.getByTestId("agent-run-status")).toContainText("下一句已排队");
+  await expect(page.getByTestId("agent-run-status")).toContainText(
+    "已收到下一句，会等本轮完成后再发送",
+  );
+  const cancelRequest = page.waitForRequest((request) => {
+    const path = new URL(request.url()).pathname;
+    return path === "/api/assistant/runs/run_active_e2e/cancel";
+  });
+  await page.getByRole("button", { name: "停止" }).click();
+  await cancelRequest;
+  await expect(
+    page.getByText("再帮我接着看新闻影响。", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByTestId("agent-run-status")).toContainText("已停止");
+  await expect(page.getByTestId("agent-run-status")).toContainText("本轮已停止");
+  await expect(page.getByTestId("agent-run-status")).toContainText(
+    "本轮已停止，未作为正常完成处理",
+  );
+  await expect(page.getByTestId("agent-run-status")).not.toContainText("本轮任务已完成");
+  expect(requests).toContain("/api/assistant/runs/active");
+  expect(requests).toContain("/api/assistant/runs/run_active_e2e/status");
+  expect(requests).toContain("/api/assistant/runs/run_active_e2e/events");
+  expect(requests).toContain("/api/assistant/runs/run_active_e2e/queued-follow-up");
+  expect(requests).toContain("/api/assistant/runs/run_active_e2e/cancel");
+});
+
+test("agent keeps stale queued follow-up pending after a cancelled source run", async ({
+  page,
+}) => {
+  let submittedRequests = 0;
+  let streamRequests = 0;
+  const staleQueuedFollowUp = {
+    id: "queued_cancelled_e2e",
+    session_id: "session_e2e",
+    queued_after_run_id: "run_e2e",
+    message: "上一条停止后，这句不能自动发送。",
+    status: "queued",
+    created_at: "2026-04-26T09:50:10Z",
+    submitted_at: null,
+    discarded_at: null,
+  };
+
+  await page.route("**/api/assistant/runs/run_e2e/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "agent_run_status_v1",
+        run_id: "run_e2e",
+        session_id: "session_e2e",
+        status: "cancelled",
+        run_status: "cancelled",
+        active: false,
+        cancel_requested: true,
+        started_at: "2026-04-26T09:49:00Z",
+        completed_at: "2026-04-26T09:50:00Z",
+        latency_ms: 60_000,
+        message: "本次整理已停止，没有替你确认长期记录。",
+        queued_follow_up: staleQueuedFollowUp,
+      }),
+    });
+  });
+  await page.route("**/api/assistant/runs/run_e2e/events", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "agent_run_events_v1",
+        run_id: "run_e2e",
+        events: [
+          {
+            id: "run_e2e:0001",
+            run_id: "run_e2e",
+            sequence: 1,
+            event_type: "turn_started",
+            phase: "turn",
+            title: "开始处理任务",
+            status: "running",
+            at: "2026-04-26T09:49:00Z",
+            duration_ms: null,
+            payload: {},
+          },
+          {
+            id: "run_e2e:0002",
+            run_id: "run_e2e",
+            sequence: 2,
+            event_type: "turn_closed",
+            phase: "turn",
+            title: "本轮已停止",
+            status: "cancelled",
+            at: "2026-04-26T09:50:00Z",
+            duration_ms: 60_000,
+            payload: {},
+          },
+        ],
+      }),
+    });
+  });
+  await page.route(
+    "**/api/assistant/sessions/session_e2e/queued-follow-up",
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "queued_follow_up_v1",
+          queued_follow_up: staleQueuedFollowUp,
+          message: "已找到排队的下一句。",
+        }),
+      });
+    },
+  );
+  await page.route(
+    "**/api/assistant/sessions/session_e2e/queued-follow-up/submitted",
+    async (route) => {
+      submittedRequests += 1;
+      await route.fulfill({
+        status: 409,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail:
+            "Queued follow-up can only be marked submitted after the previous run completes successfully.",
+        }),
+      });
+    },
+  );
+  await page.route("**/api/assistant/messages/stream", async (route) => {
+    streamRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: "",
+    });
+  });
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/agent", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByTestId("agent-run-status")).toContainText("已停止");
+  await expect(
+    page.getByText("上一条停止后，这句不能自动发送。", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("上一条完成后发送；如果上一条被停止或失败")).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(streamRequests).toBe(0);
+  expect(submittedRequests).toBe(0);
+});
+
+test("agent shows inactive running run as interrupted instead of completed", async ({
+  page,
+}) => {
+  await page.route("**/api/assistant/runs/run_e2e/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "agent_run_status_v1",
+        run_id: "run_e2e",
+        session_id: "session_e2e",
+        status: "interrupted",
+        run_status: "interrupted",
+        active: false,
+        cancel_requested: false,
+        started_at: "2026-04-26T09:49:00Z",
+        completed_at: "2026-04-26T09:50:00Z",
+        latency_ms: 60_000,
+        message: "上次整理中断了，没有形成完整结论，可以重新发送。",
+      }),
+    });
+  });
+  await page.route("**/api/assistant/runs/run_e2e/events", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "agent_run_events_v1",
+        run_id: "run_e2e",
+        events: [
+          {
+            id: "run_e2e:0001",
+            run_id: "run_e2e",
+            sequence: 1,
+            event_type: "turn_interrupted",
+            phase: "turn",
+            title: "上次整理已中断",
+            status: "interrupted",
+            at: "2026-04-26T09:50:00Z",
+            duration_ms: null,
+            payload: {
+              reason: "inactive_running_run",
+              message: "运行记录中断，未产生完整终态。",
+            },
+          },
+          {
+            id: "run_e2e:0002",
+            run_id: "run_e2e",
+            sequence: 2,
+            event_type: "turn_closed",
+            phase: "turn",
+            title: "本轮已中断",
+            status: "interrupted",
+            at: "2026-04-26T09:50:00Z",
+            duration_ms: 60_000,
+            payload: {
+              reason: "inactive_running_run",
+              message: "运行记录中断，未产生完整终态。",
+            },
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/agent", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByTestId("agent-run-status")).toContainText("已中断");
+  await expect(page.getByTestId("agent-run-status")).toContainText(
+    "本轮已中断，未作为完成判断处理",
+  );
+  await expect(page.getByTestId("agent-run-status")).not.toContainText("已完成");
+  await expect(page.getByTestId("agent-run-status")).not.toContainText("本轮任务已完成");
+});
+
+test("agent marks the exact queued follow-up item after auto submit", async ({
+  page,
+}) => {
+  const queuedFollowUp = {
+    id: "queued_exact_e2e",
+    session_id: "session_e2e",
+    queued_after_run_id: "run_e2e",
+    message: "上一条完成后，自动发送这一句。",
+    status: "queued",
+    created_at: "2026-04-26T09:55:10Z",
+    submitted_at: null,
+    discarded_at: null,
+  };
+  let streamRequests = 0;
+  let submittedPayload: Record<string, unknown> | null = null;
+
+  await page.route("**/api/assistant/runs/run_e2e/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "agent_run_status_v1",
+        run_id: "run_e2e",
+        session_id: "session_e2e",
+        status: "completed",
+        run_status: "completed",
+        active: false,
+        cancel_requested: false,
+        started_at: "2026-04-26T09:54:00Z",
+        completed_at: "2026-04-26T09:55:00Z",
+        latency_ms: 60_000,
+        message: "本次整理已完成。",
+        queued_follow_up: queuedFollowUp,
+      }),
+    });
+  });
+  await page.route(
+    "**/api/assistant/sessions/session_e2e/queued-follow-up",
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "queued_follow_up_v1",
+          queued_follow_up: queuedFollowUp,
+          message: "已找到排队的下一句。",
+        }),
+      });
+    },
+  );
+  await page.route(
+    "**/api/assistant/sessions/session_e2e/queued-follow-up/submitted",
+    async (route) => {
+      submittedPayload = route.request().postDataJSON() as Record<string, unknown>;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "queued_follow_up_v1",
+          queued_follow_up: {
+            ...queuedFollowUp,
+            status: "submitted",
+            submitted_at: "2026-04-26T09:56:00Z",
+          },
+          message: "排队内容已发送。",
+        }),
+      });
+    },
+  );
+  await page.route("**/api/assistant/messages/stream", async (route) => {
+    streamRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: [
+        "event: conversation",
+        `data: ${JSON.stringify({
+          session: {
+            id: "session_e2e",
+            topic: "自动发送排队输入",
+            context_type: "coach",
+            latest_intent: "portfolio",
+            last_question: queuedFollowUp.message,
+            last_answer_preview: "已继续整理。",
+            last_recommended_action: "保持确认。",
+            message_count: 4,
+            created_at: "2026-04-26T09:00:00Z",
+            updated_at: "2026-04-26T09:56:00Z",
+          },
+          messages: [
+            {
+              id: "message_auto_user",
+              role: "user",
+              content: queuedFollowUp.message,
+              message_type: "user_prompt",
+              created_at: "2026-04-26T09:55:30Z",
+            },
+            {
+              id: "message_auto_assistant",
+              role: "assistant",
+              content: "已继续整理这句排队输入。",
+              message_type: "advisor_response",
+              created_at: "2026-04-26T09:56:00Z",
+              agent_run_id: "run_auto_e2e",
+              advisor_response: {
+                answer: "已继续整理这句排队输入。",
+                intent: "portfolio",
+                citations: [],
+                risk_notice: "不会替你买卖或下单。",
+                recommended_actions: [],
+                recommended_action_targets: [],
+                follow_up_questions: [],
+              },
+            },
+          ],
+        })}`,
+        "",
+        "",
+      ].join("\n"),
+    });
+  });
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/agent", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByText("已继续整理这句排队输入。")).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect
+    .poll(() => submittedPayload, { timeout: 15_000 })
+    .toEqual({ queued_follow_up_id: "queued_exact_e2e" });
+  expect(streamRequests).toBe(1);
 });
 
 test("agent compact desktop keeps reference and process panels mutually exclusive", async ({
@@ -475,6 +1240,14 @@ test("news agent link prefills the composer with source context", async ({ page 
   await page.getByRole("link", { name: "让 Agent 结合我的组合解释" }).click();
   await expect(page).toHaveURL(/\/agent\?/);
   await expect(page.locator("textarea")).toHaveValue(
-    "请结合我的组合，解释这条资讯可能影响什么、哪些地方不能当成买卖信号？",
+    "请结合我的组合，解释《央行：下一阶段将坚持支持性的货币政策立场》可能影响什么、哪些地方不能当成买卖信号？",
+  );
+  await page.getByRole("button", { name: "确认发送" }).click();
+  await expect(
+    page.getByText("结合你的画像、组合报告和最近同步的《央行：下一阶段将坚持支持性的货币政策立场》"),
+  ).toBeVisible();
+  await expect(page.getByTestId("agent-run-status")).toContainText(
+    "本次整理已完成",
+    { timeout: 15_000 },
   );
 });

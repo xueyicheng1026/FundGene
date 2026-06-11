@@ -738,6 +738,9 @@ export function NewsWorkspace() {
     items.find((item) => item.id === activeItemId) ??
     visibleItems[0] ??
     null;
+  const agentNewsPrompt = activeSourceItem?.title
+    ? `请结合我的组合，解释《${activeSourceItem.title}》可能影响什么、哪些地方不能当成买卖信号？`
+    : "请结合我的组合，解释当前选中的资讯可能影响什么、哪些地方不能当成买卖信号？";
   const coverage = sourceCoverageBuckets(items);
 
   function handleAnalyzeItem(item: NewsItem) {
@@ -974,8 +977,7 @@ export function NewsWorkspace() {
               href={buildAgentPromptHref({
                 focus: "news",
                 from: "news",
-                prompt:
-                  "请结合我的组合，解释这条资讯可能影响什么、哪些地方不能当成买卖信号？",
+                prompt: agentNewsPrompt,
                 sourceIds: {
                   news_item_id: activeSourceItem?.id,
                 },

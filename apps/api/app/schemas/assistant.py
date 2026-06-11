@@ -207,6 +207,59 @@ class AgentRunEventsResponse(BaseModel):
     events: list[AgentRunEvent] = Field(default_factory=list)
 
 
+class QueuedFollowUpRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("message")
+    @classmethod
+    def normalize_message(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Message cannot be empty.")
+        return normalized
+
+
+class QueuedFollowUp(BaseModel):
+    id: str
+    session_id: str
+    queued_after_run_id: str
+    message: str
+    status: str
+    created_at: datetime
+    submitted_at: datetime | None = None
+    discarded_at: datetime | None = None
+
+
+class QueuedFollowUpResponse(BaseModel):
+    schema_version: str = "queued_follow_up_v1"
+    queued_follow_up: QueuedFollowUp | None = None
+    message: str
+
+
+class QueuedFollowUpSubmittedRequest(BaseModel):
+    queued_follow_up_id: str | None = None
+
+
+class AgentRunStatusResponse(BaseModel):
+    schema_version: str = "agent_run_status_v1"
+    run_id: str
+    session_id: str | None = None
+    status: str
+    run_status: str | None = None
+    active: bool
+    cancel_requested: bool = False
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    latency_ms: int | None = None
+    message: str
+    queued_follow_up: QueuedFollowUp | None = None
+
+
+class ActiveAgentRunsResponse(BaseModel):
+    schema_version: str = "active_agent_runs_v1"
+    runs: list[AgentRunStatusResponse] = Field(default_factory=list)
+
+
 class AgentRunCancelResponse(BaseModel):
     run_id: str
     status: str

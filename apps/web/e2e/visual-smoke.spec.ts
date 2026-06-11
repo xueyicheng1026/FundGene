@@ -6,7 +6,7 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(60_000);
 
 const visualRoutes = [
-  { name: "overview", path: "/", marker: "四个主入口" },
+  { name: "overview", path: "/", marker: "FundGene Workspace" },
   {
     name: "start",
     path: "/start",
@@ -14,7 +14,7 @@ const visualRoutes = [
     authenticated: false,
   },
   { name: "today", path: "/today", marker: "今日简报" },
-  { name: "agent", path: "/agent", marker: "教练工作区" },
+  { name: "agent", path: "/agent", marker: "Agent 工作区" },
   { name: "automations", path: "/automations", marker: "自动任务" },
   { name: "profile", path: "/profile", marker: "上下文完整度" },
   { name: "onboarding", path: "/onboarding", marker: "开始建档" },
@@ -52,7 +52,8 @@ for (const route of visualRoutes) {
 
       if (
         viewport.label === "desktop" &&
-        (route.path === "/today" ||
+        (route.path === "/" ||
+          route.path === "/today" ||
           route.path === "/agent" ||
           route.path === "/learning" ||
           route.path === "/news" ||

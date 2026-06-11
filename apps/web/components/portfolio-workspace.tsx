@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -601,8 +602,251 @@ function HoldingWeightRows({
   );
 }
 
+function buildAllocationGradient(
+  segments: Array<{ label: string; value: number; color: string }>,
+): string {
+  let cursor = 0;
+  const stops = segments.map((segment) => {
+    const start = cursor;
+    const end = cursor + segment.value;
+    cursor = end;
+    return `${segment.color} ${start}% ${end}%`;
+  });
+  return `conic-gradient(${stops.join(", ")})`;
+}
+
+function CompactAllocationDonut({ report }: { report: PortfolioReport }) {
+  const segments = buildAllocationBreakdown(report);
+  const largest = getLargestHolding(report);
+
+  return (
+    <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="section-kicker">资产分布</p>
+          <h3 className="mt-1 text-base font-semibold text-[color:var(--ink-strong)]">
+            权重和缓冲一屏看完
+          </h3>
+        </div>
+        <span className="rounded-full border border-[color:var(--line-soft)] bg-white/80 px-2.5 py-1 text-xs font-semibold text-[color:var(--ink-soft)]">
+          {report.holdings.length} 只基金
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-[9.5rem_minmax(0,1fr)] items-center gap-4">
+        <div
+          className="relative grid aspect-square place-items-center rounded-full shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
+          style={{ background: buildAllocationGradient(segments) }}
+          role="img"
+          aria-label={`组合配置分布：${segments
+            .map((item) => `${item.label} ${formatPercent(item.value)}`)
+            .join("，")}`}
+        >
+          <div className="grid size-[5.1rem] place-items-center rounded-full border border-[color:var(--line-soft)] bg-white/92 text-center shadow-sm">
+            <span className="px-2 text-xs font-bold leading-tight text-[color:var(--ink-strong)]">
+              {largest ? `最大 ${formatPercent(largest.weight)}` : "待生成"}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {segments.slice(0, 4).map((segment) => (
+            <div key={segment.label} className="grid gap-1">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex min-w-0 items-center gap-2 font-semibold text-[color:var(--ink-strong)]">
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: segment.color }}
+                  />
+                  <span className="truncate">{segment.label}</span>
+                </span>
+                <span className="font-semibold text-[color:var(--ink-soft)]">
+                  {formatPercent(segment.value)}
+                </span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-[rgba(118,118,128,0.16)]">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${segment.value}%`,
+                    backgroundColor: segment.color,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompactHoldingRows({ holdings }: { holdings: PortfolioHolding[] }) {
+  const sortedHoldings = [...holdings].sort((a, b) => b.weight - a.weight);
+
+  return (
+    <div className="rounded-lg border border-[color:var(--line-soft)] bg-white/74 p-3 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="section-kicker">持仓权重</p>
+          <h3 className="mt-1 text-base font-semibold text-[color:var(--ink-strong)]">
+            谁在承担主要波动
+          </h3>
+        </div>
+        <span className="text-xs font-semibold text-[color:var(--ink-muted)]">
+          按权重排序
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {sortedHoldings.slice(0, 4).map((holding, index) => (
+          <div
+            key={`${holding.fundCode}-${holding.fundName}`}
+            className="rounded-lg border border-[color:var(--line-soft)] bg-white/72 px-3 py-2.5"
+          >
+            <div className="flex items-start justify-between gap-3 text-sm">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-[color:var(--ink-strong)]">
+                  {index + 1}. {holding.fundName}
+                </p>
+                <p className="mt-0.5 text-xs text-[color:var(--ink-muted)]">
+                  {holding.fundCode} · {getFundTypeLabel(holding.fundType)}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="font-semibold text-[color:var(--ink-strong)]">
+                  {formatPercent(holding.weight)}
+                </p>
+                <p className="text-xs text-[color:var(--ink-muted)]">
+                  {formatCurrency(holding.marketValue)}
+                </p>
+              </div>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[rgba(118,118,128,0.14)]">
+              <div
+                className="h-full rounded-full bg-[linear-gradient(90deg,var(--accent-teal),var(--accent-cyan))]"
+                style={{ width: `${clampPercent(holding.weight)}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AgentPortfolioOnePage({
+  report,
+  reportPosture,
+  reportCashRatio,
+  evidencePathItems,
+  isConcentrationFocus,
+}: {
+  report: PortfolioReport;
+  reportPosture: string;
+  reportCashRatio: number;
+  evidencePathItems: Array<{ label: string; title: string; detail: string }>;
+  isConcentrationFocus: boolean;
+}) {
+  const largest = getLargestHolding(report);
+  const prioritySignals = [
+    report.riskExposure[0],
+    report.concentrationFlags[0],
+    report.allocationBalance[0],
+    report.recommendedNextActions[0],
+  ].filter((item): item is string => Boolean(item));
+
+  return (
+    <div className="portfolio-agent-onepage">
+      <section
+        id="portfolio-latest-report"
+        className="portfolio-agent-board"
+        aria-label="来自 Agent 的持仓分析任务"
+      >
+        <div className="portfolio-agent-header">
+          <div className="min-w-0">
+            <p className="section-kicker">来自 Agent 的持仓分析</p>
+            <h2>
+              {isConcentrationFocus
+                ? "先看第一大持仓、资产分布和集中度。"
+                : "已根据刚才的问题打开组合分析结果。"}
+            </h2>
+            <p>
+              这是一屏检查面板，只解释风险来源和下一步检查，不生成买卖或调仓指令。
+            </p>
+          </div>
+          <div className="portfolio-agent-actions">
+            <Link href="/agent?new=1&focus=portfolio" className="action-button-secondary">
+              回 Agent 追问
+            </Link>
+            <a href="#portfolio-snapshot-form" className="action-button">
+              更新快照
+            </a>
+          </div>
+        </div>
+
+        <div className="portfolio-agent-layout">
+          <div className="portfolio-agent-main">
+            <div className="portfolio-agent-summary">
+              <div>
+                <p className="section-kicker">组合画像结论</p>
+                <h3>{reportPosture}</h3>
+                <p>{report.summary}</p>
+              </div>
+              <div className="portfolio-agent-metrics">
+                <div>
+                  <span>总资产</span>
+                  <strong>{formatCurrency(report.totalValue)}</strong>
+                </div>
+                <div>
+                  <span>现金留白</span>
+                  <strong>{formatPercent(reportCashRatio)}</strong>
+                </div>
+                <div>
+                  <span>第一大持仓</span>
+                  <strong>{largest ? formatPercent(largest.weight) : "待生成"}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="portfolio-agent-signals">
+              {prioritySignals.slice(0, 4).map((signal, index) => (
+                <div key={signal}>
+                  <span>{index + 1}</span>
+                  <p>{signal}</p>
+                </div>
+              ))}
+            </div>
+
+            <CompactAllocationDonut report={report} />
+          </div>
+
+          <aside className="portfolio-agent-side">
+            <CompactHoldingRows holdings={report.holdings} />
+            <div className="portfolio-agent-path">
+              <p className="section-kicker">证据路径</p>
+              <div>
+                {evidencePathItems.slice(0, 4).map((item, index) => (
+                  <article key={item.label}>
+                    <span>0{index + 1}</span>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>{item.detail}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function PortfolioWorkspace() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [snapshotDate, setSnapshotDate] = useState(
     () => new Date().toISOString().slice(0, 10),
   );
@@ -769,6 +1013,10 @@ export function PortfolioWorkspace() {
 
   const latestReport = latestReportQuery.data?.report ?? null;
   const historyItems = historyQuery.data?.items ?? [];
+  const fromAgent = searchParams.get("from") === "agent";
+  const portfolioFocus = searchParams.get("focus");
+  const isConcentrationFocus =
+    portfolioFocus === "concentration" || portfolioFocus === "portfolio";
   const draftPreview = buildDraftPortfolioPreview(cashValue, holdings);
   const reportPosture = latestReport ? getReportPosture(latestReport) : "待建立组合画像";
   const largestReportHolding = latestReport ? getLargestHolding(latestReport) : null;
@@ -1036,6 +1284,18 @@ export function PortfolioWorkspace() {
     });
   }
 
+  if (fromAgent && latestReport) {
+    return (
+      <AgentPortfolioOnePage
+        report={latestReport}
+        reportPosture={reportPosture}
+        reportCashRatio={reportCashRatio}
+        evidencePathItems={evidencePathItems}
+        isConcentrationFocus={isConcentrationFocus}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <section className="agent-hero overflow-hidden">
@@ -1111,6 +1371,35 @@ export function PortfolioWorkspace() {
           </div>
         </div>
       </section>
+
+      {fromAgent ? (
+        <section
+          className="rounded-lg border border-[rgba(0,113,227,0.18)] bg-[linear-gradient(135deg,rgba(0,113,227,0.09),rgba(255,255,255,0.86))] px-5 py-4 shadow-sm sm:px-6"
+          aria-label="来自 Agent 的持仓分析任务"
+        >
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="section-kicker">来自 Agent 的持仓分析</p>
+              <h3 className="mt-2 text-lg font-semibold text-[color:var(--ink-strong)]">
+                {isConcentrationFocus
+                  ? "先看第一大持仓、资产分布和集中度。"
+                  : "已根据刚才的问题打开组合分析结果。"}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
+                这里展示的是解释和检查路径，不是买卖或调仓指令；需要更新资料时仍要你确认保存。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a href="#portfolio-latest-report" className="action-button">
+                看持仓报告
+              </a>
+              <Link href="/agent?new=1&focus=portfolio" className="action-button-secondary">
+                回 Agent 追问
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <nav
         aria-label="组合页面快捷切换"

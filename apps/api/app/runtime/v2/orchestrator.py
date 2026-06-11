@@ -1368,14 +1368,15 @@ class AdvisorOrchestrator:
             else None
         )
         if token is not None and token.cancel_requested:
-            self._emit_event(
-                run_id=self._turn_context.run_id,
-                event_type="turn_cancel_requested",
-                phase="turn",
-                title="正在停止本次整理",
-                status="cancelling",
-                payload={"reason": "user_requested_cancel"},
-            )
+            if token.mark_cancel_requested_event_emitted():
+                self._emit_event(
+                    run_id=self._turn_context.run_id,
+                    event_type="turn_cancel_requested",
+                    phase="turn",
+                    title="正在停止本次整理",
+                    status="cancelling",
+                    payload={"reason": "user_requested_cancel"},
+                )
             self._emit_event(
                 run_id=self._turn_context.run_id,
                 event_type="turn_aborted",

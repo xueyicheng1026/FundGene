@@ -1,5 +1,5 @@
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "PUT";
+  method?: "DELETE" | "GET" | "POST" | "PATCH" | "PUT";
   body?: unknown;
   timeoutMs?: number;
 };
@@ -8,11 +8,13 @@ export type JsonObject = Record<string, unknown>;
 
 export class ApiError extends Error {
   status: number;
+  runId: string | null;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, options: { runId?: string | null } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.runId = options.runId ?? null;
   }
 }
 
@@ -393,6 +395,43 @@ export type AgentRunEvents = {
   schemaVersion: string;
   runId: string;
   events: AgentRunEvent[];
+};
+
+export type QueuedFollowUp = {
+  id: string;
+  sessionId: string;
+  queuedAfterRunId: string;
+  message: string;
+  status: string;
+  createdAt: string;
+  submittedAt: string | null;
+  discardedAt: string | null;
+};
+
+export type QueuedFollowUpResponse = {
+  schemaVersion: string;
+  queuedFollowUp: QueuedFollowUp | null;
+  message: string;
+};
+
+export type AgentRunStatus = {
+  schemaVersion: string;
+  runId: string;
+  sessionId: string | null;
+  status: string;
+  runStatus: string | null;
+  active: boolean;
+  cancelRequested: boolean;
+  startedAt: string | null;
+  completedAt: string | null;
+  latencyMs: number | null;
+  message: string;
+  queuedFollowUp: QueuedFollowUp | null;
+};
+
+export type ActiveAgentRuns = {
+  schemaVersion: string;
+  runs: AgentRunStatus[];
 };
 
 export type AssistantMessageStreamHandlers = {
@@ -1695,13 +1734,17 @@ function parseAgentRunTrace(
   };
 }
 
-function parseAgentRunEvent(input: unknown): AgentRunEvent {
+function parseAgentRunEvent(
+  input: unknown,
+  fallbackEventId?: string | null,
+): AgentRunEvent {
   const source = asObject(input);
   const sequence = pickNumber(source, ["sequence"]) ?? 0;
 
   return {
     id:
       pickString(source, ["id", "event_id", "eventId"]) ??
+      fallbackEventId ??
       `agent-event-${sequence}`,
     runId: pickString(source, ["runId", "run_id"]) ?? "",
     sequence,
@@ -1725,6 +1768,81 @@ function parseAgentRunEvents(input: unknown, fallbackRunId: string): AgentRunEve
       "agent_run_events_v1",
     runId,
     events: pickArray(source, ["events"]).map((event) => parseAgentRunEvent(event)),
+  };
+}
+
+function parseQueuedFollowUp(input: unknown): QueuedFollowUp | null {
+  const source = asObject(input);
+  const id = pickString(source, ["id"]);
+  const sessionId = pickString(source, ["sessionId", "session_id"]);
+  const queuedAfterRunId = pickString(source, [
+    "queuedAfterRunId",
+    "queued_after_run_id",
+  ]);
+  const message = pickString(source, ["message"]);
+  const createdAt = pickString(source, ["createdAt", "created_at"]);
+
+  if (!id || !sessionId || !queuedAfterRunId || !message || !createdAt) {
+    return null;
+  }
+
+  return {
+    id,
+    sessionId,
+    queuedAfterRunId,
+    message,
+    status: pickString(source, ["status"]) ?? "queued",
+    createdAt,
+    submittedAt: pickString(source, ["submittedAt", "submitted_at"]),
+    discardedAt: pickString(source, ["discardedAt", "discarded_at"]),
+  };
+}
+
+function parseQueuedFollowUpResponse(input: unknown): QueuedFollowUpResponse {
+  const source = asObject(input);
+  return {
+    schemaVersion:
+      pickString(source, ["schemaVersion", "schema_version"]) ??
+      "queued_follow_up_v1",
+    queuedFollowUp: parseQueuedFollowUp(
+      pickObject(source, ["queuedFollowUp", "queued_follow_up"]),
+    ),
+    message: pickString(source, ["message"]) ?? "排队状态已同步。",
+  };
+}
+
+function parseAgentRunStatus(input: unknown, fallbackRunId: string): AgentRunStatus {
+  const source = asObject(input);
+  return {
+    schemaVersion:
+      pickString(source, ["schemaVersion", "schema_version"]) ??
+      "agent_run_status_v1",
+    runId: pickString(source, ["runId", "run_id"]) ?? fallbackRunId,
+    sessionId: pickString(source, ["sessionId", "session_id"]),
+    status: pickString(source, ["status"]) ?? "unknown",
+    runStatus: pickString(source, ["runStatus", "run_status"]),
+    active: asBoolean(source.active),
+    cancelRequested:
+      asBoolean(source.cancelRequested) || asBoolean(source.cancel_requested),
+    startedAt: pickString(source, ["startedAt", "started_at"]),
+    completedAt: pickString(source, ["completedAt", "completed_at"]),
+    latencyMs: pickNumber(source, ["latencyMs", "latency_ms"]),
+    message: pickString(source, ["message"]) ?? "整理状态已同步。",
+    queuedFollowUp: parseQueuedFollowUp(
+      pickObject(source, ["queuedFollowUp", "queued_follow_up"]),
+    ),
+  };
+}
+
+function parseActiveAgentRuns(input: unknown): ActiveAgentRuns {
+  const source = asObject(input);
+  return {
+    schemaVersion:
+      pickString(source, ["schemaVersion", "schema_version"]) ??
+      "active_agent_runs_v1",
+    runs: pickArray(source, ["runs"]).map((item) =>
+      parseAgentRunStatus(item, ""),
+    ),
   };
 }
 
@@ -3264,6 +3382,9 @@ export async function streamAssistantMessage(
   const decoder = new TextDecoder();
   let buffer = "";
   let conversation: AssistantConversationState | null = null;
+  let latestRunId: string | null = null;
+  let latestRunSequence: number | null = null;
+  let streamErrorMessage: string | null = null;
 
   const handleBlock = (block: string) => {
     const lines = block.split(/\r?\n/);
@@ -3272,6 +3393,11 @@ export async function streamAssistantMessage(
         .find((line) => line.startsWith("event:"))
         ?.slice("event:".length)
         .trim() ?? "message";
+    const eventId =
+      lines
+        .find((line) => line.startsWith("id:"))
+        ?.slice("id:".length)
+        .trim() ?? null;
     const data = lines
       .filter((line) => line.startsWith("data:"))
       .map((line) => line.slice("data:".length).trim())
@@ -3283,7 +3409,15 @@ export async function streamAssistantMessage(
 
     const payload = JSON.parse(data) as unknown;
     if (eventName === "agent_event") {
-      handlers.onEvent?.(parseAgentRunEvent(payload));
+      const event = parseAgentRunEvent(payload, eventId);
+      if (event.runId) {
+        if (event.runId !== latestRunId) {
+          latestRunSequence = null;
+        }
+        latestRunId = event.runId;
+        latestRunSequence = Math.max(latestRunSequence ?? 0, event.sequence);
+      }
+      handlers.onEvent?.(event);
       return;
     }
     if (eventName === "conversation") {
@@ -3291,8 +3425,13 @@ export async function streamAssistantMessage(
       return;
     }
     if (eventName === "error") {
-      const message = pickString(asObject(payload), ["message"]) ?? "发送失败，请稍后重试。";
-      throw new ApiError(500, message);
+      const source = asObject(payload);
+      const errorRunId = pickString(source, ["runId", "run_id"]);
+      if (errorRunId) {
+        latestRunId = errorRunId;
+      }
+      streamErrorMessage =
+        pickString(source, ["message"]) ?? "发送失败，请稍后重试。";
     }
   };
 
@@ -3302,14 +3441,14 @@ export async function streamAssistantMessage(
       break;
     }
     buffer += decoder.decode(value, { stream: true });
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary >= 0) {
-      const block = buffer.slice(0, boundary).trim();
-      buffer = buffer.slice(boundary + 2);
+    let boundary = findSseBlockBoundary(buffer);
+    while (boundary) {
+      const block = buffer.slice(0, boundary.index).trim();
+      buffer = buffer.slice(boundary.index + boundary.length);
       if (block) {
         handleBlock(block);
       }
-      boundary = buffer.indexOf("\n\n");
+      boundary = findSseBlockBoundary(buffer);
     }
   }
 
@@ -3321,8 +3460,82 @@ export async function streamAssistantMessage(
   if (conversation) {
     return conversation;
   }
+  if (latestRunId) {
+    return recoverAssistantConversationFromRun(latestRunId, {
+      afterSequence: latestRunSequence,
+      onEvent: handlers.onEvent,
+    });
+  }
+  if (streamErrorMessage) {
+    throw new ApiError(500, streamErrorMessage);
+  }
 
   throw new ApiError(500, "Agent 已开始处理，但没有返回最终会话。");
+}
+
+function findSseBlockBoundary(
+  buffer: string,
+): { index: number; length: number } | null {
+  const match = /\r?\n\r?\n/.exec(buffer);
+  if (!match || typeof match.index !== "number") {
+    return null;
+  }
+  return { index: match.index, length: match[0].length };
+}
+
+async function recoverAssistantConversationFromRun(
+  runId: string,
+  options: {
+    afterSequence?: number | null;
+    onEvent?: (event: AgentRunEvent) => void;
+  } = {},
+): Promise<AssistantConversationState> {
+  let runStatus: AgentRunStatus | null = null;
+  try {
+    runStatus = await getAgentRunStatus(runId);
+  } catch {
+    runStatus = null;
+  }
+
+  const sessionIdFromStatus = runStatus?.sessionId;
+  if (runStatus?.active) {
+    if (typeof options.afterSequence === "number") {
+      try {
+        const incrementalEvents = await getAgentRunEvents(
+          runId,
+          options.afterSequence,
+        );
+        incrementalEvents.events.forEach((event) => options.onEvent?.(event));
+      } catch {
+        // Status is authoritative for active recovery; event replay is best-effort.
+      }
+    }
+    throw new ApiError(202, "整理还在进行中，稍后会自动同步最新状态。", {
+      runId,
+    });
+  }
+
+  if (sessionIdFromStatus) {
+    return getAssistantConversation(sessionIdFromStatus);
+  }
+
+  let runEvents: AgentRunEvents | null = null;
+  try {
+    runEvents = await getAgentRunEvents(runId);
+  } catch {
+    runEvents = null;
+  }
+  const sessionIdFromEvents = (runEvents?.events ?? [])
+    .map((event) => pickString(event.payload, ["session_id", "sessionId"]))
+    .find((sessionId): sessionId is string => Boolean(sessionId));
+  if (sessionIdFromEvents) {
+    return getAssistantConversation(sessionIdFromEvents);
+  }
+
+  throw new ApiError(
+    500,
+    runStatus?.message ?? "Agent 已开始处理，但没有返回最终会话。",
+  );
 }
 
 function buildAssistantMessageBody(input: AssistantMessageInput): JsonObject {
@@ -3346,9 +3559,71 @@ export async function getAgentRunTrace(runId: string): Promise<AgentRunTrace> {
   return parseAgentRunTrace(payload, runId);
 }
 
-export async function getAgentRunEvents(runId: string): Promise<AgentRunEvents> {
-  const payload = await request(`/api/assistant/runs/${runId}/events`, {});
+export async function getAgentRunEvents(
+  runId: string,
+  afterSequence?: number,
+): Promise<AgentRunEvents> {
+  const query =
+    typeof afterSequence === "number"
+      ? `?after_sequence=${encodeURIComponent(String(afterSequence))}`
+      : "";
+  const payload = await request(`/api/assistant/runs/${runId}/events${query}`, {});
   return parseAgentRunEvents(payload, runId);
+}
+
+export async function getAgentRunStatus(runId: string): Promise<AgentRunStatus> {
+  const payload = await request(`/api/assistant/runs/${runId}/status`, {});
+  return parseAgentRunStatus(payload, runId);
+}
+
+export async function getActiveAgentRuns(
+  sessionId?: string | null,
+): Promise<ActiveAgentRuns> {
+  const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "";
+  const payload = await request(`/api/assistant/runs/active${query}`, {});
+  return parseActiveAgentRuns(payload);
+}
+
+export async function queueAgentRunFollowUp(
+  runId: string,
+  message: string,
+): Promise<QueuedFollowUpResponse> {
+  const payload = await request(`/api/assistant/runs/${runId}/queued-follow-up`, {
+    method: "POST",
+    body: { message },
+  });
+  return parseQueuedFollowUpResponse(payload);
+}
+
+export async function getSessionQueuedFollowUp(
+  sessionId: string,
+): Promise<QueuedFollowUpResponse> {
+  const payload = await request(
+    `/api/assistant/sessions/${sessionId}/queued-follow-up`,
+    {},
+  );
+  return parseQueuedFollowUpResponse(payload);
+}
+
+export async function markSessionQueuedFollowUpSubmitted(
+  sessionId: string,
+  queuedFollowUpId: string,
+): Promise<QueuedFollowUpResponse> {
+  const payload = await request(
+    `/api/assistant/sessions/${sessionId}/queued-follow-up/submitted`,
+    { method: "POST", body: { queued_follow_up_id: queuedFollowUpId } },
+  );
+  return parseQueuedFollowUpResponse(payload);
+}
+
+export async function discardSessionQueuedFollowUp(
+  sessionId: string,
+): Promise<QueuedFollowUpResponse> {
+  const payload = await request(
+    `/api/assistant/sessions/${sessionId}/queued-follow-up`,
+    { method: "DELETE" },
+  );
+  return parseQueuedFollowUpResponse(payload);
 }
 
 export async function cancelAgentRun(runId: string): Promise<AgentRunCancelResult> {

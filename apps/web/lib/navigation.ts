@@ -27,6 +27,12 @@ export const navigationItems = [
 
 export const toolNavigationItems = [
   {
+    href: "/portfolio",
+    eyebrow: "组合",
+    title: "持仓分析",
+    description: "查看持仓分布和集中度",
+  },
+  {
     href: "/learning",
     eyebrow: "学习",
     title: "学习训练",
@@ -54,17 +60,22 @@ export const workspaceNavigationItems = [
 export function buildAgentPromptHref({
   focus,
   prompt,
+  displayMessage,
   from,
   sourceIds = {},
 }: {
   focus: string;
   prompt: string;
+  displayMessage?: string | null;
   from?: string | null;
   sourceIds?: Record<string, string | null | undefined>;
 }): string {
   const params = new URLSearchParams();
   params.set("focus", focus);
   params.set("prompt", prompt);
+  if (displayMessage) {
+    params.set("display_message", displayMessage);
+  }
 
   if (from) {
     params.set("from", from);

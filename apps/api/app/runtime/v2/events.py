@@ -89,12 +89,14 @@ class QueueAgentRunEventSink:
     def __init__(self, queue: asyncio.Queue[AgentRunEvent]) -> None:
         self.queue = queue
         self._sequences: dict[str, int] = {}
+        self.latest_run_id: str | None = None
 
     def emit_existing(self, event: AgentRunEvent) -> None:
         self._sequences[event.run_id] = max(
             self._sequences.get(event.run_id, 0),
             event.sequence,
         )
+        self.latest_run_id = event.run_id
         self.queue.put_nowait(event)
 
     def emit(
@@ -123,6 +125,7 @@ class QueueAgentRunEventSink:
             duration_ms=duration_ms,
             payload=payload or {},
         )
+        self.latest_run_id = run_id
         self.queue.put_nowait(event)
         return event
 

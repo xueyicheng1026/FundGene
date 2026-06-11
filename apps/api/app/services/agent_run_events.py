@@ -1,9 +1,12 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.agent_run_event import AgentRunEventRecord
+from app.runtime.v2.active_runs import get_active_agent_run_registry
 from app.runtime.v2.events import AgentRunEventSink
 from app.schemas.assistant import AgentRunEvent
 
@@ -24,6 +27,10 @@ class DurableAgentRunEventSink:
             self._sequences.get(event.run_id, 0),
             event.sequence,
         )
+        get_active_agent_run_registry().observe_event_sequence(
+            run_id=event.run_id,
+            sequence=event.sequence,
+        )
         self._persist(event)
         if self.downstream is not None:
             self.downstream.emit_existing(event)
@@ -40,7 +47,7 @@ class DurableAgentRunEventSink:
         duration_ms: int | None = None,
         payload: dict[str, Any] | None = None,
     ) -> AgentRunEvent:
-        sequence = self._sequences.get(run_id, 0) + 1
+        sequence = self._next_sequence(run_id)
         self._sequences[run_id] = sequence
         event = AgentRunEvent(
             id=f"{run_id}:{sequence:04d}",
@@ -58,6 +65,34 @@ class DurableAgentRunEventSink:
         if self.downstream is not None:
             self.downstream.emit_existing(event)
         return event
+
+    def _next_sequence(self, run_id: str) -> int:
+        registry = get_active_agent_run_registry()
+        active_sequence = registry.reserve_event_sequence(run_id=run_id)
+        if active_sequence is not None:
+            max_sequence = self.db.scalar(
+                select(func.max(AgentRunEventRecord.sequence)).where(
+                    AgentRunEventRecord.run_id == run_id
+                )
+            )
+            if max_sequence and active_sequence <= int(max_sequence):
+                registry.observe_event_sequence(
+                    run_id=run_id,
+                    sequence=int(max_sequence),
+                )
+                active_sequence = registry.reserve_event_sequence(run_id=run_id)
+                if active_sequence is None:
+                    return int(max_sequence) + 1
+            self._sequences[run_id] = active_sequence
+            return active_sequence
+        if run_id not in self._sequences:
+            max_sequence = self.db.scalar(
+                select(func.max(AgentRunEventRecord.sequence)).where(
+                    AgentRunEventRecord.run_id == run_id
+                )
+            )
+            self._sequences[run_id] = int(max_sequence or 0)
+        return self._sequences[run_id] + 1
 
     def _persist(self, event: AgentRunEvent) -> None:
         self.db.add(

@@ -578,6 +578,31 @@ export function DashboardWorkspace() {
   const coveredSignals = sourceCoverageOrder.filter(
     (item) => dailyBrief?.sourceCoverage[item.key],
   );
+  const todayDecisionRows = [
+    {
+      label: "组合输入",
+      value: portfolioStatus?.hasReport ? "已读取最近快照" : "等待快照",
+      detail: portfolioStatus?.summary ?? "补齐组合后，Agent 才会把新闻连接到个人持仓。",
+      tone: portfolioStatus?.hasReport ? "positive" : "warning",
+    },
+    {
+      label: "资讯输入",
+      value: newsStatus?.hasAnalysis ? "已同步今日资讯" : "等待资讯",
+      detail:
+        newsStatus?.beginnerTranslation ??
+        "资讯会先被拆成事实、影响路径和不确定性，再进入简报。",
+      tone: newsStatus?.hasAnalysis ? "accent" : "warning",
+    },
+    {
+      label: "行为边界",
+      value: displayBiasTags[0] ?? "继续观察",
+      detail:
+        displayBiasTags.length > 0
+          ? "看到热点信息时，先检查证据和组合暴露，再决定是否追问。"
+          : "行为证据不足时，只生成观察建议，不改写长期画像。",
+      tone: biasTags.length > 0 ? "positive" : "warning",
+    },
+  ] as const;
 
   return (
     <div className="today-command-dashboard">
@@ -694,6 +719,28 @@ export function DashboardWorkspace() {
                 detail="只展示可追溯来源。"
                 tone="accent"
               />
+            </div>
+
+            <div className="today-agent-signal-board" aria-label="Agent 已检查的判断输入">
+              <div className="today-agent-signal-board-header">
+                <div>
+                  <p className="section-kicker">Agent 已检查</p>
+                  <h4>今日判断来自这些授权资料</h4>
+                </div>
+                <StatusPill tone="positive">可追溯</StatusPill>
+              </div>
+              <div className="today-agent-signal-list">
+                {todayDecisionRows.map((item) => (
+                  <div key={item.label} className="today-agent-signal-row">
+                    <div>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                    <p>{formatProductCopy(item.detail)}</p>
+                    <StatusPill tone={item.tone}>{item.tone === "warning" ? "待补" : "已纳入"}</StatusPill>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 

@@ -174,12 +174,12 @@ function AutomationRunPanel({
   return (
     <div
       data-testid={`automation-run-timeline-${result?.automationKey ?? "pending"}`}
-      className="automation-run-compact rounded-[18px] border border-[rgba(0,113,227,0.18)] bg-[rgba(0,113,227,0.06)] p-3"
+      className="automation-run-compact"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="section-kicker">检查过程</p>
-          <h3 className="mt-1 text-sm font-semibold text-[color:var(--ink-strong)]">
+          <h3 className="mt-1 text-base font-semibold text-[color:var(--ink-strong)]">
             {pending ? "正在执行本轮自动任务" : result?.summary ?? "本轮自动任务已完成"}
           </h3>
         </div>
@@ -187,28 +187,27 @@ function AutomationRunPanel({
           {pending ? "运行中" : result?.status === "failed" ? "失败" : "已完成"}
         </StatusPill>
       </div>
-      <ol className="mt-3 grid gap-2">
-        {steps.slice(0, 3).map((step, index) => (
+      <ol className="automation-run-steps">
+        {steps.map((step, index) => (
           <li
             key={step.key}
             data-testid="automation-run-step"
-            className="grid grid-cols-[1.35rem_minmax(0,1fr)] gap-2 rounded-[14px] border border-[color:var(--line-soft)] bg-white/68 p-2"
           >
-            <span className="grid size-5 place-items-center rounded-full bg-[color:var(--accent-blue-soft)] text-[0.68rem] font-bold text-[color:var(--accent-blue)]">
+            <span>
               {index + 1}
             </span>
             <div>
               <div className="flex flex-wrap items-center gap-1.5">
-                <p className="text-xs font-semibold text-[color:var(--ink-strong)]">
+                <p>
                   {step.label}
                 </p>
-                <span className="text-[0.68rem] font-semibold text-[color:var(--ink-muted)]">
+                <em>
                   {runStepLabel(step.status)}
-                </span>
+                </em>
               </div>
-              <p className="mt-0.5 line-clamp-1 text-[0.72rem] leading-4 text-[color:var(--ink-soft)]">
+              <small>
                 {step.detail}
-              </p>
+              </small>
             </div>
           </li>
         ))}
@@ -216,12 +215,12 @@ function AutomationRunPanel({
       {result ? (
         <div
           data-testid={`automation-run-result-${result.automationKey}`}
-          className="mt-3 grid gap-1 rounded-[14px] border border-[color:var(--line-soft)] bg-white/70 p-2 text-[0.72rem] leading-4 text-[color:var(--ink-soft)]"
+          className="automation-run-result"
         >
-          {headline ? <p className="line-clamp-1">本轮判断：{headline}</p> : null}
+          {headline ? <p><strong>本轮判断</strong>{headline}</p> : null}
           {primaryAction ? <p>安全下一步：{primaryAction}</p> : null}
           <p>待确认建议：{result.createdPendingProposalIds.length} 条</p>
-          {safety ? <p className="line-clamp-1">安全边界：{safety}</p> : null}
+          {safety ? <p>安全边界：{safety}</p> : null}
           {result.errorMessage ? (
             <p className="font-semibold text-red-700">错误：{result.errorMessage}</p>
           ) : null}
@@ -408,7 +407,7 @@ export function AutomationsWorkspace() {
                     ))}
                   </select>
                 </label>
-                  <div className="automation-chip-block">
+                  <div className="automation-chip-block automation-read-scope">
                     <span>会读取</span>
                     <div>
                       {item.readScope.slice(0, 3).map((entry) => (
@@ -419,7 +418,7 @@ export function AutomationsWorkspace() {
                       ) : null}
                   </div>
                   </div>
-                  <div className="automation-chip-block">
+                  <div className="automation-chip-block automation-output-scope">
                     <span>会生成</span>
                     <div>
                       {item.outputScope.slice(0, 3).map((entry) => (
@@ -435,6 +434,7 @@ export function AutomationsWorkspace() {
                       type="button"
                       role="switch"
                       aria-checked={item.enabled}
+                      data-testid={`automation-toggle-${item.key}`}
                       disabled={isUpdating}
                       onClick={() => toggleAutomation(item)}
                       className="command-switch"
@@ -445,6 +445,7 @@ export function AutomationsWorkspace() {
                     <Button
                       type="button"
                       variant="secondary"
+                      className="automation-run-button"
                       data-testid={`automation-run-button-${item.key}`}
                       disabled={!item.canRunNow || isRunning}
                       onClick={() => runMutation.mutate(item.key)}

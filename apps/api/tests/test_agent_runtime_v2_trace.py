@@ -1,17 +1,24 @@
 import json
+from datetime import datetime, timedelta, timezone
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.api.routes import assistant as assistant_routes
 from app.models.agent_evidence_ref import AgentEvidenceRef
 from app.models.agent_run import AgentRun
 from app.models.agent_run_event import AgentRunEventRecord
 from app.models.agent_step import AgentStep
 from app.models.agent_tool_call import AgentToolCall
+from app.models.chat_message import ChatMessage
+from app.models.chat_session import ChatSession
 from app.models.user import UserProfile
-from app.runtime.v2.active_runs import get_active_agent_run_registry
-from app.runtime.v2.events import NullAgentRunEventSink
+from app.runtime.v2.active_runs import (
+    AgentRunCancelled,
+    get_active_agent_run_registry,
+)
 from app.runtime.v2.features import build_runtime_capabilities
 from app.runtime.v2.orchestrator import AdvisorOrchestrator
 from app.runtime.v2.planner import AgentPlanner
@@ -25,6 +32,7 @@ from app.runtime.v2.schemas import (
 )
 from app.runtime.v2.tools.registry import ToolRegistry
 from app.schemas.assistant import AdvisorResponse
+from app.services.agent_run_events import DurableAgentRunEventSink
 
 
 def _parse_sse_events(text: str) -> list[tuple[str, dict]]:
@@ -229,6 +237,16 @@ def test_agent_runtime_v2_persists_trace_and_exposes_owned_trace(
         for event in events
     )
 
+    status_response = client.get(f"/api/assistant/runs/{run_id}/status")
+    assert status_response.status_code == 200
+    status_payload = status_response.json()
+    assert status_payload["schema_version"] == "agent_run_status_v1"
+    assert status_payload["run_id"] == run_id
+    assert status_payload["status"] == "completed"
+    assert status_payload["run_status"] == "completed"
+    assert status_payload["active"] is False
+    assert status_payload["cancel_requested"] is False
+
 
 def test_assistant_message_stream_emits_live_events_and_final_conversation(
     client: TestClient,
@@ -258,6 +276,7 @@ def test_assistant_message_stream_emits_live_events_and_final_conversation(
     assert [event["sequence"] for event in agent_events] == list(
         range(1, len(agent_events) + 1)
     )
+    assert all(f"id: {event['id']}\n" in raw_stream for event in agent_events)
     assert agent_events[0]["event_type"] == "turn_started"
     assert agent_events[-1]["event_type"] == "turn_complete"
     assert {event["event_type"] for event in agent_events} >= {
@@ -267,6 +286,449 @@ def test_assistant_message_stream_emits_live_events_and_final_conversation(
         "tool_call_completed",
         "agent_message",
     }
+
+
+def test_assistant_message_stream_error_includes_recoverable_run_id(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    _onboard(client, email="agent-stream-error-run-id@example.com")
+
+    async def failing_stream_send_message(*args, **kwargs):  # noqa: ANN002, ANN003
+        event_sink = kwargs["event_sink"]
+        event_sink.emit(
+            run_id="run_stream_error_e2e",
+            event_type="turn_started",
+            phase="turn",
+            title="开始处理任务",
+            status="running",
+            payload={},
+        )
+        raise RuntimeError("stream transport failed after run started")
+
+    monkeypatch.setattr(assistant_routes, "send_message", failing_stream_send_message)
+
+    with client.stream(
+        "POST",
+        "/api/assistant/messages/stream",
+        json={"message": "触发流式错误恢复。"},
+    ) as response:
+        assert response.status_code == 200
+        raw_stream = "".join(response.iter_text())
+
+    stream_events = _parse_sse_events(raw_stream)
+    assert [event_name for event_name, _ in stream_events] == [
+        "agent_event",
+        "error",
+    ]
+    error_payload = stream_events[-1][1]
+    assert error_payload["run_id"] == "run_stream_error_e2e"
+    assert error_payload["recoverable"] is True
+
+
+def test_assistant_runtime_failure_persists_failed_status_and_events(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    _onboard(client, email="agent-failure@example.com")
+
+    async def failing_run(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        raise RuntimeError("internal test failure")
+
+    monkeypatch.setattr(AdvisorOrchestrator, "run", failing_run)
+
+    response = client.post(
+        "/api/assistant/messages",
+        json={"message": "请帮我检查一下组合风险。"},
+    )
+    assert response.status_code == 200
+    assistant_message = response.json()["messages"][-1]
+    assert "没有顺利完成" in assistant_message["content"]
+    run_id = assistant_message["agent_run_id"]
+
+    status_response = client.get(f"/api/assistant/runs/{run_id}/status")
+    assert status_response.status_code == 200
+    status_payload = status_response.json()
+    assert status_payload["status"] == "failed"
+    assert status_payload["active"] is False
+    assert "没有顺利完成" in status_payload["message"]
+
+    events_response = client.get(f"/api/assistant/runs/{run_id}/events")
+    assert events_response.status_code == 200
+    events = events_response.json()["events"]
+    assert [event["event_type"] for event in events] == [
+        "turn_started",
+        "turn_error",
+        "agent_message",
+        "turn_complete",
+    ]
+    assert events[-1]["status"] == "failed"
+    assert events[1]["payload"]["error_type"] == "RuntimeError"
+
+    trace_response = client.get(f"/api/assistant/runs/{run_id}/trace")
+    assert trace_response.status_code == 200
+    trace_payload = trace_response.json()
+    assert trace_payload["run"]["run_status"] == "failed"
+    assert trace_payload["run"]["fallback_reason"] == "runtime_error"
+    assert trace_payload["run"]["tool_trace"]["error_type"] == "RuntimeError"
+
+
+def test_active_run_stays_registered_until_terminal_commit(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    _onboard(client, email="agent-terminal-commit@example.com")
+
+    registry = get_active_agent_run_registry()
+    observed: dict[str, object] = {}
+    original_commit = Session.commit
+
+    def observing_commit(self: Session) -> None:
+        terminal_run = next(
+            (
+                item
+                for item in self.dirty
+                if isinstance(item, AgentRun) and item.completed_at is not None
+            ),
+            None,
+        )
+        if terminal_run is not None:
+            active_snapshot = registry.get(run_id=terminal_run.id)
+            observed["run_id"] = terminal_run.id
+            observed["active_during_terminal_commit"] = active_snapshot is not None
+        original_commit(self)
+
+    monkeypatch.setattr(Session, "commit", observing_commit)
+
+    response = client.post(
+        "/api/assistant/messages",
+        json={"message": "请帮我看今天应该先检查什么。"},
+    )
+    assert response.status_code == 200
+    run_id = response.json()["messages"][-1]["agent_run_id"]
+    assert observed == {
+        "run_id": run_id,
+        "active_during_terminal_commit": True,
+    }
+    assert registry.get(run_id=run_id) is None
+
+
+def test_active_run_unregisters_when_terminal_flush_fails(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    _onboard(client, email="agent-terminal-flush-failure@example.com")
+
+    registry = get_active_agent_run_registry()
+    observed: dict[str, object] = {}
+    original_flush = Session.flush
+
+    def failing_terminal_flush(self: Session, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
+        terminal_message = next(
+            (
+                item
+                for item in self.new
+                if isinstance(item, ChatMessage)
+                and item.role == "assistant"
+                and item.agent_run_id is not None
+            ),
+            None,
+        )
+        if terminal_message is not None:
+            observed["run_id"] = terminal_message.agent_run_id
+            observed["active_during_terminal_flush"] = (
+                registry.get(run_id=terminal_message.agent_run_id) is not None
+            )
+            raise RuntimeError("terminal flush failed")
+        return original_flush(self, *args, **kwargs)
+
+    monkeypatch.setattr(Session, "flush", failing_terminal_flush)
+
+    with pytest.raises(RuntimeError, match="terminal flush failed"):
+        client.post(
+            "/api/assistant/messages",
+            json={"message": "请帮我看今天应该先检查什么。"},
+        )
+
+    run_id = observed["run_id"]
+    assert observed["active_during_terminal_flush"] is True
+    assert registry.get(run_id=run_id) is None
+
+
+def test_active_run_unregisters_when_turn_started_event_sink_fails(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    _onboard(client, email="agent-turn-start-event-failure@example.com")
+
+    registry = get_active_agent_run_registry()
+    observed: dict[str, object] = {}
+    original_emit = DurableAgentRunEventSink.emit
+
+    def failing_turn_started_emit(
+        self: DurableAgentRunEventSink,
+        *args,
+        **kwargs,
+    ):  # noqa: ANN002, ANN003
+        if kwargs.get("event_type") == "turn_started":
+            run_id = str(kwargs["run_id"])
+            observed["run_id"] = run_id
+            observed["active_during_turn_started_emit"] = (
+                registry.get(run_id=run_id) is not None
+            )
+            raise RuntimeError("turn started emit failed")
+        return original_emit(self, *args, **kwargs)
+
+    monkeypatch.setattr(DurableAgentRunEventSink, "emit", failing_turn_started_emit)
+
+    with pytest.raises(RuntimeError, match="turn started emit failed"):
+        client.post(
+            "/api/assistant/messages",
+            json={"message": "请帮我看今天应该先检查什么。"},
+        )
+
+    run_id = observed["run_id"]
+    assert observed["active_during_turn_started_emit"] is True
+    assert registry.get(run_id=run_id) is None
+
+
+def test_assistant_runtime_cancel_uses_closed_event_not_complete(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    _onboard(client, email="agent-cancel-terminal@example.com")
+
+    async def cancelling_run(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        raise AgentRunCancelled("user_requested_cancel")
+
+    monkeypatch.setattr(AdvisorOrchestrator, "run", cancelling_run)
+
+    response = client.post(
+        "/api/assistant/messages",
+        json={"message": "请帮我整理一下组合，必要时我会停止。"},
+    )
+    assert response.status_code == 200
+    assistant_message = response.json()["messages"][-1]
+    assert "已停止这次整理" in assistant_message["content"]
+    run_id = assistant_message["agent_run_id"]
+
+    status_response = client.get(f"/api/assistant/runs/{run_id}/status")
+    assert status_response.status_code == 200
+    status_payload = status_response.json()
+    assert status_payload["status"] == "cancelled"
+    assert status_payload["active"] is False
+    assert "已停止" in status_payload["message"]
+
+    events_response = client.get(f"/api/assistant/runs/{run_id}/events")
+    assert events_response.status_code == 200
+    events = events_response.json()["events"]
+    assert [event["event_type"] for event in events] == [
+        "turn_started",
+        "agent_message",
+        "turn_closed",
+    ]
+    assert events[1]["title"] == "同步停止说明"
+    assert events[1]["status"] == "cancelled"
+    assert events[-1]["status"] == "cancelled"
+    assert "turn_complete" not in {event["event_type"] for event in events}
+
+    trace_response = client.get(f"/api/assistant/runs/{run_id}/trace")
+    assert trace_response.status_code == 200
+    trace_payload = trace_response.json()
+    assert trace_payload["run"]["run_status"] == "cancelled"
+    assert trace_payload["run"]["fallback_reason"] == "user_requested_cancel"
+
+
+def test_inactive_running_run_is_closed_as_interrupted(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _onboard(client, email="agent-interrupted-stale@example.com")
+
+    with session_factory() as db:
+        user = db.scalar(
+            select(UserProfile).where(
+                UserProfile.display_name == "Ava"
+            )
+        )
+        assert user is not None
+        started_at = datetime.now(timezone.utc)
+        session = ChatSession(
+            user_id=user.id,
+            topic="中断恢复测试",
+            context_type="coach",
+            created_at=started_at,
+            updated_at=started_at,
+        )
+        db.add(session)
+        db.flush()
+        db.add(
+            ChatMessage(
+                session_id=session.id,
+                role="user",
+                content="这轮会在没有终态时中断。",
+                message_type="user_prompt",
+                created_at=started_at,
+            )
+        )
+        run = AgentRun(
+            session_id=session.id,
+            user_id=user.id,
+            model_name="deterministic",
+            schema_version="assistant_message_v1",
+            run_status="running",
+            run_type="advisor_orchestrator",
+            orchestrator_version="test",
+            input_payload={"message": "这轮会在没有终态时中断。"},
+            output_payload={},
+            tool_trace={},
+            started_at=started_at,
+            created_at=started_at,
+        )
+        db.add(run)
+        db.flush()
+        event_sink = DurableAgentRunEventSink(db)
+        event_sink.emit(
+            run_id=run.id,
+            event_type="turn_started",
+            phase="turn",
+            title="开始整理",
+            status="running",
+            at=started_at,
+            payload={"context_snapshot_version": 1},
+        )
+        db.commit()
+        run_id = run.id
+
+    trace_response = client.get(f"/api/assistant/runs/{run_id}/trace")
+    assert trace_response.status_code == 200
+    trace_payload = trace_response.json()
+    assert trace_payload["run"]["run_status"] == "interrupted"
+    assert trace_payload["run"]["policy_status"] == "interrupted"
+    assert trace_payload["run"]["fallback_reason"] == "inactive_running_run"
+    assert trace_payload["run"]["tool_trace"]["interrupted"] is True
+
+    status_response = client.get(f"/api/assistant/runs/{run_id}/status")
+    assert status_response.status_code == 200
+    status_payload = status_response.json()
+    assert status_payload["status"] == "interrupted"
+    assert status_payload["run_status"] == "interrupted"
+    assert status_payload["active"] is False
+    assert "中断" in status_payload["message"]
+
+    events_response = client.get(f"/api/assistant/runs/{run_id}/events")
+    assert events_response.status_code == 200
+    events = events_response.json()["events"]
+    assert [event["event_type"] for event in events] == [
+        "turn_started",
+        "turn_interrupted",
+        "agent_message",
+        "turn_closed",
+    ]
+    assert [event["sequence"] for event in events] == [1, 2, 3, 4]
+    assert events[1]["payload"]["reason"] == "inactive_running_run"
+    assert events[-1]["status"] == "interrupted"
+    assert "turn_complete" not in {event["event_type"] for event in events}
+
+    incremental_response = client.get(
+        f"/api/assistant/runs/{run_id}/events",
+        params={"after_sequence": 2},
+    )
+    assert incremental_response.status_code == 200
+    incremental_events = incremental_response.json()["events"]
+    assert [event["sequence"] for event in incremental_events] == [3, 4]
+    assert [event["event_type"] for event in incremental_events] == [
+        "agent_message",
+        "turn_closed",
+    ]
+    empty_incremental_response = client.get(
+        f"/api/assistant/runs/{run_id}/events",
+        params={"after_sequence": 4},
+    )
+    assert empty_incremental_response.status_code == 200
+    assert empty_incremental_response.json()["events"] == []
+    invalid_incremental_response = client.get(
+        f"/api/assistant/runs/{run_id}/events",
+        params={"after_sequence": -1},
+    )
+    assert invalid_incremental_response.status_code == 422
+
+    repeat_trace_response = client.get(f"/api/assistant/runs/{run_id}/trace")
+    assert repeat_trace_response.status_code == 200
+    with session_factory() as db:
+        stored_run = db.get(AgentRun, run_id)
+        assert stored_run is not None
+        assert stored_run.run_status == "interrupted"
+        assistant_messages = list(
+            db.scalars(
+                select(ChatMessage).where(
+                    ChatMessage.session_id == stored_run.session_id,
+                    ChatMessage.role == "assistant",
+                )
+            )
+        )
+        assert len(assistant_messages) == 1
+        assert "上次整理中断" in assistant_messages[0].content
+
+
+def test_legacy_agent_run_events_support_after_sequence_filter(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _onboard(client, email="agent-legacy-events-cursor@example.com")
+
+    with session_factory() as db:
+        user = db.scalar(select(UserProfile).where(UserProfile.display_name == "Ava"))
+        assert user is not None
+        started_at = datetime.now(timezone.utc)
+        completed_at = started_at + timedelta(milliseconds=1)
+        session = ChatSession(
+            user_id=user.id,
+            topic="旧事件回放测试",
+            context_type="coach",
+            created_at=started_at,
+            updated_at=completed_at,
+        )
+        db.add(session)
+        db.flush()
+        run = AgentRun(
+            session_id=session.id,
+            user_id=user.id,
+            model_name="deterministic",
+            schema_version="assistant_message_v1",
+            run_status="completed",
+            run_type="advisor_orchestrator",
+            orchestrator_version="legacy-test",
+            intent="learning",
+            policy_status="safe",
+            input_payload={"message": "旧记录没有持久事件。"},
+            output_payload={
+                "answer": "旧记录回答。",
+                "intent": "learning",
+                "citations": [],
+                "recommended_actions": [],
+            },
+            tool_trace={},
+            latency_ms=1,
+            started_at=started_at,
+            completed_at=completed_at,
+            created_at=started_at,
+        )
+        db.add(run)
+        db.commit()
+        run_id = run.id
+
+    response = client.get(
+        f"/api/assistant/runs/{run_id}/events",
+        params={"after_sequence": 1},
+    )
+    assert response.status_code == 200
+    events = response.json()["events"]
+    assert [event["sequence"] for event in events] == [2, 3]
+    assert [event["event_type"] for event in events] == [
+        "agent_message",
+        "turn_complete",
+    ]
 
 
 def test_active_agent_run_can_be_cancelled_by_owner(
@@ -286,18 +748,413 @@ def test_active_agent_run_can_be_cancelled_by_owner(
         run_id=run_id,
         session_id="session-cancel-test",
         user_id=user_id,
-        event_sink=NullAgentRunEventSink(),
     )
     try:
+        status_response = client.get(f"/api/assistant/runs/{run_id}/status")
+        assert status_response.status_code == 200
+        status_payload = status_response.json()
+        assert status_payload["run_id"] == run_id
+        assert status_payload["status"] == "running"
+        assert status_payload["active"] is True
+        assert status_payload["cancel_requested"] is False
+
         response = client.post(f"/api/assistant/runs/{run_id}/cancel")
         assert response.status_code == 200
         payload = response.json()
         assert payload["run_id"] == run_id
         assert payload["status"] == "cancelling"
         assert payload["cancel_requested"] is True
+        cancelling_status_response = client.get(f"/api/assistant/runs/{run_id}/status")
+        assert cancelling_status_response.status_code == 200
+        cancelling_status_payload = cancelling_status_response.json()
+        assert cancelling_status_payload["status"] == "cancelling"
+        assert cancelling_status_payload["active"] is True
+        assert cancelling_status_payload["cancel_requested"] is True
+        active_response = client.get("/api/assistant/runs/active")
+        assert active_response.status_code == 200
+        active_payload = active_response.json()
+        assert active_payload["schema_version"] == "active_agent_runs_v1"
+        assert [item["run_id"] for item in active_payload["runs"]] == [run_id]
+        active_for_session_response = client.get(
+            "/api/assistant/runs/active",
+            params={"session_id": "session-cancel-test"},
+        )
+        assert active_for_session_response.status_code == 200
+        assert [
+            item["run_id"]
+            for item in active_for_session_response.json()["runs"]
+        ] == [run_id]
+        active_for_other_session_response = client.get(
+            "/api/assistant/runs/active",
+            params={"session_id": "session-other"},
+        )
+        assert active_for_other_session_response.status_code == 200
+        assert active_for_other_session_response.json()["runs"] == []
         snapshot = registry.get(run_id=run_id)
         assert snapshot is not None
         assert snapshot.cancel_requested is True
+    finally:
+        registry.unregister(run_id=run_id)
+
+
+def test_active_agent_run_event_sequences_do_not_reuse_uncommitted_numbers(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _onboard(client, email="agent-active-sequence@example.com")
+
+    with session_factory() as db:
+        user = db.scalar(select(UserProfile).where(UserProfile.display_name == "Ava"))
+        assert user is not None
+        user_id = user.id
+        started_at = datetime.now(timezone.utc)
+        session = ChatSession(
+            user_id=user.id,
+            topic="事件序号并发测试",
+            context_type="coach",
+            created_at=started_at,
+            updated_at=started_at,
+        )
+        db.add(session)
+        db.flush()
+        run = AgentRun(
+            session_id=session.id,
+            user_id=user.id,
+            model_name="deterministic",
+            schema_version="assistant_message_v1",
+            run_status="running",
+            run_type="advisor_orchestrator",
+            orchestrator_version="test",
+            input_payload={"message": "测试事件序号。"},
+            output_payload={},
+            tool_trace={},
+            started_at=started_at,
+            created_at=started_at,
+        )
+        db.add(run)
+        db.commit()
+        run_id = run.id
+        session_id = session.id
+
+    registry = get_active_agent_run_registry()
+    registry.register(run_id=run_id, session_id=session_id, user_id=user_id)
+    try:
+        with session_factory() as main_db:
+            main_sink = DurableAgentRunEventSink(main_db)
+            first_event = main_sink.emit(
+                run_id=run_id,
+                event_type="turn_started",
+                phase="turn",
+                title="开始处理任务",
+                status="running",
+            )
+            assert first_event.sequence == 1
+
+            with session_factory() as side_db:
+                side_sink = DurableAgentRunEventSink(side_db)
+                side_event = side_sink.emit(
+                    run_id=run_id,
+                    event_type="turn_cancel_requested",
+                    phase="control",
+                    title="正在停止本次整理",
+                    status="cancelling",
+                )
+                assert side_event.sequence == 2
+                side_db.commit()
+
+            main_event = main_sink.emit(
+                run_id=run_id,
+                event_type="agent_message",
+                phase="message",
+                title="同步停止说明",
+                status="cancelled",
+            )
+            assert main_event.sequence == 3
+            main_db.commit()
+    finally:
+        registry.unregister(run_id=run_id)
+
+    with session_factory() as db:
+        events = list(
+            db.scalars(
+                select(AgentRunEventRecord)
+                .where(AgentRunEventRecord.run_id == run_id)
+                .order_by(AgentRunEventRecord.sequence.asc())
+            )
+        )
+    assert [event.sequence for event in events] == [1, 2, 3]
+    assert [event.event_type for event in events] == [
+        "turn_started",
+        "turn_cancel_requested",
+        "agent_message",
+    ]
+
+
+def test_active_agent_run_accepts_persisted_queued_follow_up(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _onboard(client, email="agent-queue@example.com")
+
+    message_response = client.post(
+        "/api/assistant/messages",
+        json={"message": "请先帮我解释组合风险。"},
+    )
+    assert message_response.status_code == 200
+    message_payload = message_response.json()
+    session_id = message_payload["session"]["id"]
+    run_id = message_payload["messages"][-1]["agent_run_id"]
+    assert run_id is not None
+
+    with session_factory() as session:
+        user = session.scalar(select(UserProfile).where(UserProfile.display_name == "Ava"))
+        assert user is not None
+        user_id = user.id
+
+    registry = get_active_agent_run_registry()
+    registry.register(run_id=run_id, session_id=session_id, user_id=user_id)
+    try:
+        queue_response = client.post(
+            f"/api/assistant/runs/{run_id}/queued-follow-up",
+            json={"message": "然后再帮我看新闻会不会影响它。"},
+        )
+        assert queue_response.status_code == 200
+        queue_payload = queue_response.json()
+        assert queue_payload["schema_version"] == "queued_follow_up_v1"
+        assert queue_payload["queued_follow_up"]["session_id"] == session_id
+        assert queue_payload["queued_follow_up"]["queued_after_run_id"] == run_id
+        assert queue_payload["queued_follow_up"]["message"] == (
+            "然后再帮我看新闻会不会影响它。"
+        )
+        assert queue_payload["queued_follow_up"]["status"] == "queued"
+        queued_follow_up_id = queue_payload["queued_follow_up"]["id"]
+
+        status_response = client.get(f"/api/assistant/runs/{run_id}/status")
+        assert status_response.status_code == 200
+        status_payload = status_response.json()
+        assert status_payload["active"] is True
+        assert status_payload["queued_follow_up"]["message"] == (
+            "然后再帮我看新闻会不会影响它。"
+        )
+        events_after_queue_response = client.get(f"/api/assistant/runs/{run_id}/events")
+        assert events_after_queue_response.status_code == 200
+        events_after_queue = events_after_queue_response.json()["events"]
+        assert events_after_queue[-1]["event_type"] == "input_queued"
+        assert events_after_queue[-1]["title"] == "下一句已排队"
+        assert events_after_queue[-1]["payload"]["message_preview"] == (
+            "然后再帮我看新闻会不会影响它。"
+        )
+
+        read_response = client.get(
+            f"/api/assistant/sessions/{session_id}/queued-follow-up"
+        )
+        assert read_response.status_code == 200
+        assert read_response.json()["queued_follow_up"]["status"] == "queued"
+
+        premature_submitted_response = client.post(
+            f"/api/assistant/sessions/{session_id}/queued-follow-up/submitted"
+        )
+        assert premature_submitted_response.status_code == 409
+        assert "previous run completes successfully" in premature_submitted_response.text
+        registry.request_cancel(run_id=run_id, user_id=user_id)
+        cancelling_submitted_response = client.post(
+            f"/api/assistant/sessions/{session_id}/queued-follow-up/submitted"
+        )
+        assert cancelling_submitted_response.status_code == 409
+        assert "previous run completes successfully" in cancelling_submitted_response.text
+        registry.unregister(run_id=run_id)
+
+        wrong_item_submitted_response = client.post(
+            f"/api/assistant/sessions/{session_id}/queued-follow-up/submitted",
+            json={"queued_follow_up_id": "queued-follow-up-that-was-replaced"},
+        )
+        assert wrong_item_submitted_response.status_code == 409
+        assert "Queued follow-up has changed" in wrong_item_submitted_response.text
+
+        submitted_response = client.post(
+            f"/api/assistant/sessions/{session_id}/queued-follow-up/submitted",
+            json={"queued_follow_up_id": queued_follow_up_id},
+        )
+        assert submitted_response.status_code == 200
+        assert submitted_response.json()["queued_follow_up"]["status"] == "submitted"
+        events_after_submitted_response = client.get(
+            f"/api/assistant/runs/{run_id}/events"
+        )
+        assert events_after_submitted_response.status_code == 200
+        events_after_submitted = events_after_submitted_response.json()["events"]
+        assert [event["sequence"] for event in events_after_submitted] == list(
+            range(1, len(events_after_submitted) + 1)
+        )
+        assert events_after_submitted[-2]["event_type"] == "input_queued"
+        assert events_after_submitted[-1]["event_type"] == "input_submitted"
+        assert events_after_submitted[-1]["title"] == "排队的下一句已发送"
+
+        empty_response = client.get(
+            f"/api/assistant/sessions/{session_id}/queued-follow-up"
+        )
+        assert empty_response.status_code == 200
+        assert empty_response.json()["queued_follow_up"] is None
+    finally:
+        registry.unregister(run_id=run_id)
+
+
+@pytest.mark.parametrize("source_status", ["failed", "cancelled"])
+def test_queued_follow_up_submitted_rejects_unfinished_source_run(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+    source_status: str,
+) -> None:
+    _onboard(client, email=f"agent-queue-{source_status}-source@example.com")
+
+    message_response = client.post(
+        "/api/assistant/messages",
+        json={"message": "请先帮我看一下组合风险。"},
+    )
+    assert message_response.status_code == 200
+    message_payload = message_response.json()
+    session_id = message_payload["session"]["id"]
+    run_id = message_payload["messages"][-1]["agent_run_id"]
+    assert run_id is not None
+
+    with session_factory() as session:
+        user = session.scalar(select(UserProfile).where(UserProfile.display_name == "Ava"))
+        assert user is not None
+        user_id = user.id
+
+    registry = get_active_agent_run_registry()
+    registry.register(run_id=run_id, session_id=session_id, user_id=user_id)
+    try:
+        queue_response = client.post(
+            f"/api/assistant/runs/{run_id}/queued-follow-up",
+            json={"message": f"上一条{source_status}时，这句要先保留确认。"},
+        )
+        assert queue_response.status_code == 200
+    finally:
+        registry.unregister(run_id=run_id)
+
+    with session_factory() as session:
+        agent_run = session.get(AgentRun, run_id)
+        assert agent_run is not None
+        agent_run.run_status = source_status
+        session.add(agent_run)
+        session.commit()
+
+    submitted_response = client.post(
+        f"/api/assistant/sessions/{session_id}/queued-follow-up/submitted"
+    )
+    assert submitted_response.status_code == 409
+    assert "previous run completes successfully" in submitted_response.text
+
+    read_response = client.get(
+        f"/api/assistant/sessions/{session_id}/queued-follow-up"
+    )
+    assert read_response.status_code == 200
+    queued = read_response.json()["queued_follow_up"]
+    assert queued["status"] == "queued"
+    assert queued["message"] == f"上一条{source_status}时，这句要先保留确认。"
+    events_response = client.get(f"/api/assistant/runs/{run_id}/events")
+    assert events_response.status_code == 200
+    assert "input_submitted" not in {
+        event["event_type"] for event in events_response.json()["events"]
+    }
+
+
+def test_queued_follow_up_rejects_inactive_and_stopping_runs(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _onboard(client, email="agent-queue-stop@example.com")
+
+    message_response = client.post(
+        "/api/assistant/messages",
+        json={"message": "请先帮我看一下风险。"},
+    )
+    assert message_response.status_code == 200
+    message_payload = message_response.json()
+    session_id = message_payload["session"]["id"]
+    run_id = message_payload["messages"][-1]["agent_run_id"]
+    assert run_id is not None
+
+    inactive_response = client.post(
+        f"/api/assistant/runs/{run_id}/queued-follow-up",
+        json={"message": "这句不应该排队成功。"},
+    )
+    assert inactive_response.status_code == 409
+
+    with session_factory() as session:
+        user = session.scalar(select(UserProfile).where(UserProfile.display_name == "Ava"))
+        assert user is not None
+        user_id = user.id
+
+    registry = get_active_agent_run_registry()
+    registry.register(run_id=run_id, session_id=session_id, user_id=user_id)
+    registry.request_cancel(run_id=run_id, user_id=user_id)
+    try:
+        stopping_response = client.post(
+            f"/api/assistant/runs/{run_id}/queued-follow-up",
+            json={"message": "停止中的下一句也不能自动排队。"},
+        )
+        assert stopping_response.status_code == 409
+    finally:
+        registry.unregister(run_id=run_id)
+
+
+def test_agent_run_cancel_persists_cancel_request_and_discards_queued_follow_up(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+) -> None:
+    _onboard(client, email="agent-cancel-queue@example.com")
+
+    message_response = client.post(
+        "/api/assistant/messages",
+        json={"message": "请先帮我看今天应该检查什么。"},
+    )
+    assert message_response.status_code == 200
+    message_payload = message_response.json()
+    session_id = message_payload["session"]["id"]
+    run_id = message_payload["messages"][-1]["agent_run_id"]
+    assert run_id is not None
+
+    with session_factory() as session:
+        user = session.scalar(select(UserProfile).where(UserProfile.display_name == "Ava"))
+        assert user is not None
+        user_id = user.id
+
+    registry = get_active_agent_run_registry()
+    registry.register(run_id=run_id, session_id=session_id, user_id=user_id)
+    try:
+        queue_response = client.post(
+            f"/api/assistant/runs/{run_id}/queued-follow-up",
+            json={"message": "如果它还没结束，就别自动发这句。"},
+        )
+        assert queue_response.status_code == 200
+
+        cancel_response = client.post(f"/api/assistant/runs/{run_id}/cancel")
+        assert cancel_response.status_code == 200
+        cancel_payload = cancel_response.json()
+        assert cancel_payload["status"] == "cancelling"
+        assert cancel_payload["cancel_requested"] is True
+        assert "不会自动发送" in cancel_payload["message"]
+
+        queued_response = client.get(
+            f"/api/assistant/sessions/{session_id}/queued-follow-up"
+        )
+        assert queued_response.status_code == 200
+        assert queued_response.json()["queued_follow_up"] is None
+
+        events_response = client.get(f"/api/assistant/runs/{run_id}/events")
+        assert events_response.status_code == 200
+        events = events_response.json()["events"]
+        assert [event["sequence"] for event in events] == list(
+            range(1, len(events) + 1)
+        )
+        assert [event["event_type"] for event in events[-3:]] == [
+            "input_queued",
+            "turn_cancel_requested",
+            "input_discarded",
+        ]
+        assert events[-2]["title"] == "正在停止本次整理"
+        assert events[-1]["title"] == "停止后已取消排队下一句"
     finally:
         registry.unregister(run_id=run_id)
 

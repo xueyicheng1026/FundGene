@@ -275,84 +275,113 @@ export function ProfileWorkspace() {
             </div>
           </Panel>
 
-          <div className="profile-context-cards">
-            <Panel className="profile-context-card">
-              <div className="profile-card-heading">
-                <ClipboardCheck aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
-                <h2>风险画像</h2>
-              </div>
-              <dl>
-                <div>
-                  <dt>当前等级</dt>
-                  <dd>{formatRiskLevel(context.riskProfile.riskLevel)}</dd>
+          <div className="profile-main-column">
+            <div className="profile-context-cards">
+              <Panel className="profile-context-card">
+                <div className="profile-card-heading">
+                  <ClipboardCheck aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
+                  <h2>风险画像</h2>
                 </div>
-                <div>
-                  <dt>风险分数</dt>
-                  <dd>{context.riskProfile.latestRiskScore ?? "待完成问卷"}</dd>
-                </div>
-                <div>
-                  <dt>行为焦点</dt>
-                  <dd className="profile-chip-line">
-                    {formatBiasTags(context.behaviorProfile.biasTags).map((tag) => (
-                      <StatusPill key={tag} tone="accent">
-                        {tag}
-                      </StatusPill>
-                    ))}
-                    {context.behaviorProfile.biasTags.length === 0 ? (
-                      <StatusPill tone="neutral">待观察</StatusPill>
-                    ) : null}
-                  </dd>
-                </div>
-              </dl>
-              <Link href="/onboarding" className="command-link-button">更新画像</Link>
-            </Panel>
+                <dl>
+                  <div>
+                    <dt>当前等级</dt>
+                    <dd>{formatRiskLevel(context.riskProfile.riskLevel)}</dd>
+                  </div>
+                  <div>
+                    <dt>风险分数</dt>
+                    <dd>{context.riskProfile.latestRiskScore ?? "待完成问卷"}</dd>
+                  </div>
+                  <div>
+                    <dt>行为焦点</dt>
+                    <dd className="profile-chip-line">
+                      {formatBiasTags(context.behaviorProfile.biasTags).map((tag) => (
+                        <StatusPill key={tag} tone="accent">
+                          {tag}
+                        </StatusPill>
+                      ))}
+                      {context.behaviorProfile.biasTags.length === 0 ? (
+                        <StatusPill tone="neutral">待观察</StatusPill>
+                      ) : null}
+                    </dd>
+                  </div>
+                </dl>
+                <Link href="/onboarding" className="command-link-button">更新画像</Link>
+              </Panel>
 
-            <Panel className="profile-context-card">
-              <div className="profile-card-heading">
-                <BriefcaseBusiness aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
-                <h2>组合上下文</h2>
-              </div>
-              <dl>
-                <div>
-                  <dt>最近快照</dt>
-                  <dd>{formatDate(context.portfolioContext.latestSnapshotDate)}</dd>
+              <Panel className="profile-context-card">
+                <div className="profile-card-heading">
+                  <BriefcaseBusiness aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
+                  <h2>组合上下文</h2>
                 </div>
-                <div>
-                  <dt>总资产</dt>
-                  <dd>{formatCurrency(context.portfolioContext.totalValue)}</dd>
-                </div>
-              </dl>
-              <p>
-                {context.portfolioContext.summary ??
-                  "录入组合后，FundGene 才能判断新闻和风险是否真正与你有关。"}
-              </p>
-              <Link href="/portfolio?from=profile" className="command-link-button">查看组合</Link>
-            </Panel>
+                <dl>
+                  <div>
+                    <dt>最近快照</dt>
+                    <dd>{formatDate(context.portfolioContext.latestSnapshotDate)}</dd>
+                  </div>
+                  <div>
+                    <dt>总资产</dt>
+                    <dd>{formatCurrency(context.portfolioContext.totalValue)}</dd>
+                  </div>
+                </dl>
+                <p>
+                  {context.portfolioContext.summary ??
+                    "录入组合后，FundGene 才能判断新闻和风险是否真正与你有关。"}
+                </p>
+                <Link href="/portfolio?from=profile" className="command-link-button">查看组合</Link>
+              </Panel>
 
-            <Panel className="profile-context-card">
+              <Panel className="profile-context-card">
+                <div className="profile-card-heading">
+                  <BookOpenCheck aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
+                  <h2>学习与训练</h2>
+                </div>
+                <dl>
+                  <div>
+                    <dt>学习进度</dt>
+                    <dd>{context.learningContext.overallProgressPercentage}%</dd>
+                  </div>
+                  <div>
+                    <dt>推荐课程</dt>
+                    <dd>
+                      {context.learningContext.recommendedCourseTitle
+                        ? formatProductCopy(context.learningContext.recommendedCourseTitle)
+                        : "待生成"}
+                    </dd>
+                  </div>
+                </dl>
+                <p>
+                  {context.simulationContext.latestReviewSummary ??
+                    "训练复盘会帮助 FundGene 判断你是否需要先练习纪律，而不是继续看更多信息。"}
+                </p>
+                <Link href="/learning?from=profile" className="command-link-button">查看学习状态</Link>
+              </Panel>
+            </div>
+
+            <Panel className="profile-agent-map-panel">
               <div className="profile-card-heading">
-                <BookOpenCheck aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
-                <h2>学习与训练</h2>
+                <UserRoundCog aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
+                <h2>Agent 使用这些资料时会做什么</h2>
               </div>
-              <dl>
+              <div className="profile-agent-map-grid">
                 <div>
-                  <dt>学习进度</dt>
-                  <dd>{context.learningContext.overallProgressPercentage}%</dd>
+                  <span>1</span>
+                  <strong>先读授权资料</strong>
+                  <p>只读取画像、组合、学习训练和已同步资讯，不越过授权边界。</p>
                 </div>
                 <div>
-                  <dt>推荐课程</dt>
-                  <dd>
-                    {context.learningContext.recommendedCourseTitle
-                      ? formatProductCopy(context.learningContext.recommendedCourseTitle)
-                      : "待生成"}
-                  </dd>
+                  <span>2</span>
+                  <strong>再判断相关性</strong>
+                  <p>把新闻或训练结果映射到你的持仓结构、风险等级和行为焦点。</p>
                 </div>
-              </dl>
-              <p>
-                {context.simulationContext.latestReviewSummary ??
-                  "训练复盘会帮助 FundGene 判断你是否需要先练习纪律，而不是继续看更多信息。"}
+                <div>
+                  <span>3</span>
+                  <strong>最后等待确认</strong>
+                  <p>高影响内容先进入待确认资料，不会自动改写长期画像。</p>
+                </div>
+              </div>
+              <p className="profile-agent-map-note">
+                这就是答辩中要强调的边界：FundGene 做解释、整理和候选建议，不做交易执行。
               </p>
-              <Link href="/learning?from=profile" className="command-link-button">查看学习状态</Link>
             </Panel>
           </div>
 
@@ -453,106 +482,108 @@ export function ProfileWorkspace() {
 
           </Panel>
 
-          <Panel className="profile-auth-panel">
-            <div className="profile-auth-block">
-              <div className="profile-card-heading">
-                <Clock3 aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
-                <h2>授权读取范围</h2>
+          <div className="profile-settings-column">
+            <Panel className="profile-auth-panel">
+              <div className="profile-auth-block">
+                <div className="profile-card-heading">
+                  <Clock3 aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
+                  <h2>授权读取范围</h2>
+                </div>
+                <div className="profile-auth-list">
+                  {context.authorizationScope.map((item) => (
+                    <div
+                      key={item.key}
+                      className="profile-auth-row"
+                    >
+                      <span>{item.label}</span>
+                      <StatusPill tone={item.readable ? "positive" : "warning"}>
+                        {item.readable ? "已可读取" : "待补齐"}
+                      </StatusPill>
+                    </div>
+                  ))}
+                </div>
+                <div className="profile-auth-list profile-automation-auth">
+                  <p>自动任务授权</p>
+                  {context.automationAuthorizations.map((item) => (
+                    <div
+                      key={item.automationKey}
+                      className="profile-auth-row"
+                    >
+                      <span>{formatAutomationLabel(item.automationKey)}</span>
+                      <StatusPill tone={item.enabled ? "positive" : "warning"}>
+                        {item.enabled ? item.cadenceLabel : "未开启"}
+                      </StatusPill>
+                    </div>
+                  ))}
+                </div>
+                <p className="profile-auth-note">
+                  自动任务只能读取这里明确存在的资料。高影响保存仍需确认。
+                </p>
               </div>
-              <div className="profile-auth-list">
-                {context.authorizationScope.map((item) => (
-                  <div
-                    key={item.key}
-                    className="profile-auth-row"
-                  >
-                    <span>{item.label}</span>
-                    <StatusPill tone={item.readable ? "positive" : "warning"}>
-                      {item.readable ? "已可读取" : "待补齐"}
-                    </StatusPill>
-                  </div>
-                ))}
-              </div>
-              <div className="profile-auth-list profile-automation-auth">
-                <p>自动任务授权</p>
-                {context.automationAuthorizations.map((item) => (
-                  <div
-                    key={item.automationKey}
-                    className="profile-auth-row"
-                  >
-                    <span>{formatAutomationLabel(item.automationKey)}</span>
-                    <StatusPill tone={item.enabled ? "positive" : "warning"}>
-                      {item.enabled ? item.cadenceLabel : "未开启"}
-                    </StatusPill>
-                  </div>
-                ))}
-              </div>
-              <p className="profile-auth-note">
-                自动任务只能读取这里明确存在的资料。高影响保存仍需确认。
-              </p>
-            </div>
-          </Panel>
+            </Panel>
 
-          <Panel className="profile-auth-panel profile-llm-panel">
-            <div className="profile-auth-block profile-llm-block" id="llm-settings">
-              <div className="profile-card-heading">
-                <KeyRound aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
-                <h2>模型设置</h2>
-              </div>
-              <div className="profile-auth-list">
-                <div className="profile-auth-row">
-                  <span>LLM 连接状态</span>
-                  <StatusPill tone={llmStatusTone}>{llmStatusLabel}</StatusPill>
+            <Panel className="profile-auth-panel profile-llm-panel">
+              <div className="profile-auth-block profile-llm-block" id="llm-settings">
+                <div className="profile-card-heading">
+                  <KeyRound aria-hidden="true" className="size-5 text-[color:var(--accent-teal)]" />
+                  <h2>模型设置</h2>
                 </div>
-                <div className="profile-auth-row">
-                  <span>当前模型</span>
-                  <span>{llmSettings?.modelName ?? effectiveLlmModelName}</span>
+                <div className="profile-auth-list">
+                  <div className="profile-auth-row">
+                    <span>LLM 连接状态</span>
+                    <StatusPill tone={llmStatusTone}>{llmStatusLabel}</StatusPill>
+                  </div>
+                  <div className="profile-auth-row">
+                    <span>当前模型</span>
+                    <span>{llmSettings?.modelName ?? effectiveLlmModelName}</span>
+                  </div>
+                  <div className="profile-auth-row">
+                    <span>Key 预览</span>
+                    <span>{llmSettings?.maskedApiKey ?? "未保存"}</span>
+                  </div>
                 </div>
-                <div className="profile-auth-row">
-                  <span>Key 预览</span>
-                  <span>{llmSettings?.maskedApiKey ?? "未保存"}</span>
-                </div>
-              </div>
-              {llmSettings?.warning ? (
-                <p className="command-inline-error">{llmSettings.warning}</p>
-              ) : null}
-              {llmOperationError ? (
-                <p className="command-inline-error">{llmOperationError}</p>
-              ) : null}
-              <div className="profile-llm-form">
-                <Field
-                  label="DeepSeek API Key"
-                  type="password"
-                  autoComplete="off"
-                  value={llmApiKey}
-                  placeholder="sk-..."
-                  onChange={(event) => setLlmApiKey(event.target.value)}
-                />
-                <Field
-                  label="模型名称"
-                  value={effectiveLlmModelName}
-                  onChange={(event) => setLlmModelName(event.target.value)}
-                />
-                <label className="profile-llm-toggle">
-                  <input
-                    type="checkbox"
-                    checked={effectiveLlmEnabled}
-                    onChange={(event) => setLlmEnabled(event.target.checked)}
+                {llmSettings?.warning ? (
+                  <p className="command-inline-error">{llmSettings.warning}</p>
+                ) : null}
+                {llmOperationError ? (
+                  <p className="command-inline-error">{llmOperationError}</p>
+                ) : null}
+                <div className="profile-llm-form">
+                  <Field
+                    label="DeepSeek API Key"
+                    type="password"
+                    autoComplete="off"
+                    value={llmApiKey}
+                    placeholder="sk-..."
+                    onChange={(event) => setLlmApiKey(event.target.value)}
                   />
-                  启用我的模型 Key
-                </label>
-                <Button
-                  type="button"
-                  disabled={llmSettingsMutation.isPending}
-                  onClick={saveLlmSettings}
-                >
-                  {llmSettingsMutation.isPending ? "保存中" : "保存模型设置"}
-                </Button>
+                  <Field
+                    label="模型名称"
+                    value={effectiveLlmModelName}
+                    onChange={(event) => setLlmModelName(event.target.value)}
+                  />
+                  <label className="profile-llm-toggle">
+                    <input
+                      type="checkbox"
+                      checked={effectiveLlmEnabled}
+                      onChange={(event) => setLlmEnabled(event.target.checked)}
+                    />
+                    启用我的模型 Key
+                  </label>
+                  <Button
+                    type="button"
+                    disabled={llmSettingsMutation.isPending}
+                    onClick={saveLlmSettings}
+                  >
+                    {llmSettingsMutation.isPending ? "保存中" : "保存模型设置"}
+                  </Button>
+                </div>
+                <p className="profile-auth-note">
+                  保存后只用于教练回答生成；页面只显示脱敏预览。
+                </p>
               </div>
-              <p className="profile-auth-note">
-                保存后只用于教练回答生成；页面只显示脱敏预览。
-              </p>
-            </div>
-          </Panel>
+            </Panel>
+          </div>
         </div>
       ) : null}
     </div>

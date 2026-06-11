@@ -228,6 +228,444 @@ const assistantSession = {
   ],
 };
 
+const agentShowcaseQuestion = "今天先检查组合集中度，我具体应该先看哪几项？";
+const agentPortfolioJumpQuestion = "帮我检查这份组合里最需要关注的风险来源。";
+const agentShowcaseFollowUpQuestion =
+  "那我下一步应该学什么，能帮我把检查顺序写成清单吗？";
+
+const agentShowcaseSession = {
+  session: {
+    id: "session_agent_showcase_e2e",
+    topic: "组合集中度检查",
+    context_type: "advisor",
+    latest_intent: "portfolio",
+    last_question: agentShowcaseQuestion,
+    last_answer_preview:
+      "先看第一大持仓、权益基金比例和主题重复，再决定要不要继续追问。",
+    last_recommended_action: "查看组合体检里的第一大持仓和权益占比。",
+    message_count: 2,
+    created_at: "2026-04-26T09:32:00Z",
+    updated_at: "2026-04-26T09:32:03Z",
+  },
+  messages: [
+    {
+      id: "msg_agent_showcase_user",
+      role: "user",
+      content: agentShowcaseQuestion,
+      message_type: "text",
+      created_at: "2026-04-26T09:32:00Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "msg_agent_showcase_assistant",
+      role: "assistant",
+      content:
+        "先看第一大持仓、权益基金比例和主题重复，确认风险来源后再决定要不要追问新闻影响。",
+      message_type: "advisor_response",
+      created_at: "2026-04-26T09:32:03Z",
+      agent_run_id: "run_e2e",
+      advisor_response: {
+        answer:
+          "可以先按三项检查：第一，看第一大持仓是不是已经接近三成以上，它决定了单一主题波动对账户的影响有多大；第二，看权益基金比例是否会让你在下跌时容易失守；第三，把不同基金的行业和主题放在一起看，确认它们是不是其实押在同一方向。结合你这份 2026 年 4 月 26 日快照，第一大持仓约 34%，所以 FundGene 会把“组合集中度检查”放在今天的第一步。这样做的目的不是马上调仓，而是先把风险来源看清楚，再决定新闻、课程或训练哪个更值得继续追问。",
+        intent: "portfolio",
+        citations: ["portfolio_snapshot_e2e", "behavior_profile"],
+        risk_notice:
+          "这是风险来源检查，不是买卖建议。任何需要长期记录的变化仍要你确认。",
+        recommended_actions: [
+          "先查看组合体检中的第一大持仓占比。",
+          "把相似主题基金放在一起看，避免重复暴露。",
+          "记录这次检查结论，后续再决定是否需要做模拟训练。",
+        ],
+        recommended_action_targets: [
+          {
+            label: "查看组合体检",
+            href: "/portfolio?from=agent&focus=concentration",
+            intent: "portfolio",
+            kind: "internal_link",
+          },
+        ],
+        follow_up_questions: [
+          "帮我判断第一大持仓是不是过高。",
+          "我该怎样识别基金之间的主题重复？",
+        ],
+      },
+    },
+  ],
+};
+
+const agentShowcaseFollowUpSession = {
+  session: {
+    ...agentShowcaseSession.session,
+    last_question: agentShowcaseFollowUpQuestion,
+    last_answer_preview:
+      "下一步先学习回撤和集中度的关系，再按三步清单检查第一大持仓、主题重复和情绪触发点。",
+    last_recommended_action: "完成风险和回撤基础，再回到组合体检确认集中度。",
+    message_count: 4,
+    updated_at: "2026-04-26T09:33:40Z",
+  },
+  messages: [
+    ...agentShowcaseSession.messages,
+    {
+      id: "msg_agent_showcase_followup_user",
+      role: "user",
+      content: agentShowcaseFollowUpQuestion,
+      message_type: "text",
+      created_at: "2026-04-26T09:33:36Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "msg_agent_showcase_followup_assistant",
+      role: "assistant",
+      content:
+        "可以，把下一步拆成学习、检查、确认三件事，避免直接把集中度问题变成操作冲动。",
+      message_type: "advisor_response",
+      created_at: "2026-04-26T09:33:40Z",
+      agent_run_id: "run_agent_followup_e2e",
+      advisor_response: {
+        answer:
+          "可以。下一步不要急着判断要不要调整账户，先把检查顺序固定下来：第一，学一节“风险和回撤基础”，理解为什么第一大持仓过高会放大账户波动感；第二，回到组合体检，核对第一大持仓约 34% 是否来自单一主题，顺便看权益基金、债券基金和现金的比例；第三，写下一句确认语：如果只是因为新闻或短期涨跌想行动，先停下来补充证据。这样你学完以后再回来问 Agent，系统就能结合学习记录、组合快照和最近资讯，判断下一步更适合做训练、补充资料，还是只保留观察。",
+        intent: "learning",
+        citations: ["learning_risk_basics", "portfolio_snapshot_e2e", "behavior_profile"],
+        risk_notice:
+          "这是一份学习和检查清单，不是买卖建议。任何长期画像或计划变化都需要你确认后才会保存。",
+        recommended_actions: [
+          "先完成风险和回撤基础。",
+          "回到组合体检检查第一大持仓和主题重复。",
+          "把这次想追问的触发点写下来，作为下一次训练材料。",
+        ],
+        recommended_action_targets: [
+          {
+            label: "进入学习中心",
+            href: "/learning?from=agent&focus=risk-basics",
+            intent: "learning",
+            kind: "internal_link",
+          },
+          {
+            label: "查看组合体检",
+            href: "/portfolio?from=agent&focus=concentration",
+            intent: "portfolio",
+            kind: "internal_link",
+          },
+        ],
+        follow_up_questions: [
+          "学完以后帮我判断第一大持仓是否过高。",
+          "把这套检查顺序变成一次模拟训练。",
+        ],
+      },
+    },
+  ],
+};
+
+const agentPortfolioJumpSession = {
+  session: {
+    ...agentShowcaseSession.session,
+    id: "session_agent_portfolio_jump_e2e",
+    last_question: agentPortfolioJumpQuestion,
+    last_answer_preview:
+      "这是组合检查任务。我会先进入持仓分析，看第一大持仓、资产分布和集中度。",
+    updated_at: "2026-04-26T09:34:03Z",
+  },
+  messages: [
+    {
+      ...agentShowcaseSession.messages[0],
+      id: "msg_agent_portfolio_jump_user",
+      content: agentPortfolioJumpQuestion,
+      created_at: "2026-04-26T09:34:00Z",
+    },
+    {
+      ...agentShowcaseSession.messages[1],
+      id: "msg_agent_portfolio_jump_assistant",
+      content:
+        "这是组合检查任务。我会先进入持仓分析，看第一大持仓、资产分布和集中度。",
+      created_at: "2026-04-26T09:34:03Z",
+      advisor_response: {
+        ...agentShowcaseSession.messages[1].advisor_response,
+        answer:
+          "这是组合检查任务。先不用从页面里自己翻入口，我会把问题转成持仓分析：第一，看第一大持仓是否已经放大单一主题波动；第二，看权益、债券、海外和现金的分布；第三，看不同基金之间有没有重复暴露。结合最近快照，第一大持仓约 34%，所以这次最该先进入组合体检看集中度。",
+        recommended_actions: [
+          "查看持仓分析里的第一大持仓和资产分布。",
+          "把集中度风险作为下一句追问材料。",
+        ],
+        recommended_action_targets: [
+          {
+            label: "查看持仓分析",
+            href: "/portfolio?from=agent&focus=concentration",
+            intent: "portfolio",
+            kind: "internal_link",
+          },
+        ],
+      },
+    },
+  ],
+};
+
+const newsQuestion =
+  "请结合我的组合，解释《央行：下一阶段将坚持支持性的货币政策立场》可能影响什么、哪些地方不能当成买卖信号？";
+
+const newsAssistantSession = {
+  session: {
+    id: "session_news_showcase_e2e",
+    topic: "资讯影响与组合风险",
+    context_type: "advisor",
+    latest_intent: "news",
+    last_question: newsQuestion,
+    last_answer_preview:
+      "《央行：下一阶段将坚持支持性的货币政策立场》更像长期资金和市场结构信号，先看它如何影响你的权益暴露和集中度。",
+    last_recommended_action: "先检查第一大持仓和权益基金比例。",
+    message_count: 2,
+    created_at: "2026-04-26T09:35:00Z",
+    updated_at: "2026-04-26T09:35:03Z",
+  },
+  messages: [
+    {
+      id: "msg_news_user",
+      role: "user",
+      content: newsQuestion,
+      message_type: "text",
+      created_at: "2026-04-26T09:35:00Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "msg_news_assistant",
+      role: "assistant",
+      content:
+        "这条央行货币政策新闻对你更重要的不是立刻买卖，而是检查权益暴露、主题集中度和情绪反应。",
+      message_type: "advisor_response",
+      created_at: "2026-04-26T09:35:03Z",
+      agent_run_id: "run_e2e",
+      advisor_response: {
+        answer:
+          "结合你的画像、组合报告和最近同步的《央行：下一阶段将坚持支持性的货币政策立场》，这条信息更像长期资金和市场结构信号，而不是一条可以直接操作账户的指令。它可能先影响权益基金的市场情绪和估值预期，也可能让债券基金在组合里的缓冲作用变得更值得观察。对你这类还在建立投资纪律的新手来说，更重要的是把新闻拆成三层：事实是什么，影响路径可能经过哪些资产，和你的组合是否已经在同一主题上暴露过多。安全的第一步仍然是检查第一大持仓、权益基金比例和主题重复，而不是因为“支持性政策”四个字立刻买入或卖出。",
+        intent: "news",
+        citations: ["news_analysis_e2e", "portfolio_snapshot_e2e", "behavior_profile"],
+        risk_notice:
+          "新闻相关性不是交易指令。FundGene 只帮你解释影响路径和不确定性，不替你做账户操作。",
+        recommended_actions: [
+          "先检查组合里权益基金和第一大持仓占比。",
+          "把这条央行政策信息当作追问材料，而不是立即行动理由。",
+        ],
+        recommended_action_targets: [
+          {
+            label: "查看组合体检",
+            href: "/portfolio?from=agent&focus=concentration",
+            intent: "portfolio",
+            kind: "internal_link",
+          },
+          {
+            label: "打开资讯解读",
+            href: "/news?from=agent",
+            intent: "news",
+            kind: "internal_link",
+          },
+        ],
+        follow_up_questions: [
+          "帮我判断我的第一大持仓是不是太集中。",
+          "这条央行政策信息有哪些地方不能当作买卖依据？",
+        ],
+      },
+    },
+  ],
+};
+
+const agentFirstQuestion =
+  "今天我应该先处理什么？如果有新闻影响，也帮我结合组合解释。";
+const agentFirstWhyQuestion = "为什么这和我的组合有关？";
+const agentFirstNextQuestion = "那我下一步应该做训练还是改组合？";
+
+const agentFirstPlanSession = {
+  session: {
+    id: "session_agent_first_e2e",
+    topic: "今日 Agent 任务规划",
+    context_type: "advisor",
+    latest_intent: "daily_brief",
+    last_question: agentFirstQuestion,
+    last_answer_preview:
+      "今天先检查组合集中度，再把央行政策新闻当成解释材料，不把它当成买卖信号。",
+    last_recommended_action: "先核对第一大持仓和权益暴露。",
+    message_count: 2,
+    created_at: "2026-04-26T10:10:00Z",
+    updated_at: "2026-04-26T10:10:04Z",
+  },
+  messages: [
+    {
+      id: "msg_agent_first_user_1",
+      role: "user",
+      content: agentFirstQuestion,
+      message_type: "text",
+      created_at: "2026-04-26T10:10:00Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "msg_agent_first_assistant_1",
+      role: "assistant",
+      content:
+        "今天先处理组合集中度，再把最新政策新闻放进你的组合里解释。",
+      message_type: "advisor_response",
+      created_at: "2026-04-26T10:10:04Z",
+      agent_run_id: "run_agent_first_plan_e2e",
+      advisor_response: {
+        answer:
+          "我建议今天先处理一件事：检查组合集中度，不急着响应单条新闻。我会按这个顺序帮你整理：先读取 Today 的今日判断，再看组合里第一大持仓和权益暴露，然后把《央行：下一阶段将坚持支持性的货币政策立场》这类新闻作为影响路径来解释。这里的边界很明确：新闻只能帮助你理解市场情绪和资产影响，不能直接变成买入、卖出或调仓指令。今天的安全下一步，是先确认你的第一大持仓、主题重复和现金缓冲，而不是立刻做账户操作。",
+        intent: "daily_brief",
+        citations: ["daily_brief_e2e", "portfolio_snapshot_e2e", "news_analysis_e2e"],
+        risk_notice:
+          "FundGene 只做解释、训练和待确认建议，不替你执行账户操作。",
+        recommended_actions: [
+          "先检查第一大持仓和权益暴露。",
+          "把央行政策新闻作为解释材料，不作为交易理由。",
+          "如果仍然不确定，再做一次回撤纪律训练。",
+        ],
+        recommended_action_targets: [
+          {
+            label: "查看今日判断",
+            href: "/today?from=agent",
+            intent: "daily_brief",
+            kind: "internal_link",
+          },
+          {
+            label: "查看组合体检",
+            href: "/portfolio?from=agent&focus=concentration",
+            intent: "portfolio",
+            kind: "internal_link",
+          },
+        ],
+        follow_up_questions: [
+          "为什么这和我的组合有关？",
+          "那我下一步应该做训练还是改组合？",
+        ],
+      },
+    },
+  ],
+};
+
+const agentFirstWhySession = {
+  session: {
+    ...agentFirstPlanSession.session,
+    latest_intent: "portfolio",
+    last_question: agentFirstWhyQuestion,
+    last_answer_preview:
+      "因为你的第一大持仓约 34%，新闻带来的情绪波动会先放大集中度感受。",
+    last_recommended_action: "先看第一大持仓、主题重复和债券基金缓冲。",
+    message_count: 4,
+    updated_at: "2026-04-26T10:11:04Z",
+  },
+  messages: [
+    ...agentFirstPlanSession.messages,
+    {
+      id: "msg_agent_first_user_2",
+      role: "user",
+      content: agentFirstWhyQuestion,
+      message_type: "text",
+      created_at: "2026-04-26T10:11:00Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "msg_agent_first_assistant_2",
+      role: "assistant",
+      content:
+        "因为你的组合里第一大持仓约 34%，新闻情绪会先放大集中度和波动感。",
+      message_type: "advisor_response",
+      created_at: "2026-04-26T10:11:04Z",
+      agent_run_id: "run_agent_first_why_e2e",
+      advisor_response: {
+        answer:
+          "这和你的组合有关，主要有三层原因。第一，你这份 2026 年 4 月 26 日组合快照里，第一大持仓约 34%，如果它集中在单一主题，新闻带来的市场情绪会更容易放大账户波动感。第二，你的组合同时有权益基金、债券基金和现金，央行支持性货币政策可能影响权益估值预期，也可能改变债券基金作为缓冲的观察价值。第三，你的行为画像里有追热点倾向，所以看到政策或资金流向新闻时，FundGene 会先提醒你拆事实、影响路径和不确定性，而不是把标题当成操作理由。",
+        intent: "portfolio",
+        citations: ["portfolio_snapshot_e2e", "news_analysis_e2e", "behavior_profile"],
+        risk_notice:
+          "这是个人化解释，不是账户操作建议。是否保存长期观察，需要你确认。",
+        recommended_actions: [
+          "先看第一大持仓是否过高。",
+          "检查不同基金是否暴露在同一主题。",
+          "把新闻影响写成观察线索，不直接改组合。",
+        ],
+        recommended_action_targets: [
+          {
+            label: "查看资讯解读",
+            href: "/news?from=agent",
+            intent: "news",
+            kind: "internal_link",
+          },
+        ],
+        follow_up_questions: [
+          "那我下一步应该做训练还是改组合？",
+          "这条新闻哪些地方不能当成买卖依据？",
+        ],
+      },
+    },
+  ],
+};
+
+const agentFirstNextSession = {
+  session: {
+    ...agentFirstPlanSession.session,
+    latest_intent: "simulation",
+    last_question: agentFirstNextQuestion,
+    last_answer_preview:
+      "先做训练，不直接改组合；训练结果只生成待确认线索。",
+    last_recommended_action: "做一次回撤纪律训练。",
+    message_count: 6,
+    updated_at: "2026-04-26T10:12:04Z",
+  },
+  messages: [
+    ...agentFirstWhySession.messages,
+    {
+      id: "msg_agent_first_user_3",
+      role: "user",
+      content: agentFirstNextQuestion,
+      message_type: "text",
+      created_at: "2026-04-26T10:12:00Z",
+      agent_run_id: null,
+      advisor_response: null,
+    },
+    {
+      id: "msg_agent_first_assistant_3",
+      role: "assistant",
+      content:
+        "下一步先做回撤纪律训练，不直接改组合；训练结果只进入待确认。",
+      message_type: "advisor_response",
+      created_at: "2026-04-26T10:12:04Z",
+      agent_run_id: "run_agent_first_next_e2e",
+      advisor_response: {
+        answer:
+          "下一步更适合先做训练，而不是马上改组合。原因是：现在我们已经知道需要检查集中度，也知道政策新闻不能直接当成买卖信号，但还缺一个判断纪律验证。你可以先做一次“市场急跌”的回撤训练，写下自己为什么选择持有、减仓或继续观察。训练完成后，FundGene 只会生成待确认的行为线索，例如“下跌时是否先核对计划”，不会静默改写你的长期画像，更不会执行账户动作。这样闭环就完整了：Agent 先解释，训练帮助你验证判断，资料中心只保存你确认过的变化。",
+        intent: "simulation",
+        citations: ["simulation_drawdown", "behavior_profile", "profile_confirmation"],
+        risk_notice:
+          "训练建议用于提升判断纪律，不代表应该买入、卖出或调整仓位。",
+        recommended_actions: [
+          "先做一次市场急跌情境训练。",
+          "训练后只确认你认可的行为线索。",
+          "下次简报再把确认过的状态纳入判断。",
+        ],
+        recommended_action_targets: [
+          {
+            label: "进入模拟训练",
+            href: "/simulation?from=agent&scenario=drawdown-discipline",
+            intent: "simulation",
+            kind: "internal_link",
+          },
+          {
+            label: "查看待确认资料",
+            href: "/profile?from=agent",
+            intent: "profile",
+            kind: "internal_link",
+          },
+        ],
+        follow_up_questions: [
+          "帮我开始一次回撤训练。",
+          "训练后哪些内容会写入资料？",
+        ],
+      },
+    },
+  ],
+};
+
 const assistantHistorySession = {
   session: {
     id: "session_history_e2e",
@@ -471,6 +909,25 @@ const agentRunEvents = {
       payload: {},
     },
   ],
+};
+
+const agentRunStatus = {
+  schema_version: "agent_run_status_v1",
+  run_id: "run_e2e",
+  session_id: "session_e2e",
+  status: "completed",
+  run_status: "completed",
+  active: false,
+  cancel_requested: false,
+  started_at: "2026-04-26T08:29:58Z",
+  completed_at: "2026-04-26T08:30:00Z",
+  latency_ms: 1280,
+  message: "本次整理已完成。",
+};
+
+const activeAgentRuns = {
+  schema_version: "active_agent_runs_v1",
+  runs: [],
 };
 
 const portfolioReport = {
@@ -931,6 +1388,7 @@ function buildAutomationState() {
       as_of: dashboardState.daily_brief.as_of,
       source_coverage: dashboardState.daily_brief.source_coverage,
     },
+    recent_notifications: [] as Array<Record<string, unknown>>,
   };
 }
 
@@ -1020,7 +1478,7 @@ function buildPendingProposals() {
         patch_preview: { evidence: "追热点倾向待观察" },
         reason: "这是一条需要用户确认的行为证据候选。",
         validator_status: "passed",
-        validator_message: null,
+        validator_message: null as string | null,
         status: "pending",
         safety_note: "确认后只追加行为证据，不会触发交易或账户动作。",
         created_at: "2026-04-26T09:40:00Z",
@@ -1068,14 +1526,42 @@ function json(route: Route, body: unknown, status = 200) {
   });
 }
 
-function sse(route: Route, blocks: Array<{ event: string; data: unknown }>) {
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sse(
+  route: Route,
+  blocks: Array<{ event: string; data: unknown }>,
+  delayMs = 0,
+) {
   const requestOrigin = new URL(route.request().headers().origin ?? route.request().url()).origin;
+  const lineBreak = "\r\n";
   const body = blocks
-    .map(
-      (block) =>
-        `event: ${block.event}\ndata: ${JSON.stringify(block.data)}\n\n`,
-    )
+    .map((block) => {
+      const source =
+        block.data && typeof block.data === "object" && !Array.isArray(block.data)
+          ? { ...(block.data as Record<string, unknown>) }
+          : block.data;
+      const sourceRecord =
+        source && typeof source === "object" && !Array.isArray(source)
+          ? (source as Record<string, unknown>)
+          : null;
+      const eventId = sourceRecord?.id ?? null;
+      if (
+        block.event === "agent_event" &&
+        sourceRecord
+      ) {
+        delete sourceRecord.id;
+      }
+      const idLine = typeof eventId === "string" ? `id: ${eventId}${lineBreak}` : "";
+      return `event: ${block.event}${lineBreak}${idLine}data: ${JSON.stringify(source)}${lineBreak}${lineBreak}`;
+    })
     .join("");
+
+  if (delayMs > 0) {
+    await wait(delayMs);
+  }
 
   return route.fulfill({
     status: 200,
@@ -1083,7 +1569,7 @@ function sse(route: Route, blocks: Array<{ event: string; data: unknown }>) {
     headers: {
       "Access-Control-Allow-Credentials": "true",
       "Access-Control-Allow-Headers": "content-type",
-      "Access-Control-Allow-Methods": "GET,POST,PATCH,PUT,OPTIONS",
+      "Access-Control-Allow-Methods": "DELETE,GET,POST,PATCH,PUT,OPTIONS",
       "Access-Control-Allow-Origin": requestOrigin,
       "Cache-Control": "no-cache",
     },
@@ -1100,6 +1586,7 @@ export async function mockFundGeneApi(
   const profileContext = buildProfileContext();
   const pendingProposals = buildPendingProposals();
   const llmSettings = buildLlmSettings();
+  let queuedFollowUp: Record<string, unknown> | null = null;
 
   await page.context().route("**/*", async (route) => {
     const url = new URL(route.request().url());
@@ -1142,16 +1629,59 @@ export async function mockFundGeneApi(
       if (!item.enabled) {
         return json(route, { detail: "Automation is disabled." }, 409);
       }
+      const createdPendingProposalIds =
+        automationKey === "news_watch" ? ["proposal_news_watch_e2e"] : [];
+      const runSummary =
+        automationKey === "news_watch"
+          ? "资讯影响观察已完成：已同步最新政策新闻，并准备 1 条待确认观察。"
+          : `${item.title} 已生成同步运行记录。`;
       const run = {
         run_id: `run_${automationKey}_e2e`,
         agent_run_id: `agent_run_${automationKey}_e2e`,
         status: "succeeded",
         started_at: "2026-04-26T10:00:00Z",
         completed_at: "2026-04-26T10:00:00Z",
-        summary: `${item.title} 已生成同步运行记录。`,
+        summary: runSummary,
         output_ref: `automation:${automationKey}:e2e`,
       };
       (item as unknown as { last_run: typeof run | null }).last_run = run;
+      automationState.recent_notifications.unshift({
+        id: `notification_${automationKey}_e2e`,
+        automation_key: item.key,
+        title: item.title,
+        message:
+          automationKey === "news_watch"
+            ? "已同步最新资讯，央行支持性货币政策信息与权益基金情绪、债券基金缓冲相关；保存为长期观察前仍需你确认。"
+            : `${item.title} 已完成本轮同步检查。`,
+        action_label: automationKey === "news_watch" ? "查看待确认记录" : "查看运行记录",
+        action_route: automationKey === "news_watch" ? "/profile?from=automation" : "/automations",
+        created_at: "2026-04-26T10:00:00Z",
+        read_at: null,
+      });
+      if (
+        automationKey === "news_watch" &&
+        !pendingProposals.proposals.some((proposal) => proposal.id === "proposal_news_watch_e2e")
+      ) {
+        pendingProposals.proposals.unshift({
+          id: "proposal_news_watch_e2e",
+          title: "确认记录央行政策新闻的组合影响观察",
+          source_label: "资讯影响观察自动任务",
+          evidence_summary:
+            "央行支持性货币政策信息可能影响权益基金情绪和债券基金缓冲作用，建议先作为待观察线索保存。",
+          writeback_label: "组合观察线索，不是交易动作",
+          target_type: "behavior_profile_note",
+          target_id: null,
+          patch_preview: { evidence: "央行政策新闻影响路径待观察" },
+          reason: "自动任务只准备候选记录，仍需用户确认。",
+          validator_status: "passed",
+          validator_message: "新闻相关性不被写成交易信号。",
+          status: "pending",
+          safety_note: "确认后只追加观察线索，不会修改持仓或执行交易。",
+          created_at: "2026-04-26T10:00:00Z",
+          run_id: run.run_id,
+        });
+        pendingProposals.pending_count = pendingProposals.proposals.length;
+      }
       return json(route, {
         run_id: run.run_id,
         automation_key: item.key,
@@ -1161,13 +1691,31 @@ export async function mockFundGeneApi(
         completed_at: run.completed_at,
         summary: run.summary,
         output_ref: run.output_ref,
-        created_pending_proposal_ids: [],
+        created_pending_proposal_ids: createdPendingProposalIds,
         steps: [
           {
             key: "read_context",
             label: "读取授权上下文",
             status: "completed",
             detail: "已读取画像、组合、新闻、学习和训练状态。",
+          },
+          {
+            key: "refresh_news",
+            label: "同步最新资讯",
+            status: "completed",
+            detail:
+              automationKey === "news_watch"
+                ? "已读取央行政策新闻和持仓相关信号。"
+                : "本任务不需要额外同步资讯。",
+          },
+          {
+            key: "build_output",
+            label: "生成可解释结论",
+            status: "completed",
+            detail:
+              automationKey === "news_watch"
+                ? "已把新闻影响拆成权益情绪、债券缓冲和不确定性。"
+                : "已生成今日判断、安全下一步和边界说明。",
           },
           {
             key: "notify_user",
@@ -1178,9 +1726,18 @@ export async function mockFundGeneApi(
         ],
         output_payload: {
           automation_key: item.key,
-          headline: dashboardState.daily_brief.headline,
+          headline:
+            automationKey === "news_watch"
+              ? "央行支持性货币政策信息值得观察，但先核对组合暴露，不直接行动。"
+              : dashboardState.daily_brief.headline,
           source_coverage: dashboardState.daily_brief.source_coverage,
-          primary_action: dashboardState.daily_brief.primary_action,
+          primary_action:
+            automationKey === "news_watch"
+              ? {
+                  label: "查看待确认观察",
+                  href: "/profile?from=automation",
+                }
+              : dashboardState.daily_brief.primary_action,
           safety_boundary: item.safety_boundary,
         },
       });
@@ -1294,6 +1851,39 @@ export async function mockFundGeneApi(
     if (path === "/api/assistant/sessions/session_e2e") {
       return json(route, assistantSession);
     }
+    if (path === "/api/assistant/sessions/session_e2e/queued-follow-up") {
+      if (route.request().method() === "DELETE") {
+        queuedFollowUp = null;
+        return json(route, {
+          schema_version: "queued_follow_up_v1",
+          queued_follow_up: null,
+          message: "已取消排队的下一句。",
+        });
+      }
+      return json(route, {
+        schema_version: "queued_follow_up_v1",
+        queued_follow_up: queuedFollowUp,
+        message: queuedFollowUp
+          ? "已找到排队的下一句。"
+          : "当前会话没有排队的下一句。",
+      });
+    }
+    if (
+      path === "/api/assistant/sessions/session_e2e/queued-follow-up/submitted"
+    ) {
+      if (queuedFollowUp) {
+        queuedFollowUp = {
+          ...queuedFollowUp,
+          status: "submitted",
+          submitted_at: "2026-04-26T09:36:00Z",
+        };
+      }
+      return json(route, {
+        schema_version: "queued_follow_up_v1",
+        queued_follow_up: queuedFollowUp,
+        message: "排队内容已发送。",
+      });
+    }
     if (path === "/api/assistant/sessions/session_history_e2e") {
       return json(route, assistantHistorySession);
     }
@@ -1303,6 +1893,79 @@ export async function mockFundGeneApi(
     if (path.startsWith("/api/assistant/runs/") && path.endsWith("/events")) {
       return json(route, agentRunEvents);
     }
+    if (
+      path === "/api/assistant/runs/run_active_disconnect_e2e/status"
+    ) {
+      return json(route, {
+        schema_version: "agent_run_status_v1",
+        run_id: "run_active_disconnect_e2e",
+        session_id: "session_e2e",
+        status: "running",
+        run_status: "running",
+        active: true,
+        cancel_requested: false,
+        started_at: "2026-04-26T09:35:00Z",
+        completed_at: null,
+        latency_ms: null,
+        message: "本次整理正在当前进程中运行。",
+      });
+    }
+    if (path === "/api/assistant/runs/run_stream_error_recover_e2e/status") {
+      return json(route, {
+        schema_version: "agent_run_status_v1",
+        run_id: "run_stream_error_recover_e2e",
+        session_id: "session_e2e",
+        status: "completed",
+        run_status: "completed",
+        active: false,
+        cancel_requested: false,
+        started_at: "2026-04-26T09:36:00Z",
+        completed_at: "2026-04-26T09:36:03Z",
+        latency_ms: 3000,
+        message: "本次整理已完成。",
+      });
+    }
+    if (path.startsWith("/api/assistant/runs/") && path.endsWith("/status")) {
+      return json(route, agentRunStatus);
+    }
+    if (
+      path.startsWith("/api/assistant/runs/") &&
+      path.endsWith("/queued-follow-up")
+    ) {
+      let payload: Record<string, unknown> = {};
+      try {
+        payload = route.request().postDataJSON() as Record<string, unknown>;
+      } catch {
+        payload = {};
+      }
+      queuedFollowUp = {
+        id: "queued_followup_e2e",
+        session_id: "session_e2e",
+        queued_after_run_id: "run_e2e",
+        message: String(payload.message ?? ""),
+        status: "queued",
+        created_at: "2026-04-26T09:35:05Z",
+        submitted_at: null,
+        discarded_at: null,
+      };
+      return json(route, {
+        schema_version: "queued_follow_up_v1",
+        queued_follow_up: queuedFollowUp,
+        message: "已排队，上一条完成后发送。",
+      });
+    }
+    if (path.startsWith("/api/assistant/runs/") && path.endsWith("/cancel")) {
+      queuedFollowUp = null;
+      return json(route, {
+        run_id: "run_e2e",
+        status: "cancelling",
+        cancel_requested: true,
+        message: "已请求停止本次整理，排队的下一句不会自动发送。",
+      });
+    }
+    if (path === "/api/assistant/runs/active") {
+      return json(route, activeAgentRuns);
+    }
     if (path === "/api/assistant/messages/stream") {
       let payload: Record<string, unknown> = {};
       try {
@@ -1310,16 +1973,59 @@ export async function mockFundGeneApi(
       } catch {
         payload = {};
       }
+      const message = typeof payload.message === "string" ? payload.message : "";
+      const isAgentFirstNextMessage = message.includes(agentFirstNextQuestion);
+      const isAgentFirstWhyMessage = message.includes(agentFirstWhyQuestion);
+      const isAgentFirstPlanMessage = message.includes(agentFirstQuestion);
+      const isAgentShowcaseMessage = message.includes(agentShowcaseQuestion);
+      const isAgentPortfolioJumpMessage = message.includes(agentPortfolioJumpQuestion);
+      const isAgentShowcaseFollowUpMessage = message.includes(
+        agentShowcaseFollowUpQuestion,
+      );
+      const isNewsShowcaseMessage =
+        typeof payload.message === "string" &&
+        (payload.message.includes(newsQuestion) ||
+          payload.message.includes("央行：下一阶段将坚持支持性的货币政策立场") ||
+          payload.message.includes("支持性货币政策"));
       const conversation =
-        payload.session_id === "session_history_e2e"
+        isNewsShowcaseMessage
+          ? newsAssistantSession
+          : isAgentFirstNextMessage
+          ? agentFirstNextSession
+          : isAgentFirstWhyMessage
+          ? agentFirstWhySession
+          : isAgentFirstPlanMessage
+          ? agentFirstPlanSession
+          : isAgentShowcaseFollowUpMessage
+          ? agentShowcaseFollowUpSession
+          : isAgentPortfolioJumpMessage
+          ? agentPortfolioJumpSession
+          : isAgentShowcaseMessage || payload.start_new_session === true
+          ? agentShowcaseSession
+          : payload.session_id === "session_history_e2e"
           ? continuedAssistantHistorySession
           : assistantSession;
-      return sse(route, [
+      const simulateActiveDisconnect =
+        typeof payload.message === "string" &&
+        payload.message.includes("触发活跃流断开测试");
+      const simulateRecoverableStreamError =
+        typeof payload.message === "string" &&
+        payload.message.includes("触发错误恢复测试");
+      const streamRunId = simulateActiveDisconnect
+        ? "run_active_disconnect_e2e"
+        : simulateRecoverableStreamError
+          ? "run_stream_error_recover_e2e"
+        : "run_e2e";
+      const omitConversation =
+        typeof payload.message === "string" &&
+        (payload.message.includes("触发流式恢复测试") ||
+          payload.message.includes("触发活跃流断开测试"));
+      const streamBlocks: Array<{ event: string; data: unknown }> = [
         {
           event: "agent_event",
           data: {
-            id: "run_e2e:0001",
-            run_id: "run_e2e",
+            id: `${streamRunId}:0001`,
+            run_id: streamRunId,
             sequence: 1,
             event_type: "turn_started",
             phase: "turn",
@@ -1333,8 +2039,8 @@ export async function mockFundGeneApi(
         {
           event: "agent_event",
           data: {
-            id: "run_e2e:0002",
-            run_id: "run_e2e",
+            id: `${streamRunId}:0002`,
+            run_id: streamRunId,
             sequence: 2,
             event_type: "step_started",
             phase: "context",
@@ -1345,11 +2051,13 @@ export async function mockFundGeneApi(
             payload: {},
           },
         },
-        {
+      ];
+      if (!simulateActiveDisconnect) {
+        streamBlocks.push({
           event: "agent_event",
           data: {
-            id: "run_e2e:0003",
-            run_id: "run_e2e",
+            id: `${streamRunId}:0003`,
+            run_id: streamRunId,
             sequence: 3,
             event_type: "turn_complete",
             phase: "turn",
@@ -1359,9 +2067,23 @@ export async function mockFundGeneApi(
             duration_ms: 1200,
             payload: {},
           },
-        },
-        { event: "conversation", data: conversation },
-      ]);
+        });
+      }
+      if (simulateRecoverableStreamError) {
+        streamBlocks.push({
+          event: "error",
+          data: {
+            message: "流式连接在最终会话返回前断开。",
+            run_id: streamRunId,
+            recoverable: true,
+          },
+        });
+        return sse(route, streamBlocks, 850);
+      }
+      if (!omitConversation) {
+        streamBlocks.push({ event: "conversation", data: conversation });
+      }
+      return sse(route, streamBlocks, 850);
     }
     if (path === "/api/assistant/messages") {
       let payload: Record<string, unknown> = {};
@@ -1369,6 +2091,51 @@ export async function mockFundGeneApi(
         payload = route.request().postDataJSON() as Record<string, unknown>;
       } catch {
         payload = {};
+      }
+      if (
+        typeof payload.message === "string" &&
+        (payload.message.includes(newsQuestion) ||
+          payload.message.includes("央行：下一阶段将坚持支持性的货币政策立场") ||
+          payload.message.includes("支持性货币政策"))
+      ) {
+        return json(route, newsAssistantSession);
+      }
+      if (
+        typeof payload.message === "string" &&
+        payload.message.includes(agentFirstNextQuestion)
+      ) {
+        return json(route, agentFirstNextSession);
+      }
+      if (
+        typeof payload.message === "string" &&
+        payload.message.includes(agentFirstWhyQuestion)
+      ) {
+        return json(route, agentFirstWhySession);
+      }
+      if (
+        typeof payload.message === "string" &&
+        payload.message.includes(agentFirstQuestion)
+      ) {
+        return json(route, agentFirstPlanSession);
+      }
+      if (
+        typeof payload.message === "string" &&
+        payload.message.includes(agentShowcaseFollowUpQuestion)
+      ) {
+        return json(route, agentShowcaseFollowUpSession);
+      }
+      if (
+        typeof payload.message === "string" &&
+        payload.message.includes(agentPortfolioJumpQuestion)
+      ) {
+        return json(route, agentPortfolioJumpSession);
+      }
+      if (
+        (typeof payload.message === "string" &&
+          payload.message.includes(agentShowcaseQuestion)) ||
+        payload.start_new_session === true
+      ) {
+        return json(route, agentShowcaseSession);
       }
       if (payload.session_id === "session_history_e2e") {
         return json(route, continuedAssistantHistorySession);

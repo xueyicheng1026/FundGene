@@ -19,18 +19,26 @@ import {
 import {
   ApiError,
   cancelAgentRun,
+  discardSessionQueuedFollowUp,
+  getActiveAgentRuns,
   getAgentRunEvents,
+  getAgentRunStatus,
   getAgentRunTrace,
   getAssistantConversation,
   getAssistantSession,
   getAssistantSessions,
   getBehaviorProfile,
   getDashboardState,
+  getSessionQueuedFollowUp,
   getSessionUser,
+  markSessionQueuedFollowUpSubmitted,
+  queueAgentRunFollowUp,
   streamAssistantMessage,
   type AdvisorActionTarget,
+  type ActiveAgentRuns,
   type AgentRunEvent,
   type AgentRunEvents,
+  type AgentRunStatus,
   type AgentRunTrace,
   type AssistantConversationMessage,
   type AssistantConversationState,
@@ -38,6 +46,7 @@ import {
   type AdvisorStructuredResponse,
   type DashboardDailyBrief,
   type DashboardState,
+  type QueuedFollowUp,
   type SafeNextAction,
 } from "@/lib/api";
 import { formatProductCopy, formatUserVisibleCopy } from "@/lib/display-labels";
@@ -48,7 +57,7 @@ import { cn, StatusBadge } from "./ui/primitives";
 const starterPrompts = [
   "我刚开始买基金，怎么理解风险等级和回撤？",
   "如果我总想追涨，FundGene 应该怎么帮我拆解这个问题？",
-  "我该怎么判断自己现在的基金配置是不是太集中？",
+  "帮我检查这份组合里最需要关注的风险来源。",
 ];
 
 function formatIntent(intent: string): string {
@@ -189,7 +198,7 @@ function inferActionTarget(action: string): AdvisorActionTarget {
   ) {
     return {
       label: "查看组合体检",
-      href: "/portfolio",
+      href: "/portfolio?from=agent&focus=concentration",
       intent: "portfolio",
       kind: "internal_link",
     };
@@ -263,6 +272,26 @@ function buildContextPrompt(searchParams: URLSearchParams): string | null {
   return null;
 }
 
+function buildSubmittedMessage({
+  draft,
+  contextPrompt,
+  contextDisplayMessage,
+}: {
+  draft: string;
+  contextPrompt: string;
+  contextDisplayMessage: string;
+}): string {
+  const normalizedDraft = draft.trim();
+  if (
+    contextDisplayMessage.trim().length >= 4 &&
+    contextPrompt.trim().length > 0 &&
+    normalizedDraft === contextPrompt.trim()
+  ) {
+    return contextDisplayMessage.trim();
+  }
+  return normalizedDraft;
+}
+
 function buildSafeActionHref(action: SafeNextAction): string {
   const routeAliases: Record<string, string> = {
     "/dashboard": "/today",
@@ -289,7 +318,7 @@ function buildDailyBriefCoachPrompts(brief: DashboardDailyBrief | null): string[
 
   const prompts = [
     `请解释今天这个判断：${brief.headline}`,
-    "请把今天的判断拆成事实、影响路径和不确定性。",
+    "帮我检查这份组合里最需要关注的风险来源。",
     `我执行“${brief.primaryAction.label}”前，应该先检查什么？`,
   ];
 
@@ -320,6 +349,7 @@ function getRunProgressSteps({
 }): Array<{ label: string; detail: string; status: RunStepStatus }> {
   const hasTrace = Boolean(trace);
   const isCompleted = trace?.run.runStatus === "completed";
+  const isCancelled = trace?.run.runStatus === "cancelled";
   const hasSources = (trace?.toolCalls.length ?? 0) > 0 || (trace?.evidenceRefs.length ?? 0) > 0;
 
   return [
@@ -344,8 +374,14 @@ function getRunProgressSteps({
     },
     {
       label: "生成安全下一步",
-      detail: isCompleted ? "已返回解释、边界和行动入口" : pending ? "正在组织回答" : "等待完成前置检查",
-      status: isCompleted ? "done" : pending ? "active" : "waiting",
+      detail: isCancelled
+        ? "本轮已停止，未形成新的行动建议"
+        : isCompleted
+          ? "已返回解释、边界和行动入口"
+          : pending
+            ? "正在组织回答"
+            : "等待完成前置检查",
+      status: isCompleted || isCancelled ? "done" : pending ? "active" : "waiting",
     },
   ];
 }
@@ -361,9 +397,15 @@ function getLiveRunProgressSteps(
         "step_completed",
         "tool_call_started",
         "tool_call_completed",
+        "input_queued",
+        "input_submitted",
+        "input_discarded",
         "turn_cancel_requested",
         "turn_aborted",
+        "turn_interrupted",
+        "turn_error",
         "agent_message",
+        "turn_closed",
         "turn_complete",
       ].includes(event.eventType),
     )
@@ -381,6 +423,35 @@ function getLiveRunProgressSteps(
     });
 }
 
+function mergeAgentRunEvents(
+  replayEvents: AgentRunEvent[] | undefined,
+  liveEvents: AgentRunEvent[],
+  expectedRunId?: string | null,
+): AgentRunEvent[] {
+  const targetRunId =
+    expectedRunId ??
+    liveEvents.at(-1)?.runId ??
+    replayEvents?.at(-1)?.runId ??
+    null;
+  const eventsByKey = new Map<string, AgentRunEvent>();
+
+  [...(replayEvents ?? []), ...liveEvents].forEach((event) => {
+    if (targetRunId && event.runId !== targetRunId) {
+      return;
+    }
+    const key = event.id || `${event.runId}:${event.sequence}`;
+    eventsByKey.set(key, event);
+  });
+
+  return Array.from(eventsByKey.values()).sort((left, right) => {
+    const sequenceDelta = left.sequence - right.sequence;
+    if (sequenceDelta !== 0) {
+      return sequenceDelta;
+    }
+    return (left.at ?? "").localeCompare(right.at ?? "");
+  });
+}
+
 function formatLiveRunEventDetail(event: AgentRunEvent): string {
   if (event.eventType === "turn_started") {
     return "已接收任务，正在建立本轮上下文";
@@ -394,10 +465,30 @@ function formatLiveRunEventDetail(event: AgentRunEvent): string {
       : "资料读取完成";
   }
   if (event.eventType === "agent_message") {
-    return "回答已经生成，正在同步会话";
+    return event.status === "cancelled"
+      ? "停止说明已经同步到会话"
+      : "回答已经生成，正在同步会话";
+  }
+  if (event.eventType === "input_queued") {
+    return "已收到下一句，会等本轮完成后再发送";
+  }
+  if (event.eventType === "input_submitted") {
+    return "排队内容已进入下一轮整理";
+  }
+  if (event.eventType === "input_discarded") {
+    return "排队内容已取消或被新的下一句替换";
   }
   if (event.eventType === "turn_complete") {
     return "本轮任务已完成";
+  }
+  if (event.eventType === "turn_closed") {
+    if (event.status === "interrupted") {
+      return "本轮已中断，未作为完成判断处理";
+    }
+    return "本轮已停止，未作为正常完成处理";
+  }
+  if (event.eventType === "turn_interrupted") {
+    return "上次整理中断了，可以重新发送问题";
   }
   if (event.eventType === "turn_cancel_requested") {
     return "已收到停止请求，正在结束当前步骤";
@@ -405,12 +496,85 @@ function formatLiveRunEventDetail(event: AgentRunEvent): string {
   if (event.eventType === "turn_aborted") {
     return "本轮整理已停止，没有替你确认长期记录";
   }
+  if (event.eventType === "turn_error") {
+    return "这次整理没有顺利完成，可以稍后重试";
+  }
   if (event.eventType === "step_started") {
     return "正在处理这一步";
   }
   return event.durationMs !== null
     ? `这一步已完成，用时 ${event.durationMs}ms`
     : "这一步已完成";
+}
+
+function getRunStatusLabel(status: AgentRunStatus | undefined): string | null {
+  if (!status) {
+    return null;
+  }
+  if (status.status === "cancelled") {
+    return "已停止";
+  }
+  if (status.status === "interrupted") {
+    return "已中断";
+  }
+  if (status.status === "failed") {
+    return "需要重试";
+  }
+  if (status.cancelRequested || status.status === "cancelling") {
+    return "正在停止";
+  }
+  if (status.active || status.status === "running") {
+    return "正在整理";
+  }
+  if (status.status === "completed") {
+    return "已完成";
+  }
+  return "已同步";
+}
+
+function getRunStatusMessage(status: AgentRunStatus | undefined): string | null {
+  if (!status) {
+    return null;
+  }
+  if (status.status === "cancelled") {
+    return "本轮整理已停止，没有替你确认长期记录。";
+  }
+  if (status.status === "interrupted") {
+    return "上次整理中断了，没有形成完整结论，可以重新发送。";
+  }
+  if (status.status === "failed") {
+    return "这次整理没有顺利完成，可以调整问题后重试。";
+  }
+  if (status.cancelRequested || status.status === "cancelling") {
+    return "已收到停止请求，会在当前步骤结束后收束。";
+  }
+  return status.message;
+}
+
+function getLatestActiveRun(runs: ActiveAgentRuns | undefined): AgentRunStatus | null {
+  if (!runs || runs.runs.length === 0) {
+    return null;
+  }
+  return runs.runs[0] ?? null;
+}
+
+function shouldAutoSubmitQueuedFollowUp(
+  queuedFollowUp: QueuedFollowUp | null,
+  runStatus: AgentRunStatus | undefined,
+): boolean {
+  return Boolean(
+    queuedFollowUp &&
+      queuedFollowUp.status === "queued" &&
+      runStatus &&
+      runStatus.runId === queuedFollowUp.queuedAfterRunId &&
+      runStatus.status === "completed" &&
+      !runStatus.active &&
+      !runStatus.cancelRequested,
+  );
+}
+
+function keepQueuedFollowUp(item: QueuedFollowUp | null | undefined): QueuedFollowUp | null {
+  return item?.status === "queued" ? item : null;
 }
 
 function RunStatusDot({ status }: { status: RunStepStatus }) {
@@ -457,21 +621,21 @@ function SessionRail({
   return (
     <aside
       data-testid="agent-session-rail"
-      className="agent-context-strip workbench-panel order-2 flex w-full min-w-0 max-w-[calc(100vw-2rem)] flex-col gap-3 p-4 lg:order-none lg:max-w-none"
+      className="agent-context-strip agent-side-card workbench-panel order-2 flex w-full min-w-0 max-w-[calc(100vw-2rem)] flex-col gap-3 p-4 lg:order-none lg:max-w-none"
     >
       <div className="agent-reference-header">
         <div className="min-w-0">
-          <p className="section-kicker">历史会话</p>
-          <h2 className="mt-1 text-lg font-semibold">对话记录</h2>
+          <p className="section-kicker">任务来源</p>
+          <h2 className="mt-1 text-lg font-semibold">Agent 工作台</h2>
           <p className="mt-1 text-xs leading-5 text-[color:var(--ink-muted)]">
-            选择一段历史对话，重新显示消息并继续聊。
+            今日判断、历史问题和任务模板会一起构成本轮上下文。
           </p>
         </div>
       </div>
 
       <button
         type="button"
-        className="min-h-[2.75rem] w-full min-w-0 rounded-full border border-[rgba(0,113,227,0.32)] px-4 text-center text-sm font-bold leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_14px_28px_rgba(0,113,227,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+        className="agent-new-task-button min-h-[2.75rem] w-full min-w-0 rounded-full border border-[rgba(0,113,227,0.32)] px-4 text-center text-sm font-bold leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_14px_28px_rgba(0,113,227,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
         style={{ background: "#0071e3", color: "#ffffff" }}
         onClick={onNewTask}
         disabled={pending}
@@ -498,7 +662,12 @@ function SessionRail({
           </div>
         </section>
 
-        <div className="grid gap-2" aria-label="历史会话列表">
+        <section className="agent-rail-section">
+          <div className="mb-2 flex items-center gap-2">
+            <History aria-hidden="true" className="size-4 text-[color:var(--accent-teal)]" />
+            <p className="section-kicker">最近对话</p>
+          </div>
+          <div className="grid gap-2" aria-label="历史会话列表">
           {visibleSessions.length > 0 ? (
             visibleSessions.map((session) => {
               const active = activeSessionId === session.id;
@@ -538,11 +707,12 @@ function SessionRail({
               还没有历史会话。发送第一条问题后，这里会保存记录。
             </div>
           )}
-        </div>
+          </div>
+        </section>
 
-        <div>
+        <section className="agent-rail-section">
           <div className="mb-2 flex items-center gap-2">
-            <History aria-hidden="true" className="size-4 text-[color:var(--accent-teal)]" />
+            <ListChecks aria-hidden="true" className="size-4 text-[color:var(--accent-teal)]" />
             <p className="section-kicker">任务模板</p>
           </div>
           <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
@@ -558,7 +728,7 @@ function SessionRail({
               </button>
             ))}
           </div>
-        </div>
+        </section>
       </div>
     </aside>
   );
@@ -568,6 +738,8 @@ function AgentRunStatusPanel({
   trace,
   liveEvents,
   replayEvents,
+  runId,
+  runStatus,
   loading,
   pending,
   dashboard,
@@ -576,12 +748,16 @@ function AgentRunStatusPanel({
   trace: AgentRunTrace | undefined;
   liveEvents: AgentRunEvent[];
   replayEvents: AgentRunEvents | undefined;
+  runId: string | null;
+  runStatus: AgentRunStatus | undefined;
   loading: boolean;
   pending: boolean;
   dashboard: DashboardState;
   dailyBrief: DashboardDailyBrief | null;
 }) {
-  const displayEvents = liveEvents.length > 0 ? liveEvents : replayEvents?.events ?? [];
+  const displayEvents = mergeAgentRunEvents(replayEvents?.events, liveEvents, runId);
+  const statusLabel = getRunStatusLabel(runStatus);
+  const statusMessage = getRunStatusMessage(runStatus);
   const steps =
     displayEvents.length > 0
       ? getLiveRunProgressSteps(displayEvents)
@@ -615,26 +791,43 @@ function AgentRunStatusPanel({
   return (
     <aside
       data-testid="agent-run-status"
-      className="agent-process-panel workbench-panel order-3 grid w-full min-w-0 max-w-[calc(100vw-2rem)] grid-cols-[minmax(0,1fr)] gap-4 overflow-hidden p-4 lg:order-none lg:max-w-none"
+      className="agent-process-panel agent-side-card workbench-panel order-3 grid w-full min-w-0 max-w-[calc(100vw-2rem)] grid-cols-[minmax(0,1fr)] gap-4 overflow-hidden p-4 lg:order-none lg:max-w-none"
     >
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-1 flex-wrap items-center gap-2">
             <StatusBadge tone="accent">整理状态</StatusBadge>
-            <StatusBadge tone={pending || loading ? "warning" : trace ? "positive" : "neutral"}>
-              {pending ? "正在整理" : loading ? "同步中" : trace ? "已完成" : "等待问题"}
+            <StatusBadge
+              tone={
+                pending || loading
+                  ? "warning"
+                  : trace?.run.runStatus === "completed"
+                    ? "positive"
+                    : "neutral"
+              }
+            >
+              {statusLabel ??
+                (pending
+                  ? "正在整理"
+                  : loading
+                    ? "同步中"
+                    : trace?.run.runStatus === "cancelled"
+                      ? "已停止"
+                      : trace
+                        ? "已完成"
+                        : "等待问题")}
             </StatusBadge>
           </div>
         </div>
         <h2 className="mt-3 text-lg font-semibold">整理进度</h2>
         <p className="mt-1 text-xs leading-5 text-[color:var(--ink-muted)]">
-          默认显示自然语言步骤；更细的执行依据放在分层入口里。
+          {statusMessage ?? "默认显示自然语言步骤；更细的执行依据放在分层入口里。"}
         </p>
       </div>
 
       <div className="flow-line space-y-4">
-        {steps.map((step) => (
-          <div key={step.label} className="grid grid-cols-[1rem_minmax(0,1fr)] gap-3">
+        {steps.map((step, index) => (
+          <div key={`${step.label}-${index}`} className="grid grid-cols-[1rem_minmax(0,1fr)] gap-3">
             <RunStatusDot status={step.status} />
             <div>
               <p className="text-sm font-semibold text-[color:var(--ink-strong)]">
@@ -786,10 +979,12 @@ function StructuredAnswerCanvas({
   response,
   question,
   onPromptFill,
+  showcaseReveal = false,
 }: {
   response: AdvisorStructuredResponse;
   question: string;
   onPromptFill: (prompt: string) => void;
+  showcaseReveal?: boolean;
 }) {
   const actionItems =
     response.recommendedActions.length > 0
@@ -802,7 +997,11 @@ function StructuredAnswerCanvas({
     );
 
   return (
-    <div className="assistant-answer-card overflow-hidden">
+    <div
+      className={`assistant-answer-card overflow-hidden ${
+        showcaseReveal ? "assistant-answer-card-showcase" : ""
+      }`}
+    >
       <div className="border-b border-[color:var(--line-soft)] px-4 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge tone="accent">{formatIntent(response.intent)}</StatusBadge>
@@ -925,11 +1124,14 @@ function AgentWorkspaceTopbar({
       <div className="flex min-w-0 items-center gap-2">
         <Bot aria-hidden="true" className="size-4 shrink-0 text-[color:var(--accent-teal)]" />
         <span className="truncate text-sm font-semibold text-[color:var(--ink-strong)]">
-          教练工作区
+          Agent 工作区
         </span>
         <span className="hidden text-xs font-medium text-[color:var(--ink-muted)] sm:inline">
           {layoutSummary}
         </span>
+        <span className="agent-topbar-chip hidden sm:inline-flex">解释</span>
+        <span className="agent-topbar-chip hidden sm:inline-flex">训练</span>
+        <span className="agent-topbar-chip hidden sm:inline-flex">确认</span>
       </div>
       <div className="agent-layout-text-controls" aria-label="教练工作区布局">
         <button
@@ -966,17 +1168,29 @@ function AgentWorkspaceTopbar({
 export function CoachWorkspace() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const showcaseMode = ["1", "true", "yes"].includes(
+    (getQueryValue(searchParams, ["showcase"]) ?? "").toLowerCase(),
+  );
   const contextPrompt =
     getQueryValue(searchParams, ["prompt", "q"]) ??
     buildContextPrompt(searchParams) ??
     "";
+  const contextDisplayMessage =
+    getQueryValue(searchParams, ["display_message", "message"]) ?? "";
+  const startsWithFreshTask =
+    Boolean(contextPrompt) ||
+    ["1", "true", "yes"].includes(
+      (getQueryValue(searchParams, ["new", "fresh", "new_session"]) ?? "").toLowerCase(),
+    );
   const [draft, setDraft] = useState(() => contextPrompt);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [liveRunEvents, setLiveRunEvents] = useState<AgentRunEvent[]>([]);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [cancelNotice, setCancelNotice] = useState<string | null>(null);
-  const [freshTaskMode, setFreshTaskMode] = useState(false);
+  const [localQueuedFollowUp, setLocalQueuedFollowUp] =
+    useState<QueuedFollowUp | null>(null);
+  const [freshTaskMode, setFreshTaskMode] = useState(() => startsWithFreshTask);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [isCompactWorkspace, setIsCompactWorkspace] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 1399px)").matches,
@@ -990,6 +1204,7 @@ export function CoachWorkspace() {
   const messageScrollerRef = useRef<HTMLDivElement | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const appliedContextPromptRef = useRef(contextPrompt);
+  const autoSubmittedQueuedFollowUpIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1014,6 +1229,13 @@ export function CoachWorkspace() {
 
   useEffect(() => {
     if (!contextPrompt) {
+      if (startsWithFreshTask) {
+        setFreshTaskMode(true);
+        setSelectedSessionId(null);
+        window.requestAnimationFrame(() => {
+          composerTextareaRef.current?.focus();
+        });
+      }
       return;
     }
 
@@ -1028,13 +1250,15 @@ export function CoachWorkspace() {
         return contextPrompt;
       });
       appliedContextPromptRef.current = contextPrompt;
+      setFreshTaskMode(true);
+      setSelectedSessionId(null);
       setSubmitError(null);
     }
 
     window.requestAnimationFrame(() => {
       composerTextareaRef.current?.focus();
     });
-  }, [contextPrompt]);
+  }, [contextPrompt, startsWithFreshTask]);
 
   const sessionQuery = useQuery({
     queryKey: ["session-user"],
@@ -1073,34 +1297,135 @@ export function CoachWorkspace() {
     enabled: isOnboarded,
     retry: false,
   });
+  const activeRunSessionId = coachQuery.data?.session?.id ?? selectedSessionId;
+  const activeRunsQuery = useQuery({
+    queryKey: ["agent-active-runs", activeRunSessionId],
+    queryFn: () => getActiveAgentRuns(activeRunSessionId),
+    enabled: isOnboarded,
+    refetchInterval: (query) => {
+      const activeRuns = query.state.data?.runs ?? [];
+      return activeRuns.some((run) => run.active) ? 1200 : false;
+    },
+    retry: false,
+  });
+  const queuedFollowUpQuery = useQuery({
+    queryKey: ["assistant-queued-follow-up", activeRunSessionId],
+    queryFn: () => getSessionQueuedFollowUp(activeRunSessionId ?? ""),
+    enabled: Boolean(isOnboarded && activeRunSessionId),
+    retry: false,
+  });
+  const discoveredActiveRun = getLatestActiveRun(activeRunsQuery.data);
   const latestTraceRunId =
     coachQuery.data?.messages
       .slice()
       .reverse()
       .find((item) => item.role === "assistant" && item.agentRunId)?.agentRunId ??
     null;
+  const observedRunId =
+    activeRunId ?? discoveredActiveRun?.runId ?? (pendingQuestion ? null : latestTraceRunId);
   const traceQuery = useQuery({
-    queryKey: ["agent-run-trace", latestTraceRunId],
-    queryFn: () => getAgentRunTrace(latestTraceRunId ?? ""),
-    enabled: Boolean(isOnboarded && latestTraceRunId),
+    queryKey: ["agent-run-trace", observedRunId],
+    queryFn: () => getAgentRunTrace(observedRunId ?? ""),
+    enabled: Boolean(isOnboarded && observedRunId),
     retry: false,
   });
   const runEventsQuery = useQuery({
-    queryKey: ["agent-run-events", latestTraceRunId],
-    queryFn: () => getAgentRunEvents(latestTraceRunId ?? ""),
-    enabled: Boolean(isOnboarded && latestTraceRunId),
+    queryKey: ["agent-run-events", observedRunId],
+    queryFn: () => getAgentRunEvents(observedRunId ?? ""),
+    enabled: Boolean(isOnboarded && observedRunId),
     retry: false,
   });
+  const runStatusQuery = useQuery({
+    queryKey: ["agent-run-status", observedRunId],
+    queryFn: () => getAgentRunStatus(observedRunId ?? ""),
+    enabled: Boolean(isOnboarded && observedRunId),
+    refetchInterval: (query) => {
+      const status = query.state.data;
+      return status?.active || status?.status === "cancelling" ? 1200 : false;
+    },
+    retry: false,
+  });
+  const queriedRunStatus =
+    runStatusQuery.data?.runId === observedRunId ? runStatusQuery.data : undefined;
+  const observedRunStatus =
+    queriedRunStatus ??
+    (discoveredActiveRun?.runId === observedRunId ? discoveredActiveRun : undefined);
+  const observedTrace =
+    traceQuery.data?.run.id === observedRunId ? traceQuery.data : undefined;
+  const observedReplayEvents =
+    runEventsQuery.data?.runId === observedRunId ? runEventsQuery.data : undefined;
+  const queuedFollowUp =
+    keepQueuedFollowUp(localQueuedFollowUp) ??
+    keepQueuedFollowUp(observedRunStatus?.queuedFollowUp) ??
+    keepQueuedFollowUp(queuedFollowUpQuery.data?.queuedFollowUp) ??
+    null;
 
   const cancelRunMutation = useMutation({
     mutationFn: async (runId: string) => cancelAgentRun(runId),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
+      const discardedQueuedFollowUp = queuedFollowUp;
+      if (result.cancelRequested) {
+        setLocalQueuedFollowUp(null);
+      }
       setCancelNotice(result.message);
+      if (discardedQueuedFollowUp) {
+        await queryClient.invalidateQueries({
+          queryKey: ["assistant-queued-follow-up", discardedQueuedFollowUp.sessionId],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["agent-run-events", discardedQueuedFollowUp.queuedAfterRunId],
+        });
+      }
+      await runStatusQuery.refetch();
     },
     onError: (error) => {
       setCancelNotice(
         error instanceof Error ? error.message : "停止请求没有发送成功，请稍后重试。",
       );
+    },
+  });
+
+  const queueFollowUpMutation = useMutation({
+    mutationFn: async (input: { runId: string; message: string }) =>
+      queueAgentRunFollowUp(input.runId, input.message),
+    onSuccess: async (result) => {
+      setLocalQueuedFollowUp(keepQueuedFollowUp(result.queuedFollowUp));
+      setDraft("");
+      setSubmitError(null);
+      setCancelNotice(result.message);
+      await queryClient.invalidateQueries({
+        queryKey: ["assistant-queued-follow-up"],
+      });
+      if (result.queuedFollowUp) {
+        await queryClient.invalidateQueries({
+          queryKey: ["agent-run-events", result.queuedFollowUp.queuedAfterRunId],
+        });
+      }
+      await runStatusQuery.refetch();
+    },
+    onError: (error) => {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "下一句没有排队成功，请等当前回答结束后再发送。",
+      );
+    },
+  });
+
+  const discardQueuedFollowUpMutation = useMutation({
+    mutationFn: async (sessionId: string) => discardSessionQueuedFollowUp(sessionId),
+    onSuccess: async (result) => {
+      setLocalQueuedFollowUp(keepQueuedFollowUp(result.queuedFollowUp));
+      setCancelNotice(result.message);
+      await queryClient.invalidateQueries({
+        queryKey: ["assistant-queued-follow-up"],
+      });
+      if (result.queuedFollowUp) {
+        await queryClient.invalidateQueries({
+          queryKey: ["agent-run-events", result.queuedFollowUp.queuedAfterRunId],
+        });
+      }
+      await runStatusQuery.refetch();
     },
   });
 
@@ -1149,6 +1474,9 @@ export function CoachWorkspace() {
             if (event.eventType === "turn_aborted") {
               setCancelNotice("已停止这次整理，没有写入新的长期记录。");
             }
+            if (event.eventType === "turn_closed" && event.status === "cancelled") {
+              setCancelNotice("已停止这次整理，没有写入新的长期记录。");
+            }
             setLiveRunEvents((current) => {
               if (current.some((item) => item.id === event.id)) {
                 return current;
@@ -1178,16 +1506,86 @@ export function CoachWorkspace() {
         conversation,
       );
       queryClient.setQueryData(["coach-session", null], conversation);
+      await queryClient.invalidateQueries({ queryKey: ["agent-active-runs"] });
       await queryClient.invalidateQueries({ queryKey: ["coach-sessions"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (error, submittedMessage) => {
+      const runStillActive = isApiError(error) && error.status === 202;
+      if (runStillActive) {
+        if (error.runId) {
+          setActiveRunId(error.runId);
+        }
+        setCancelNotice(error.message);
+        setSubmitError(null);
+        return;
+      }
+
       setPendingQuestion(null);
       setActiveRunId(null);
       setDraft((currentDraft) => currentDraft || submittedMessage);
       setSubmitError(error instanceof Error ? error.message : "发送失败，请稍后重试。");
     },
   });
+  const runInProgress = coachMutation.isPending || Boolean(observedRunStatus?.active);
+  const stoppableRunId =
+    activeRunId ?? (observedRunStatus?.active ? observedRunStatus.runId : null);
+
+  useEffect(() => {
+    if (
+      !queuedFollowUp ||
+      runInProgress ||
+      coachMutation.isPending ||
+      autoSubmittedQueuedFollowUpIdRef.current === queuedFollowUp.id ||
+      !shouldAutoSubmitQueuedFollowUp(queuedFollowUp, observedRunStatus)
+    ) {
+      return;
+    }
+
+    autoSubmittedQueuedFollowUpIdRef.current = queuedFollowUp.id;
+    const followUpMessage = queuedFollowUp.message;
+    const timer = window.setTimeout(() => {
+      setPendingQuestion(followUpMessage);
+      setDraft("");
+      setSubmitError(null);
+      setCancelNotice("上一条已完成，正在发送排队的下一句。");
+      coachMutation.mutate(followUpMessage, {
+        onSuccess: async () => {
+          try {
+            await markSessionQueuedFollowUpSubmitted(
+              queuedFollowUp.sessionId,
+              queuedFollowUp.id,
+            );
+            setLocalQueuedFollowUp(null);
+            setCancelNotice(null);
+          } catch {
+            setLocalQueuedFollowUp(null);
+            setCancelNotice("排队的下一句已发送，但发送状态同步失败；刷新后可再次确认。");
+          } finally {
+            await queryClient.invalidateQueries({
+              queryKey: ["assistant-queued-follow-up"],
+            });
+            await queryClient.invalidateQueries({
+              queryKey: ["agent-run-events", queuedFollowUp.queuedAfterRunId],
+            });
+          }
+        },
+        onError: () => {
+          autoSubmittedQueuedFollowUpIdRef.current = null;
+        },
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    coachMutation,
+    observedRunStatus,
+    queryClient,
+    queuedFollowUp,
+    runInProgress,
+  ]);
 
   useEffect(() => {
     const scroller = messageScrollerRef.current;
@@ -1369,6 +1767,7 @@ export function CoachWorkspace() {
     setDraft("");
     setSubmitError(null);
     setPendingQuestion(null);
+    setLocalQueuedFollowUp(null);
     setFreshTaskMode(true);
     setSelectedSessionId(null);
     window.requestAnimationFrame(() => {
@@ -1382,6 +1781,7 @@ export function CoachWorkspace() {
     setDraft("");
     setSubmitError(null);
     setPendingQuestion(null);
+    setLocalQueuedFollowUp(null);
   }
 
   function handleToggleContextPanel() {
@@ -1407,13 +1807,23 @@ export function CoachWorkspace() {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError(null);
-    if (coachMutation.isPending) {
+
+    const message = buildSubmittedMessage({
+      draft,
+      contextPrompt,
+      contextDisplayMessage,
+    });
+    if (message.length < 4) {
+      setSubmitError("请先写下一个至少 4 个字符的问题。");
       return;
     }
 
-    const message = draft.trim();
-    if (message.length < 4) {
-      setSubmitError("请先写下一个至少 4 个字符的问题。");
+    if (runInProgress) {
+      if (!stoppableRunId) {
+        setSubmitError("上一条还在启动整理，等进度出现后再排队下一句。");
+        return;
+      }
+      queueFollowUpMutation.mutate({ runId: stoppableRunId, message });
       return;
     }
 
@@ -1430,7 +1840,7 @@ export function CoachWorkspace() {
       <AgentWorkspaceTopbar
         contextPanelCollapsed={contextPanelCollapsed}
         runPanelCollapsed={runPanelCollapsed}
-        pending={coachMutation.isPending}
+        pending={runInProgress}
         onToggleContextPanel={handleToggleContextPanel}
         onToggleRunPanel={handleToggleRunPanel}
         onNewTask={handleNewTask}
@@ -1443,7 +1853,7 @@ export function CoachWorkspace() {
             conversation={conversation}
             sessions={sessionHistory}
             activeSessionId={activeSessionId}
-            pending={coachMutation.isPending}
+            pending={runInProgress}
             onNewTask={handleNewTask}
             onPromptFill={handlePromptFill}
             onSelectSession={handleSelectSession}
@@ -1452,7 +1862,7 @@ export function CoachWorkspace() {
 
         <section
           data-testid="agent-active-session"
-          className="workbench-panel coach-chat-panel agent-active-panel order-1 min-w-0 max-w-[calc(100vw-2rem)] overflow-hidden lg:order-none lg:max-w-none"
+          className="workbench-panel coach-chat-panel agent-active-panel agent-chat-shell order-1 min-w-0 max-w-[calc(100vw-2rem)] overflow-hidden lg:order-none lg:max-w-none"
         >
           <DailyBriefCoachHeader
             brief={dailyBrief}
@@ -1464,10 +1874,10 @@ export function CoachWorkspace() {
           ref={messageScrollerRef}
           role="log"
           aria-live="polite"
-          aria-busy={coachMutation.isPending}
+          aria-busy={runInProgress}
           className="coach-message-log space-y-4 scroll-smooth px-4 py-5 sm:px-6"
         >
-          {visibleMessages.length > 0 || pendingQuestion ? (
+          {visibleMessages.length > 0 || pendingQuestion || queuedFollowUp ? (
             <>
               {hiddenMessageCount > 0 ? (
                 <div className="coach-history-pill mx-auto w-fit rounded-full border border-[color:var(--line-soft)] bg-white/[0.04] px-3 py-1 text-xs font-bold text-[color:var(--ink-muted)]">
@@ -1501,6 +1911,7 @@ export function CoachWorkspace() {
                           visibleStartIndex + index,
                         )}
                         onPromptFill={handlePromptFill}
+                        showcaseReveal={showcaseMode}
                       />
                     </>
                   ) : (
@@ -1566,6 +1977,26 @@ export function CoachWorkspace() {
                   </article>
                 </>
               ) : null}
+
+              {queuedFollowUp &&
+              !(coachMutation.isPending && pendingQuestion === queuedFollowUp.message) ? (
+                <article className="coach-message coach-message-user">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold text-[color:var(--ink-muted)]">
+                      你
+                    </p>
+                    <span className="text-xs text-[color:var(--ink-muted)]">
+                      已排队
+                    </span>
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[color:var(--ink-soft)]">
+                    {queuedFollowUp.message}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-[color:var(--ink-muted)]">
+                    上一条完成后发送；如果上一条被停止或失败，会先保留给你确认。
+                  </p>
+                </article>
+              ) : null}
             </>
           ) : (
             <div className="grid h-full min-h-[20rem] place-items-center">
@@ -1582,7 +2013,7 @@ export function CoachWorkspace() {
                       type="button"
                       className="group flex items-center justify-between gap-3 rounded-lg border border-[color:var(--line-soft)] bg-white/[0.04] px-3 py-3 text-left text-sm font-bold text-[color:var(--ink-soft)] transition-colors hover:bg-white/[0.08]"
                       onClick={() => handlePromptFill(prompt)}
-                      disabled={coachMutation.isPending}
+                      disabled={runInProgress}
                     >
                       <span>{prompt}</span>
                       <ArrowRight
@@ -1647,20 +2078,30 @@ export function CoachWorkspace() {
               <button
                 type="submit"
                 className="action-button min-w-[7.5rem] disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={coachMutation.isPending}
+                disabled={
+                  runInProgress
+                    ? draft.trim().length < 4 ||
+                      queueFollowUpMutation.isPending ||
+                      !stoppableRunId
+                    : coachMutation.isPending
+                }
               >
                 <SendHorizontal aria-hidden="true" className="size-4" />
-                {coachMutation.isPending
-                  ? "生成中"
+                {runInProgress
+                  ? draft.trim().length >= 4
+                    ? queueFollowUpMutation.isPending
+                      ? "排队中"
+                      : "排队发送"
+                    : "生成中"
                   : isHandoffDraft
                     ? "确认发送"
                     : "发送"}
               </button>
-              {coachMutation.isPending && activeRunId ? (
+              {stoppableRunId ? (
                 <button
                   type="button"
                   className="action-button-secondary disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={() => cancelRunMutation.mutate(activeRunId)}
+                  onClick={() => cancelRunMutation.mutate(stoppableRunId)}
                   disabled={cancelRunMutation.isPending}
                 >
                   <CircleStop aria-hidden="true" className="size-4" />
@@ -1675,10 +2116,24 @@ export function CoachWorkspace() {
               >
                 清空
               </button>
+              {queuedFollowUp ? (
+                <button
+                  type="button"
+                  className="action-button-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() =>
+                    discardQueuedFollowUpMutation.mutate(queuedFollowUp.sessionId)
+                  }
+                  disabled={discardQueuedFollowUpMutation.isPending}
+                >
+                  取消排队
+                </button>
+              ) : null}
             </div>
             <span className="agent-composer-hint text-xs leading-5 text-[color:var(--ink-muted)] sm:max-w-[21rem] sm:text-right">
-              {coachMutation.isPending
-                ? cancelNotice ?? "正在生成上一条回答；你可以先整理下一句。"
+              {queuedFollowUp
+                ? "下一句已排队；上一条正常完成后会自动发送。"
+                : runInProgress
+                  ? cancelNotice ?? "正在生成上一条回答；你可以先排队下一句。"
                 : isHandoffDraft
                   ? "从其他页面带来的问题不会自动发送，避免替你确认。"
                   : "回答会自动保留风险边界，并把建议转成下一步动作。"}
@@ -1690,16 +2145,18 @@ export function CoachWorkspace() {
               {submitError}
             </div>
           ) : null}
-        </form>
+          </form>
         </section>
 
         {!runPanelCollapsed ? (
           <AgentRunStatusPanel
-            trace={traceQuery.data}
+            trace={observedTrace}
             liveEvents={liveRunEvents}
-            replayEvents={runEventsQuery.data}
-            loading={traceQuery.isLoading || runEventsQuery.isLoading}
-            pending={coachMutation.isPending}
+            replayEvents={observedReplayEvents}
+            runId={observedRunId}
+            runStatus={observedRunStatus}
+            loading={traceQuery.isLoading || runEventsQuery.isLoading || runStatusQuery.isLoading}
+            pending={runInProgress}
             dashboard={dashboard}
             dailyBrief={dailyBrief}
           />

@@ -7,6 +7,7 @@ from app.models.agent_state_update_proposal import AgentStateUpdateProposal
 from app.models.agent_step import AgentStep
 from app.models.agent_tool_call import AgentToolCall
 from app.models.agent_citation import AgentCitation
+from app.models.assistant_queued_follow_up import AssistantQueuedFollowUp
 from app.models.automation_run import AutomationRun
 from app.models.automation_notification import AutomationNotification
 from app.models.automation_setting import AutomationSetting
@@ -43,6 +44,7 @@ __all__ = [
     "AgentStep",
     "AgentToolCall",
     "AgentCitation",
+    "AssistantQueuedFollowUp",
     "AutomationRun",
     "AutomationNotification",
     "AutomationSetting",

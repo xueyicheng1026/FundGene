@@ -230,6 +230,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname === "/automations" ||
     pathname === "/profile" ||
     pathname === "/news" ||
+    pathname === "/portfolio" ||
     pathname === "/simulation" ||
     pathname.startsWith("/learning");
   const hideMobileSidebar = pathname === "/onboarding";
@@ -361,6 +362,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     aria-current={active ? "page" : undefined}
                     className={cn(
                       "figma-nav-item",
+                      "app-tool-nav-item",
                       active && "figma-nav-item-active",
                     )}
                   >
