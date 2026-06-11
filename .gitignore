@@ -30,3 +30,13 @@ archive/legacy-frontend/
 .env.local
 .env.*.local
 .python-version
+
+# Local agent coordination and handoff notes should not be published.
+AGENTS.md
+CLAUDE.md
+*agent*.md
+*Agent*.md
+*AGENT*.md
+**/*agent*/**/*.md
+**/*Agent*/**/*.md
+**/*AGENT*/**/*.md
